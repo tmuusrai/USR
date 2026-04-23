@@ -4,7 +4,6 @@ flask-cors==5.0.0
 
 # LangChain core + community integrations
 langchain==0.3.25
-langchain-core==0.3.55
 langchain-community==0.3.24
 langchain-google-genai==2.1.4
 langchain-text-splitters==0.3.8
