@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>USR 計畫書問答系統</title>
+  <style>
+    body { font-family: sans-serif; max-width: 800px; margin: 40px auto; padding: 0 20px; }
+    h1 { font-size: 1.4rem; margin-bottom: 4px; }
+    p.sub { color: #666; font-size: 0.9rem; margin-top: 0; }
+    #status-bar { font-size: 0.8rem; padding: 4px 8px; border-radius: 4px; display: inline-block; margin-bottom: 16px; }
+    .ready { background: #d4edda; color: #155724; }
+    .not-ready { background: #f8d7da; color: #721c24; }
+
+    textarea {
+      width: 100%; box-sizing: border-box;
+      height: 80px; padding: 10px; font-size: 1rem;
+      border: 1px solid #ccc; border-radius: 6px; resize: vertical;
+    }
+    button {
+      margin-top: 8px; padding: 8px 24px; font-size: 1rem;
+      background: #1a73e8; color: #fff; border: none;
+      border-radius: 6px; cursor: pointer;
+    }
+    button:disabled { background: #aaa; cursor: not-allowed; }
+
+    #result { margin-top: 24px; }
+    #answer-box {
+      background: #f9f9f9; border: 1px solid #ddd;
+      border-radius: 6px; padding: 16px;
+      white-space: pre-wrap; line-height: 1.7;
+      display: none;
+    }
+    #sources { margin-top: 12px; font-size: 0.85rem; color: #555; display: none; }
+    #sources span { margin-right: 12px; }
+    #error-box {
+      background: #fdecea; border: 1px solid #f5c6cb;
+      border-radius: 6px; padding: 12px; color: #c0392b;
+      display: none;
+    }
+    #loading { display: none; color: #888; margin-top: 12px; }
+  </style>
+</head>
+<body>
+
+  <h1>USR 社會責任計畫書問答系統</h1>
+  <p class="sub">根據計畫書內容回答，僅限計畫書範圍內的問題。</p>
+
+  <div id="status-bar" class="not-ready">檢查系統狀態中...</div>
+
+  <textarea id="question" placeholder="請輸入您的問題，例如：這份計畫的核心目標是什麼？" maxlength="500"></textarea>
+  <br />
+  <button id="ask-btn" onclick="askQuestion()" disabled>送出問題</button>
+
+  <div id="loading">查詢中，請稍候...</div>
+
+  <div id="result">
+    <div id="error-box"></div>
+    <div id="answer-box"></div>
+    <div id="sources"></div>
+  </div>
+
+  <script>
+    // 頁面載入後檢查後端是否就緒
+    async function checkStatus() {
+      try {
+        const res = await fetch("/status");
+        const data = await res.json();
+        const bar = document.getElementById("status-bar");
+        const btn = document.getElementById("ask-btn");
+        if (data.ready) {
+          bar.textContent = `系統就緒　已載入 ${data.pdf_count} 份計畫書`;
+          bar.className = "ready";
+          btn.disabled = false;
+        } else {
+          bar.textContent = "系統尚未就緒，請聯絡管理員";
+          bar.className = "not-ready";
+        }
+      } catch {
+        document.getElementById("status-bar").textContent = "無法連線至伺服器";
+      }
+    }
+
+    async function askQuestion() {
+      const question = document.getElementById("question").value.trim();
+      if (!question) return;
+
+      // 重置畫面
+      setVisible("error-box", false);
+      setVisible("answer-box", false);
+      setVisible("sources", false);
+      setVisible("loading", true);
+      document.getElementById("ask-btn").disabled = true;
+
+      try {
+        const res = await fetch("/ask", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ question }),
+        });
+        const data = await res.json();
+
+        if (!res.ok || data.error) {
+          showError(data.error || "發生未知錯誤");
+        } else {
+          showAnswer(data.answer, data.sources);
+        }
+      } catch {
+        showError("無法連線至伺服器，請稍後再試。");
+      } finally {
+        setVisible("loading", false);
+        document.getElementById("ask-btn").disabled = false;
+      }
+    }
+
+    function showAnswer(answer, sources) {
+      const box = document.getElementById("answer-box");
+      box.textContent = answer;
+      setVisible("answer-box", true);
+
+      if (sources && sources.length > 0) {
+        const src = document.getElementById("sources");
+        src.innerHTML = "參考來源：" +
+          sources.map(s => `<span>📄 ${s.source} 第 ${s.page} 頁</span>`).join("");
+        setVisible("sources", true);
+      }
+    }
+
+    function showError(msg) {
+      const box = document.getElementById("error-box");
+      box.textContent = msg;
+      setVisible("error-box", true);
+    }
+
+    function setVisible(id, visible) {
+      document.getElementById(id).style.display = visible ? "block" : "none";
+    }
+
+    // Enter 送出（Shift+Enter 換行）
+    document.getElementById("question").addEventListener("keydown", (e) => {
+      if (e.key === "Enter" && !e.shiftKey) {
+        e.preventDefault();
+        if (!document.getElementById("ask-btn").disabled) askQuestion();
+      }
+    });
+
+    checkStatus();
+  </script>
+
+</body>
+</html>
