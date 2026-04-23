@@ -8,7 +8,7 @@ langchain-core==0.3.55
 langchain-community==0.3.24
 langchain-google-genai==2.1.4
 langchain-text-splitters==0.3.8
-langchain-voyageai==0.3.3
+langchain-voyageai
 
 # Vector store
 faiss-cpu==1.11.0
