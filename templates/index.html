@@ -7,68 +7,66 @@
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 body{font-family:"Segoe UI","Noto Sans TC",sans-serif;background:#f5f7fa;height:100vh;display:flex;flex-direction:column;overflow:hidden}
-
-/* ── TOP BAR ── */
 #topbar{height:50px;background:#fff;border-bottom:1px solid #e2e8f0;display:flex;align-items:center;padding:0 22px;gap:14px;flex-shrink:0;box-shadow:0 1px 4px rgba(0,0,0,.06)}
-#topbar .logo{color:#1e40af;font-weight:800;font-size:1rem;letter-spacing:.02em;white-space:nowrap}
+#topbar .logo{color:#1e40af;font-weight:800;font-size:1rem;white-space:nowrap}
 #topbar .logo span{color:#64748b;font-weight:500}
 #status-pill{margin-left:auto;padding:4px 14px;border-radius:999px;font-size:.72rem;font-weight:600;background:#dcfce7;color:#166534}
 #status-pill.not-ready{background:#fee2e2;color:#991b1b}
-
-/* ── LAYOUT ── */
 #layout{display:flex;flex:1;overflow:hidden}
 
-/* ── LEFT SIDEBAR ── */
+/* SIDEBAR */
 #sidebar{width:252px;background:#fff;border-right:1px solid #e2e8f0;display:flex;flex-direction:column;flex-shrink:0;overflow-y:auto}
 #sidebar::-webkit-scrollbar{width:4px}
 #sidebar::-webkit-scrollbar-thumb{background:#e2e8f0;border-radius:4px}
-.sb-section{padding:14px 0}
-.sb-section-title{padding:6px 18px 10px;font-size:.67rem;color:#94a3b8;text-transform:uppercase;letter-spacing:.12em;font-weight:700}
+.sb-title{padding:16px 18px 8px;font-size:.67rem;color:#94a3b8;text-transform:uppercase;letter-spacing:.12em;font-weight:700}
 .nav-item{cursor:pointer;user-select:none;margin-bottom:2px}
-.nav-item-header{display:flex;align-items:center;gap:10px;padding:10px 14px;color:#475569;font-size:.84rem;border-radius:8px;margin:0 8px;transition:background .15s,color .15s}
-.nav-item-header:hover{background:#eff6ff;color:#1d4ed8}
-.nav-item-header.active{background:#dbeafe;color:#1d4ed8;font-weight:600}
-.nav-item-header .icon{width:28px;height:28px;border-radius:7px;display:flex;align-items:center;justify-content:center;font-size:.88rem;flex-shrink:0}
-.nav-item-header .label{flex:1;line-height:1.3}
-.nav-item-header .arrow{font-size:.6rem;color:#94a3b8;transition:transform .2s;flex-shrink:0}
-.nav-item.open .nav-item-header .arrow{transform:rotate(90deg)}
-.sub-questions{display:none;padding:4px 0 8px 52px}
-.nav-item.open .sub-questions{display:block}
-.sub-q{padding:7px 10px 7px 10px;font-size:.79rem;color:#64748b;cursor:pointer;border-left:2px solid #e2e8f0;margin-bottom:3px;transition:color .15s,border-color .15s,background .15s;line-height:1.45;border-radius:0 6px 6px 0}
+.nav-header{display:flex;align-items:center;gap:10px;padding:10px 14px;color:#475569;font-size:.84rem;border-radius:8px;margin:0 8px;transition:background .15s,color .15s}
+.nav-header:hover{background:#eff6ff;color:#1d4ed8}
+.nav-header.active{background:#dbeafe;color:#1d4ed8;font-weight:600}
+.nav-icon{width:28px;height:28px;border-radius:7px;display:flex;align-items:center;justify-content:center;font-size:.88rem;flex-shrink:0}
+.nav-label{flex:1;line-height:1.3}
+.nav-arrow{font-size:.6rem;color:#94a3b8;transition:transform .2s;flex-shrink:0}
+.nav-item.open .nav-arrow{transform:rotate(90deg)}
+.sub-list{display:none;padding:2px 0 8px 52px}
+.nav-item.open .sub-list{display:block}
+.sub-q{padding:7px 10px 7px 10px;font-size:.79rem;color:#64748b;cursor:pointer;border-left:2px solid #e2e8f0;margin-bottom:4px;transition:color .15s,border-color .15s,background .15s;line-height:1.45;border-radius:0 6px 6px 0}
 .sub-q:hover{color:#2563ab;border-left-color:#3b82f6;background:#f0f7ff}
 
-/* ── MAIN ── */
+/* MAIN */
 #main{flex:1;display:flex;flex-direction:column;overflow:hidden;min-width:0}
 #hero{background:linear-gradient(120deg,#1e40af 0%,#3b82f6 65%,#60a5fa 100%);padding:20px 30px;flex-shrink:0}
-#hero h2{color:#fff;font-size:1.25rem;font-weight:700}
+#hero h2{color:#fff;font-size:1.2rem;font-weight:700}
 #hero p{color:rgba(255,255,255,.82);font-size:.83rem;margin-top:5px}
-
-#tabs{display:flex;gap:4px;padding:10px 20px;background:#fff;border-bottom:1px solid #e2e8f0;flex-shrink:0}
-.tab{padding:7px 18px;border-radius:7px;font-size:.82rem;cursor:pointer;color:#64748b;transition:background .15s,color .15s;font-weight:500}
+#tabs{display:flex;gap:4px;padding:10px 20px;background:#fff;border-bottom:1px solid #e2e8f0;flex-shrink:0;align-items:center}
+.tab{padding:7px 16px;border-radius:7px;font-size:.82rem;cursor:pointer;color:#64748b;transition:background .15s,color .15s;font-weight:500}
 .tab:hover{background:#f1f5f9}
 .tab.active{background:#dbeafe;color:#1d4ed8;font-weight:600}
-
-#content{flex:1;overflow-y:auto;padding:22px 24px}
+#search-box{margin-left:auto;padding:6px 12px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:.82rem;outline:none;width:200px;transition:border-color .2s}
+#search-box:focus{border-color:#3b82f6}
+#content{flex:1;overflow-y:auto;padding:20px 22px}
 #content::-webkit-scrollbar{width:5px}
 #content::-webkit-scrollbar-thumb{background:#cbd5e1;border-radius:4px}
 .section-label{font-size:.78rem;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.08em;margin-bottom:16px}
+#plan-count{font-size:.78rem;color:#94a3b8;margin-left:8px;font-weight:normal;text-transform:none;letter-spacing:0}
 
-/* ── CARDS ── */
-#cards-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:16px;margin-bottom:28px}
-.uni-card{background:#fff;border-radius:14px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,.07);border:1px solid #f1f5f9;cursor:pointer;transition:transform .15s,box-shadow .2s,border-color .15s}
-.uni-card:hover{transform:translateY(-4px);box-shadow:0 10px 28px rgba(59,130,246,.2);border-color:#bfdbfe}
-.uni-card .img{height:120px;overflow:hidden;position:relative}
-.uni-card .img img{width:100%;height:100%;object-fit:cover;transition:transform .3s}
-.uni-card:hover .img img{transform:scale(1.06)}
-.uni-card .overlay{position:absolute;inset:0;background:linear-gradient(to bottom,transparent 40%,rgba(0,0,0,.45))}
-.uni-card .info{padding:10px 12px 12px}
-.uni-card .name{font-size:.82rem;font-weight:700;color:#1e293b;line-height:1.35}
-.uni-card .count{font-size:.7rem;color:#94a3b8;margin-top:3px}
-.uni-card .qbtn{margin-top:8px;display:inline-block;padding:4px 12px;background:#eff6ff;color:#1d4ed8;border-radius:999px;font-size:.7rem;font-weight:600;border:1px solid #bfdbfe}
+/* CARDS */
+#cards-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:16px;margin-bottom:28px}
+.plan-card{background:#fff;border-radius:14px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,.07);border:1px solid #f1f5f9;cursor:pointer;transition:transform .15s,box-shadow .2s,border-color .15s;display:flex;flex-direction:column}
+.plan-card:hover{transform:translateY(-4px);box-shadow:0 10px 28px rgba(59,130,246,.18);border-color:#bfdbfe}
+.plan-card .img{height:120px;overflow:hidden;position:relative;flex-shrink:0}
+.plan-card .img img{width:100%;height:100%;object-fit:cover;transition:transform .3s}
+.plan-card:hover .img img{transform:scale(1.07)}
+.plan-card .img-overlay{position:absolute;inset:0;background:linear-gradient(to bottom,transparent 30%,rgba(0,0,0,.5))}
+.plan-card .uni-tag{position:absolute;bottom:8px;left:10px;background:rgba(255,255,255,.9);color:#1e40af;font-size:.65rem;font-weight:700;padding:2px 8px;border-radius:999px}
+.plan-card .info{padding:10px 12px 12px;flex:1;display:flex;flex-direction:column}
+.plan-card .plan-title{font-size:.78rem;font-weight:600;color:#1e293b;line-height:1.4;flex:1;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.plan-card .plan-title[title]:hover{overflow:visible;-webkit-line-clamp:unset;background:#fff;position:relative;z-index:5;box-shadow:0 4px 12px rgba(0,0,0,.12);border-radius:6px;padding:4px}
+.plan-card .qbtn{margin-top:8px;display:inline-block;padding:4px 12px;background:#eff6ff;color:#1d4ed8;border-radius:999px;font-size:.7rem;font-weight:600;border:1px solid #bfdbfe;align-self:flex-start}
+.plan-card.hidden{display:none}
 
-/* ── CHAT ── */
+/* CHAT */
 #chat-wrap{flex-shrink:0;background:#fff;border-top:1px solid #e2e8f0;padding:14px 20px}
-#messages{max-height:240px;overflow-y:auto;margin-bottom:12px;display:flex;flex-direction:column;gap:10px}
+#messages{max-height:220px;overflow-y:auto;margin-bottom:12px;display:flex;flex-direction:column;gap:10px}
 #messages::-webkit-scrollbar{width:4px}
 #messages::-webkit-scrollbar-thumb{background:#e2e8f0;border-radius:4px}
 .msg{padding:10px 14px;border-radius:10px;font-size:.87rem;line-height:1.75;max-width:88%}
@@ -82,7 +80,7 @@ body{font-family:"Segoe UI","Noto Sans TC",sans-serif;background:#f5f7fa;height:
 #ask-btn:hover:not(:disabled){transform:translateY(-1px)}
 #ask-btn:disabled{opacity:.45;cursor:not-allowed}
 
-/* ── RAG PANEL ── */
+/* RAG PANEL */
 #rag-panel{width:260px;background:#fff;border-left:1px solid #e2e8f0;display:flex;flex-direction:column;flex-shrink:0}
 #rag-header{padding:15px 16px;border-bottom:1px solid #e2e8f0;flex-shrink:0;background:#f8fafc}
 #rag-header h3{font-size:.86rem;font-weight:700;color:#1e293b}
@@ -111,136 +109,140 @@ body{font-family:"Segoe UI","Noto Sans TC",sans-serif;background:#f5f7fa;height:
 
 <div id="layout">
 
-<!-- LEFT SIDEBAR -->
 <div id="sidebar">
-  <div class="sb-section">
-    <div class="sb-section-title">功能導覽</div>
+  <div class="sb-title">功能導覽</div>
 
-    <div class="nav-item open" onclick="toggleNav(this)">
-      <div class="nav-item-header active">
-        <div class="icon" style="background:#dbeafe">🗺️</div>
-        <span class="label">各校計畫總覽</span>
-        <span class="arrow">▶</span>
-      </div>
-      <div class="sub-questions">
-        <div class="sub-q" onclick="submitQ('哪些大學參與 USR 計畫？')">哪些大學參與 USR 計畫？</div>
-        <div class="sub-q" onclick="submitQ('各大學計畫的主題分類為何？')">各大學計畫主題分類</div>
-        <div class="sub-q" onclick="submitQ('請給我所有計畫書的核心摘要')">所有計畫書核心摘要</div>
-        <div class="sub-q" onclick="submitQ('哪些學校計畫獲得最多資源或規模最大？')">規模最大的計畫有哪些？</div>
-        <div class="sub-q" onclick="submitQ('各校 USR 計畫的共同特色是什麼？')">各校計畫共同特色</div>
-        <div class="sub-q" onclick="submitQ('114 年度 USR 計畫的整體趨勢為何？')">114年度整體趨勢</div>
-      </div>
+  <div class="nav-item open" onclick="toggleNav(this)">
+    <div class="nav-header active">
+      <div class="nav-icon" style="background:#dbeafe">🗺️</div>
+      <span class="nav-label">各校計畫總覽</span>
+      <span class="nav-arrow">▶</span>
     </div>
-
-    <div class="nav-item" onclick="toggleNav(this)">
-      <div class="nav-item-header">
-        <div class="icon" style="background:#dcfce7">🌿</div>
-        <span class="label">永續發展主題</span>
-        <span class="arrow">▶</span>
-      </div>
-      <div class="sub-questions">
-        <div class="sub-q" onclick="submitQ('哪些計畫與淨零碳排相關？')">淨零碳排相關計畫</div>
-        <div class="sub-q" onclick="submitQ('有哪些環境生態保育的計畫？')">環境生態保育計畫</div>
-        <div class="sub-q" onclick="submitQ('農業永續發展有哪些計畫？')">農業永續發展計畫</div>
-        <div class="sub-q" onclick="submitQ('與里山倡議或生態保育相關的計畫')">里山倡議生態保育</div>
-        <div class="sub-q" onclick="submitQ('海洋或水資源相關的永續計畫有哪些？')">海洋水資源永續</div>
-        <div class="sub-q" onclick="submitQ('循環經濟相關的 USR 計畫有哪些？')">循環經濟計畫</div>
-        <div class="sub-q" onclick="submitQ('氣候變遷調適相關計畫有哪些？')">氣候變遷調適計畫</div>
-      </div>
+    <div class="sub-list">
+      <div class="sub-q" onclick="submitQ('哪些大學參與 USR 計畫？')">哪些大學參與 USR 計畫？</div>
+      <div class="sub-q" onclick="submitQ('各大學計畫的主題分類為何？')">各大學計畫主題分類</div>
+      <div class="sub-q" onclick="submitQ('請給我所有計畫書的核心摘要')">所有計畫書核心摘要</div>
+      <div class="sub-q" onclick="submitQ('哪些學校的 USR 計畫規模最大或最具特色？')">規模最大的計畫有哪些？</div>
+      <div class="sub-q" onclick="submitQ('各校 USR 計畫的共同特色與創新之處是什麼？')">各校計畫共同特色</div>
+      <div class="sub-q" onclick="submitQ('114 年度 USR 計畫整體推動趨勢為何？')">114年度整體趨勢</div>
     </div>
+  </div>
 
-    <div class="nav-item" onclick="toggleNav(this)">
-      <div class="nav-item-header">
-        <div class="icon" style="background:#fef9c3">👴</div>
-        <span class="label">高齡照護計畫</span>
-        <span class="arrow">▶</span>
-      </div>
-      <div class="sub-questions">
-        <div class="sub-q" onclick="submitQ('哪些大學有高齡照護相關的 USR 計畫？')">高齡照護相關計畫</div>
-        <div class="sub-q" onclick="submitQ('青銀共創的計畫有哪些？')">青銀共創計畫</div>
-        <div class="sub-q" onclick="submitQ('智慧樂齡或銀髮科技相關計畫')">智慧樂齡科技計畫</div>
-        <div class="sub-q" onclick="submitQ('失智症照護或預防相關計畫有哪些？')">失智症照護預防</div>
-        <div class="sub-q" onclick="submitQ('在地老化與社區長照服務計畫')">在地老化社區長照</div>
-        <div class="sub-q" onclick="submitQ('超高齡社會因應策略相關計畫')">超高齡社會因應策略</div>
-      </div>
+  <div class="nav-item" onclick="toggleNav(this)">
+    <div class="nav-header">
+      <div class="nav-icon" style="background:#dcfce7">🌿</div>
+      <span class="nav-label">永續發展主題</span>
+      <span class="nav-arrow">▶</span>
     </div>
-
-    <div class="nav-item" onclick="toggleNav(this)">
-      <div class="nav-item-header">
-        <div class="icon" style="background:#ede9fe">🏘️</div>
-        <span class="label">社區共融計畫</span>
-        <span class="arrow">▶</span>
-      </div>
-      <div class="sub-questions">
-        <div class="sub-q" onclick="submitQ('哪些計畫與社區營造或地方創生有關？')">社區營造地方創生</div>
-        <div class="sub-q" onclick="submitQ('偏鄉教育相關的計畫有哪些？')">偏鄉教育計畫</div>
-        <div class="sub-q" onclick="submitQ('新住民或多元文化計畫有哪些？')">新住民多元文化</div>
-        <div class="sub-q" onclick="submitQ('身心障礙者服務相關的計畫有哪些？')">身心障礙者服務</div>
-        <div class="sub-q" onclick="submitQ('兒童或青少年培力計畫有哪些？')">兒童青少年培力</div>
-        <div class="sub-q" onclick="submitQ('食物銀行或惜食相關計畫有哪些？')">惜食食物銀行計畫</div>
-        <div class="sub-q" onclick="submitQ('大學與社區共學共創的具體做法')">大學社區共學共創</div>
-      </div>
+    <div class="sub-list">
+      <div class="sub-q" onclick="submitQ('哪些計畫與淨零碳排相關？')">淨零碳排相關計畫</div>
+      <div class="sub-q" onclick="submitQ('有哪些環境生態保育的計畫？')">環境生態保育計畫</div>
+      <div class="sub-q" onclick="submitQ('農業永續發展有哪些計畫？')">農業永續發展計畫</div>
+      <div class="sub-q" onclick="submitQ('與里山倡議或生態保育相關的計畫有哪些？')">里山倡議生態保育</div>
+      <div class="sub-q" onclick="submitQ('海洋或水資源相關的永續計畫有哪些？')">海洋水資源永續</div>
+      <div class="sub-q" onclick="submitQ('循環經濟相關的 USR 計畫有哪些？')">循環經濟計畫</div>
+      <div class="sub-q" onclick="submitQ('氣候變遷調適相關計畫有哪些？')">氣候變遷調適計畫</div>
+      <div class="sub-q" onclick="submitQ('流浪動物或動物福祉相關計畫有哪些？')">動物福祉相關計畫</div>
     </div>
+  </div>
 
-    <div class="nav-item" onclick="toggleNav(this)">
-      <div class="nav-item-header">
-        <div class="icon" style="background:#fce7f3">🧑‍🌾</div>
-        <span class="label">原住民族計畫</span>
-        <span class="arrow">▶</span>
-      </div>
-      <div class="sub-questions">
-        <div class="sub-q" onclick="submitQ('有哪些 USR 計畫與原住民族文化保存有關？')">原住民族文化保存</div>
-        <div class="sub-q" onclick="submitQ('部落產業發展相關計畫')">部落產業發展</div>
-        <div class="sub-q" onclick="submitQ('原住民族醫療或健康計畫')">原民醫療健康</div>
-        <div class="sub-q" onclick="submitQ('原住民族語言復振相關計畫')">原民語言復振</div>
-        <div class="sub-q" onclick="submitQ('原住民族教育與人才培育計畫')">原民教育人才培育</div>
-      </div>
+  <div class="nav-item" onclick="toggleNav(this)">
+    <div class="nav-header">
+      <div class="nav-icon" style="background:#fef9c3">👴</div>
+      <span class="nav-label">高齡照護計畫</span>
+      <span class="nav-arrow">▶</span>
     </div>
-
-    <div class="nav-item" onclick="toggleNav(this)">
-      <div class="nav-item-header">
-        <div class="icon" style="background:#e0f2fe">💻</div>
-        <span class="label">數位科技應用</span>
-        <span class="arrow">▶</span>
-      </div>
-      <div class="sub-questions">
-        <div class="sub-q" onclick="submitQ('哪些計畫結合 AI 或數位科技？')">AI 數位科技計畫</div>
-        <div class="sub-q" onclick="submitQ('智慧農業相關的計畫有哪些？')">智慧農業計畫</div>
-        <div class="sub-q" onclick="submitQ('數位轉型與社區賦能的計畫')">數位轉型賦能計畫</div>
-        <div class="sub-q" onclick="submitQ('物聯網 IoT 或感測器應用在社區的計畫')">IoT 感測社區應用</div>
-        <div class="sub-q" onclick="submitQ('遠距醫療或健康科技計畫有哪些？')">遠距醫療健康科技</div>
-        <div class="sub-q" onclick="submitQ('數位學習或線上教育相關計畫')">數位學習線上教育</div>
-      </div>
+    <div class="sub-list">
+      <div class="sub-q" onclick="submitQ('哪些大學有高齡照護相關的 USR 計畫？')">高齡照護相關計畫</div>
+      <div class="sub-q" onclick="submitQ('青銀共創的計畫有哪些？')">青銀共創計畫</div>
+      <div class="sub-q" onclick="submitQ('智慧樂齡或銀髮科技相關計畫有哪些？')">智慧樂齡科技計畫</div>
+      <div class="sub-q" onclick="submitQ('失智症照護或預防相關計畫有哪些？')">失智症照護預防</div>
+      <div class="sub-q" onclick="submitQ('在地老化與社區長照服務計畫有哪些？')">在地老化社區長照</div>
+      <div class="sub-q" onclick="submitQ('超高齡社會因應策略相關計畫有哪些？')">超高齡社會因應</div>
+      <div class="sub-q" onclick="submitQ('健康促進或運動養生相關計畫有哪些？')">健康促進運動計畫</div>
     </div>
+  </div>
 
-    <div class="nav-item" onclick="toggleNav(this)">
-      <div class="nav-item-header">
-        <div class="icon" style="background:#ffedd5">🍽️</div>
-        <span class="label">產業文化創生</span>
-        <span class="arrow">▶</span>
-      </div>
-      <div class="sub-questions">
-        <div class="sub-q" onclick="submitQ('有哪些計畫與文化創意產業有關？')">文化創意產業計畫</div>
-        <div class="sub-q" onclick="submitQ('食農教育相關計畫有哪些？')">食農教育計畫</div>
-        <div class="sub-q" onclick="submitQ('觀光旅遊相關的 USR 計畫')">觀光旅遊計畫</div>
-        <div class="sub-q" onclick="submitQ('工藝或傳統技藝傳承相關計畫')">工藝傳統技藝傳承</div>
-        <div class="sub-q" onclick="submitQ('咖啡茶葉等特色農產品計畫有哪些？')">特色農產品計畫</div>
-        <div class="sub-q" onclick="submitQ('文創品牌或地方品牌建立的計畫')">地方品牌建立計畫</div>
-      </div>
+  <div class="nav-item" onclick="toggleNav(this)">
+    <div class="nav-header">
+      <div class="nav-icon" style="background:#ede9fe">🏘️</div>
+      <span class="nav-label">社區共融計畫</span>
+      <span class="nav-arrow">▶</span>
     </div>
+    <div class="sub-list">
+      <div class="sub-q" onclick="submitQ('哪些計畫與社區營造或地方創生有關？')">社區營造地方創生</div>
+      <div class="sub-q" onclick="submitQ('偏鄉教育相關的計畫有哪些？')">偏鄉教育計畫</div>
+      <div class="sub-q" onclick="submitQ('新住民或多元文化計畫有哪些？')">新住民多元文化</div>
+      <div class="sub-q" onclick="submitQ('身心障礙者服務相關的計畫有哪些？')">身心障礙者服務</div>
+      <div class="sub-q" onclick="submitQ('兒童或青少年培力計畫有哪些？')">兒童青少年培力</div>
+      <div class="sub-q" onclick="submitQ('食物銀行或惜食相關計畫有哪些？')">惜食食物銀行計畫</div>
+      <div class="sub-q" onclick="submitQ('大學與社區共學共創的具體做法是什麼？')">大學社區共學共創</div>
+      <div class="sub-q" onclick="submitQ('都市更新或社區住宅相關計畫有哪些？')">都更社區住宅計畫</div>
+    </div>
+  </div>
 
-    <div class="nav-item" onclick="toggleNav(this)">
-      <div class="nav-item-header">
-        <div class="icon" style="background:#f0fdf4">🌍</div>
-        <span class="label">國際連結計畫</span>
-        <span class="arrow">▶</span>
-      </div>
-      <div class="sub-questions">
-        <div class="sub-q" onclick="submitQ('哪些 USR 計畫具有國際連結或合作？')">具國際連結的計畫</div>
-        <div class="sub-q" onclick="submitQ('跨國合作或國際交流的計畫有哪些？')">跨國合作交流計畫</div>
-        <div class="sub-q" onclick="submitQ('與東南亞國家合作的計畫有哪些？')">東南亞合作計畫</div>
-        <div class="sub-q" onclick="submitQ('國際慢城或國際認證相關計畫')">國際慢城認證計畫</div>
-      </div>
+  <div class="nav-item" onclick="toggleNav(this)">
+    <div class="nav-header">
+      <div class="nav-icon" style="background:#fce7f3">🧑‍🌾</div>
+      <span class="nav-label">原住民族計畫</span>
+      <span class="nav-arrow">▶</span>
+    </div>
+    <div class="sub-list">
+      <div class="sub-q" onclick="submitQ('有哪些 USR 計畫與原住民族文化保存有關？')">原住民族文化保存</div>
+      <div class="sub-q" onclick="submitQ('部落產業發展相關計畫有哪些？')">部落產業發展</div>
+      <div class="sub-q" onclick="submitQ('原住民族醫療或健康計畫有哪些？')">原民醫療健康</div>
+      <div class="sub-q" onclick="submitQ('原住民族語言復振相關計畫有哪些？')">原民語言復振</div>
+      <div class="sub-q" onclick="submitQ('原住民族教育與人才培育計畫有哪些？')">原民教育人才培育</div>
+      <div class="sub-q" onclick="submitQ('原住民族生態知識與環境永續相關計畫')">原民生態環境計畫</div>
+    </div>
+  </div>
+
+  <div class="nav-item" onclick="toggleNav(this)">
+    <div class="nav-header">
+      <div class="nav-icon" style="background:#e0f2fe">💻</div>
+      <span class="nav-label">數位科技應用</span>
+      <span class="nav-arrow">▶</span>
+    </div>
+    <div class="sub-list">
+      <div class="sub-q" onclick="submitQ('哪些計畫結合 AI 或數位科技？')">AI 數位科技計畫</div>
+      <div class="sub-q" onclick="submitQ('智慧農業相關的計畫有哪些？')">智慧農業計畫</div>
+      <div class="sub-q" onclick="submitQ('數位轉型與社區賦能的計畫有哪些？')">數位轉型賦能計畫</div>
+      <div class="sub-q" onclick="submitQ('物聯網 IoT 或感測器應用在社區的計畫有哪些？')">IoT 感測社區應用</div>
+      <div class="sub-q" onclick="submitQ('遠距醫療或健康科技計畫有哪些？')">遠距醫療健康科技</div>
+      <div class="sub-q" onclick="submitQ('數位學習或線上教育相關計畫有哪些？')">數位學習線上教育</div>
+      <div class="sub-q" onclick="submitQ('XR 擴增實境或虛擬實境應用計畫有哪些？')">XR 虛擬實境計畫</div>
+    </div>
+  </div>
+
+  <div class="nav-item" onclick="toggleNav(this)">
+    <div class="nav-header">
+      <div class="nav-icon" style="background:#ffedd5">🍽️</div>
+      <span class="nav-label">產業文化創生</span>
+      <span class="nav-arrow">▶</span>
+    </div>
+    <div class="sub-list">
+      <div class="sub-q" onclick="submitQ('有哪些計畫與文化創意產業有關？')">文化創意產業計畫</div>
+      <div class="sub-q" onclick="submitQ('食農教育相關計畫有哪些？')">食農教育計畫</div>
+      <div class="sub-q" onclick="submitQ('觀光旅遊相關的 USR 計畫有哪些？')">觀光旅遊計畫</div>
+      <div class="sub-q" onclick="submitQ('工藝或傳統技藝傳承相關計畫有哪些？')">工藝傳統技藝傳承</div>
+      <div class="sub-q" onclick="submitQ('咖啡茶葉等特色農產品計畫有哪些？')">特色農產品計畫</div>
+      <div class="sub-q" onclick="submitQ('文創品牌或地方品牌建立的計畫有哪些？')">地方品牌建立計畫</div>
+      <div class="sub-q" onclick="submitQ('糖業或傳統產業文化轉型計畫有哪些？')">傳統產業文化轉型</div>
+    </div>
+  </div>
+
+  <div class="nav-item" onclick="toggleNav(this)">
+    <div class="nav-header">
+      <div class="nav-icon" style="background:#f0fdf4">🌍</div>
+      <span class="nav-label">國際連結計畫</span>
+      <span class="nav-arrow">▶</span>
+    </div>
+    <div class="sub-list">
+      <div class="sub-q" onclick="submitQ('哪些 USR 計畫具有國際連結或合作？')">具國際連結的計畫</div>
+      <div class="sub-q" onclick="submitQ('跨國合作或國際交流的計畫有哪些？')">跨國合作交流計畫</div>
+      <div class="sub-q" onclick="submitQ('與東南亞國家合作的計畫有哪些？')">東南亞合作計畫</div>
+      <div class="sub-q" onclick="submitQ('國際慢城或國際認證相關計畫有哪些？')">國際慢城認證計畫</div>
+      <div class="sub-q" onclick="submitQ('國際志工或海外服務計畫有哪些？')">國際志工服務計畫</div>
     </div>
   </div>
 </div>
@@ -251,25 +253,22 @@ body{font-family:"Segoe UI","Noto Sans TC",sans-serif;background:#f5f7fa;height:
     <h2>🎓 USR 智慧問答知識檢索中心</h2>
     <p>整合全台 101 所大學・257 份社會責任計畫書・語意搜尋・即時 AI 解析</p>
   </div>
-
   <div id="tabs">
     <div class="tab active" onclick="switchTab('all',this)">全部</div>
     <div class="tab" onclick="switchTab('chat',this)">💬 對話模式</div>
     <div class="tab" onclick="switchTab('uni',this)">🏫 各校計畫</div>
+    <input id="search-box" type="text" placeholder="🔍 搜尋計畫關鍵字…" oninput="filterCards(this.value)"/>
   </div>
-
   <div id="content">
     <div id="uni-section">
-      <div class="section-label">重點計畫・點擊卡片直接查詢該校詳情</div>
+      <div class="section-label">重點計畫・點擊卡片直接查詢 <span id="plan-count"></span></div>
       <div id="cards-grid"></div>
     </div>
   </div>
-
   <div id="chat-wrap">
     <div id="messages"></div>
     <div id="input-row">
-      <textarea id="question"
-        placeholder="請輸入問題，例如：中原大學的永續計畫內容是什麼？"
+      <textarea id="question" placeholder="請輸入問題，例如：有哪些計畫關注高齡照護？"
         oninput="autoResize(this)"
         onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();askQuestion()}"></textarea>
       <button id="ask-btn" onclick="askQuestion()" disabled>送出</button>
@@ -287,149 +286,343 @@ body{font-family:"Segoe UI","Noto Sans TC",sans-serif;background:#f5f7fa;height:
     <div class="rag-empty"><span class="ico">🔍</span>提問後將顯示<br>引用的計畫書段落</div>
   </div>
 </div>
-
 </div>
 
 <script>
-// 每所大學對應一張 Unsplash 主題圖片（依地域/特色關鍵字）
-const UNIVERSITIES = [
-  {name:"大仁科技大學",kw:"pingtung,taiwan",plans:1},
-  {name:"大同大學",kw:"taipei,technology",plans:1},
-  {name:"大葉大學",kw:"changhua,countryside",plans:3},
-  {name:"中信科技大學",kw:"tainan,campus",plans:3},
-  {name:"中原大學",kw:"taoyuan,university",plans:2},
-  {name:"中國文化大學",kw:"taipei,mountain",plans:2},
-  {name:"中國科技大學",kw:"taipei,modern",plans:3},
-  {name:"中國醫藥大學",kw:"taichung,medicine",plans:2},
-  {name:"中華大學",kw:"hsinchu,forest",plans:2},
-  {name:"中華科技大學",kw:"taipei,community",plans:2},
-  {name:"中華醫事科技大學",kw:"tainan,healthcare",plans:1},
-  {name:"中臺科技大學",kw:"taichung,coffee",plans:1},
-  {name:"元培醫事科技大學",kw:"hsinchu,health",plans:2},
-  {name:"元智大學",kw:"taoyuan,innovation",plans:2},
-  {name:"文藻外語大學",kw:"kaohsiung,culture",plans:2},
-  {name:"台北海洋科技大學",kw:"taipei,ocean",plans:2},
-  {name:"台南應用科技大學",kw:"tainan,art",plans:3},
-  {name:"弘光科技大學",kw:"taichung,coast",plans:4},
-  {name:"正修科技大學",kw:"kaohsiung,indigenous",plans:2},
-  {name:"玄奘大學",kw:"hsinchu,temple",plans:2},
-  {name:"佛光大學",kw:"yilan,forest",plans:2},
-  {name:"育達科技大學",kw:"miaoli,bird",plans:2},
-  {name:"亞東科技大學",kw:"taipei,elderly",plans:2},
-  {name:"亞洲大學",kw:"taichung,landscape",plans:4},
-  {name:"明志科技大學",kw:"xinbei,river",plans:5},
-  {name:"明新科技大學",kw:"hsinchu,bamboo",plans:3},
-  {name:"東吳大學",kw:"taipei,river",plans:1},
-  {name:"東南科技大學",kw:"taipei,community",plans:1},
-  {name:"東海大學",kw:"taichung,lake",plans:1},
-  {name:"法鼓文理學院",kw:"taipei,zen,nature",plans:1},
-  {name:"長庚大學",kw:"taoyuan,hospital",plans:4},
-  {name:"長庚科技大學",kw:"taoyuan,nursing",plans:2},
-  {name:"長榮大學",kw:"tainan,indigenous",plans:3},
-  {name:"南華大學",kw:"chiayi,library",plans:3},
-  {name:"南開科技大學",kw:"nantou,mountain",plans:2},
-  {name:"南臺科技大學",kw:"tainan,city",plans:5},
-  {name:"建國科技大學",kw:"changhua,workshop",plans:1},
-  {name:"美和科技大學",kw:"pingtung,indigenous",plans:2},
-  {name:"致理科技大學",kw:"xinbei,elderly",plans:3},
-  {name:"耕莘健康管理專科學校",kw:"xinbei,care",plans:4},
-  {name:"馬偕醫學大學",kw:"taipei,medical",plans:3},
-  {name:"馬偕醫護管理專科學校",kw:"taipei,nursing",plans:2},
-  {name:"高雄醫學大學",kw:"kaohsiung,medical",plans:4},
-  {name:"健行科技大學",kw:"taoyuan,trail",plans:1},
-  {name:"國立中山大學",kw:"kaohsiung,sea",plans:4},
-  {name:"國立中央大學",kw:"taoyuan,starry,sky",plans:3},
-  {name:"國立中正大學",kw:"chiayi,university",plans:2},
-  {name:"國立中興大學",kw:"taichung,agriculture",plans:5},
-  {name:"國立成功大學",kw:"tainan,heritage",plans:5},
-  {name:"國立宜蘭大學",kw:"yilan,farmland",plans:2},
-  {name:"國立東華大學",kw:"hualien,mountain",plans:2},
-  {name:"國立虎尾科技大學",kw:"yunlin,flower",plans:4},
-  {name:"國立金門大學",kw:"kinmen,island",plans:2},
-  {name:"國立屏東大學",kw:"pingtung,tropical",plans:2},
-  {name:"國立屏東科技大學",kw:"pingtung,nature",plans:5},
-  {name:"國立政治大學",kw:"taipei,maokong",plans:2},
-  {name:"國立高雄大學",kw:"kaohsiung,robot",plans:1},
-  {name:"國立高雄科技大學",kw:"kaohsiung,harbor",plans:1},
-  {name:"國立高雄師範大學",kw:"kaohsiung,badlands",plans:1},
-  {name:"國立高雄餐旅大學",kw:"kaohsiung,food",plans:3},
-  {name:"國立清華大學",kw:"hsinchu,science",plans:4},
-  {name:"國立陽明交通大學",kw:"taipei,biotech",plans:2},
-  {name:"國立雲林科技大學",kw:"yunlin,design",plans:5},
-  {name:"國立勤益科技大學",kw:"taichung,mushroom",plans:2},
-  {name:"國立嘉義大學",kw:"chiayi,forest",plans:2},
-  {name:"國立彰化師範大學",kw:"changhua,coast",plans:4},
-  {name:"國立暨南國際大學",kw:"nantou,lake",plans:4},
-  {name:"國立臺中科技大學",kw:"taichung,urban",plans:2},
-  {name:"國立臺中教育大學",kw:"taichung,education",plans:1},
-  {name:"國立臺北大學",kw:"xinbei,river",plans:3},
-  {name:"國立臺北科技大學",kw:"taipei,pottery",plans:1},
-  {name:"國立臺北護理健康大學",kw:"taipei,nursing",plans:3},
-  {name:"國立臺東大學",kw:"taitung,coast",plans:4},
-  {name:"國立臺南大學",kw:"tainan,ancient",plans:3},
-  {name:"國立臺南藝術大學",kw:"tainan,art,gallery",plans:1},
-  {name:"國立臺灣大學",kw:"taipei,research",plans:4},
-  {name:"國立臺灣科技大學",kw:"taipei,engineering",plans:4},
-  {name:"國立臺灣師範大學",kw:"taipei,campus",plans:1},
-  {name:"國立臺灣海洋大學",kw:"keelung,ocean",plans:4},
-  {name:"國立澎湖科技大學",kw:"penghu,island",plans:1},
-  {name:"國立聯合大學",kw:"miaoli,hakka",plans:1},
-  {name:"崑山科技大學",kw:"tainan,architecture",plans:4},
-  {name:"敏實科技大學",kw:"taoyuan,automotive",plans:1},
-  {name:"淡江大學",kw:"tamsui,sea",plans:2},
-  {name:"逢甲大學",kw:"taichung,nightmarket",plans:2},
-  {name:"朝陽科技大學",kw:"taichung,valley",plans:5},
-  {name:"華梵大學",kw:"taipei,mountain,ancient",plans:2},
-  {name:"開南大學",kw:"taoyuan,multicultural",plans:1},
-  {name:"慈濟大學",kw:"hualien,volunteer",plans:2},
-  {name:"德育護理健康學院",kw:"taipei,healthcare",plans:1},
-  {name:"義守大學",kw:"kaohsiung,campus",plans:3},
-  {name:"萬能科技大學",kw:"taoyuan,river",plans:2},
-  {name:"僑光科技大學",kw:"taichung,waterway",plans:2},
-  {name:"嘉南藥理大學",kw:"tainan,pharmacy",plans:5},
-  {name:"實踐大學",kw:"taipei,design",plans:5},
-  {name:"臺北市立大學",kw:"taipei,sports",plans:1},
-  {name:"臺北醫學大學",kw:"taipei,medicine",plans:1},
-  {name:"輔仁大學",kw:"xinbei,campus",plans:3},
-  {name:"輔英科技大學",kw:"kaohsiung,community",plans:2},
-  {name:"銘傳大學",kw:"taoyuan,turtle,island",plans:1},
-  {name:"德明財經科技大學",kw:"taipei,fashion",plans:1},
-  {name:"樹德科技大學",kw:"kaohsiung,lake",plans:4},
-  {name:"靜宜大學",kw:"taichung,multicultural",plans:1},
-  {name:"龍華科技大學",kw:"taoyuan,wetland",plans:2},
-  {name:"嶺東科技大學",kw:"taichung,design",plans:1},
+// ── 依計畫名稱關鍵字自動對應圖片主題 ──
+function getImgSeed(title) {
+  const rules = [
+    [/海洋|漁|里海|海岸|海鄉|蔚藍|水產|鯤鯓|澎湖|金門|石滬|濱海/, 'ocean,coast,sea,blue'],
+    [/農業|農村|食農|農創|農產|農安|農耕|稻田|稻米|有機農|里山|山林|林下|茶葉|茶花|咖啡|花卉|碳花|柿|竹/, 'farm,agriculture,rural,green'],
+    [/原住民|部落|泰雅|鄒族|賽夏|馬卡道|珈雅瑪|原鄉|霧台|南島|懸絲偶|布農/, 'mountain,forest,indigenous,tribal'],
+    [/山|森林|生態|里山|綠色|植物|水尾|綠心|淺山|茶山|玉山|阿里山|烏來|太魯閣|花蓮|台東|宜蘭|南投/, 'mountain,forest,nature,taiwan'],
+    [/溪|河|水圳|水域|水資源|水尾|兩河|頭前溪|曾文溪|烏溪|新街溪|埤圳/, 'river,water,waterway'],
+    [/高齡|老|銀髮|樂齡|長照|老化|失智|照護|養老|長者|超高齡|樂活/, 'elderly,care,senior,people'],
+    [/偏鄉|教育|學習|學伴|學童|學校|兒童|青少年|早療|補給站/, 'education,school,children,learning'],
+    [/醫療|健康|照護|護理|醫學|藥|診間|癌症|泡泡龍|健促/, 'healthcare,medical,clinic,health'],
+    [/AI|數位|科技|智慧|IoT|XR|機器人|數據|大數據|自動化|ESG/, 'technology,digital,innovation,smart'],
+    [/文化|藝術|創生|工藝|傳統|文創|博物館|影像|漫畫|刺繡|陶瓷|歌劇/, 'culture,art,traditional,craft'],
+    [/觀光|旅遊|旅行|慢城|遊程/, 'tourism,travel,scenic,landscape'],
+    [/食品|餐飲|飲食|食安|料理|酒|粄|食尚|好糖|惜食|食物銀行/, 'food,restaurant,cooking'],
+    [/低碳|淨零|碳排|減碳|再生能源|綠電|循環經濟|碳匯/, 'sustainable,clean,green,energy'],
+    [/都市|城市|城鄉|社區|街道|老街|夜市/, 'city,urban,street,community'],
+    [/新住民|多元|共融|移民|越南/, 'multicultural,diversity,community'],
+    [/身心障礙|特殊需求|漸凍|自閉症|早療/, 'care,support,inclusion,community'],
+    [/動物|流浪動物|貓|狗/, 'animals,nature,wildlife'],
+    [/島|離島|澎湖|金門|小琉球/, 'island,ocean,coast'],
+  ];
+  for (const [re, kw] of rules) {
+    if (re.test(title)) return kw.replace(/,/g,'%20');
+  }
+  return 'taiwan,community,university,landscape';
+}
+
+// ── 全部 257 份計畫 ──
+const PLANS = [
+  {uni:"大仁科技大學",title:"從千禧到萬年-溪流互動藍圖-智慧互動與綠色未來"},
+  {uni:"大同大學",title:"永續共榮在大同plus計畫：以「優質教育X跨域實踐X差異群體」創建流量密碼"},
+  {uni:"大葉大學",title:"大村共創：健康福祉設計融合計畫"},
+  {uni:"大葉大學",title:"安心葉興百業邁(賣)向全世界"},
+  {uni:"大葉大學",title:"循跡里山-八卦台地聚落六級化產業共創計畫"},
+  {uni:"中信科技大學",title:"在地關懷．共學共創：從夏日綠寶石點亮新市美好記憶"},
+  {uni:"中信科技大學",title:"老當益壯：高齡咀嚼健康餐飲與肌力增進之創新服務"},
+  {uni:"中信科技大學",title:"聽見花開的聲音-淨零永續城市的大學社會責任實踐計畫"},
+  {uni:"中原大學",title:"流動與鏈結的再發展：桃園埤圳水文化環境的共生發展與國際合作"},
+  {uni:"中原大學",title:"韌性防災方舟－節能永續扎根計畫"},
+  {uni:"中國文化大學",title:"青少年培力 共學、共玩、共創科技新未來"},
+  {uni:"中國文化大學",title:"進擊吧！北海小英雄：提升北海岸社區韌性之大學社會責任實踐方案"},
+  {uni:"中國科技大學",title:"文化韌性永續簪纓"},
+  {uni:"中國科技大學",title:"數位XR教學導入博物館創新應用計畫"},
+  {uni:"中國科技大學",title:"翱·生態-共善六張犁"},
+  {uni:"中國醫藥大學",title:"中西醫整合優質照護，續航守護兒童與青少年健康"},
+  {uni:"中國醫藥大學",title:"中藥養生-西藥精準_食品藥物安全鏈結之社會實踐升級計畫"},
+  {uni:"中華大學",title:"馥活茶花智慧創生"},
+  {uni:"中華大學",title:"驛動新埔 – 代間共學 以樹養老 USR x CSR的綠色承諾"},
+  {uni:"中華科技大學",title:"\"原\"創教育–原民技藝文化推廣"},
+  {uni:"中華科技大學",title:"環境認知調研與空間裝置實作之社會性實踐-以基隆為行動基地"},
+  {uni:"中華醫事科技大學",title:"Silver to Golden-臺南溪北淺山銀髮健康Plus深耕永續計畫"},
+  {uni:"中臺科技大學",title:"咖啡智慧革命：國姓咖啡產業創新加值與社區永續計畫"},
+  {uni:"元培醫事科技大學",title:"永續香山，青銀宜居"},
+  {uni:"元培醫事科技大學",title:"從認識到選擇-提升社區對食品添加物的認識與健康飲食意識"},
+  {uni:"元智大學",title:"跨代智慧共創：設計思考引領科技與幸福"},
+  {uni:"元智大學",title:"寰宇文化領航"},
+  {uni:"文藻外語大學",title:"「SDGs」看見需要·千手扶學 - 與AI藝起開創的幸福實課"},
+  {uni:"文藻外語大學",title:"文藻螺絲釘·鏈結世界心-科技送暖、永續傳情"},
+  {uni:"台北海洋科技大學",title:"銀照靚亮淡海~深化在地青銀樂活俱樂部-共創共學實踐推動計畫"},
+  {uni:"台北海洋科技大學",title:"魅力士社2.0-深化永續生態社子島"},
+  {uni:"台南應用科技大學",title:"消失的針線－刺繡技藝傳承與記憶延伸"},
+  {uni:"台南應用科技大學",title:"梓想與你鄉遇—梓官農業價值實踐"},
+  {uni:"台南應用科技大學",title:"戲水鯤鯓-濱海環境永續計畫"},
+  {uni:"弘光科技大學",title:"共築中部沿海里仁淨零之美-深耕低碳+韌性+永續家園"},
+  {uni:"弘光科技大學",title:"海線創生-高美里海倡議社會實踐"},
+  {uni:"弘光科技大學",title:"環環相扣、科技護生"},
+  {uni:"弘光科技大學",title:"雙港農創-鏈結城市永續發展-以臺中甲安埔地區為核心"},
+  {uni:"正修科技大學",title:"否極泰來–原住民文化資產保存人才培育與在地實踐計畫"},
+  {uni:"正修科技大學",title:"創生左堆•再造新佳 – 創造新埤佳冬的再生力量"},
+  {uni:"玄奘大學",title:"新埔旱坑柿家創新永續計畫"},
+  {uni:"玄奘大學",title:"魯瑪．先生—韌性部落休閒產業發展計畫"},
+  {uni:"佛光大學",title:"宜蘭淺山產業生態永續發展跨領域人才共培"},
+  {uni:"佛光大學",title:"樂活宜蘭：身心靈健康與療癒人才培育計畫"},
+  {uni:"育達科技大學",title:"「食尚慢活、銀造健康」共創苗栗幸福山城計畫"},
+  {uni:"育達科技大學",title:"當AIoT遇見鳥類生態保育-智慧山城永續苗栗實踐計畫"},
+  {uni:"亞東科技大學",title:"青銀E起•AI守護扶老•永續社區實踐大行動"},
+  {uni:"亞東科技大學",title:"無聲的力量·科技輔助聽障籃球運動╳提升弱勢學生之科技學習與競爭力"},
+  {uni:"亞洲大學",title:"永續高齡失智友善包容社區：數位創新x護智處方x社會共融"},
+  {uni:"亞洲大學",title:"食品安全與健康的守護者"},
+  {uni:"亞洲大學",title:"智慧高齡：認知促進心腦提升"},
+  {uni:"亞洲大學",title:"與智慧科技共學：偏鄉國中與社區高中語言學伴培育計畫"},
+  {uni:"明志科技大學",title:"Co-op Design：走出三角湧之社區文化智慧與國際培力"},
+  {uni:"明志科技大學",title:"北台首學-山與水之間"},
+  {uni:"明志科技大學",title:"北臺首學帶狀文物館深耕延續計畫"},
+  {uni:"明志科技大學",title:"新北社區國際文化交流與英語素養提升計畫"},
+  {uni:"明志科技大學",title:"新北產業ESG實踐：綠來綠好"},
+  {uni:"明新科技大學",title:"城市「溪」伴—AI賦能綠色材料發展計畫"},
+  {uni:"明新科技大學",title:"智齡竹夢•跨域共生：新竹科技城智慧樂齡健康適能促進計畫"},
+  {uni:"明新科技大學",title:"賽夏族喇魯瑪(raromaeh)竹文化產業孵創計畫"},
+  {uni:"東吳大學",title:"韌齡心北投生活圈"},
+  {uni:"東南科技大學",title:"樂齡樂活：跨世代交流服務培力計畫"},
+  {uni:"東海大學",title:"一所大學守護一條河四校聯盟共創河川守護永續發展新篇章"},
+  {uni:"法鼓文理學院",title:"心靈環保、環境永續與淨零創新發展計畫"},
+  {uni:"長庚大學",title:"『職能、共融、永續』-身心障礙者工作培力及同儕支持計畫"},
+  {uni:"長庚大學",title:"人工智慧與創新兒童早期療育與健康促進全方位計畫"},
+  {uni:"長庚大學",title:"長庚長耕-建構高齡健康與科技應用之社區共好時代"},
+  {uni:"長庚大學",title:"原鄉兒少肥胖脂肪肝防治健康介入與糖尿病足健康促進培力計畫"},
+  {uni:"長庚科技大學",title:"在地扎根.社會共生-優質教育、代間共融、AI智慧療育計畫"},
+  {uni:"長庚科技大學",title:"多元新視界，攜手嘉移人"},
+  {uni:"長榮大學",title:"社會創新與綠色經濟-邁向珈雅瑪榮耀永續社區之路"},
+  {uni:"長榮大學",title:"相約檨仔腳，躍向永續六龜"},
+  {uni:"長榮大學",title:"綠色社區根與芽行動計畫-從在地到國際"},
+  {uni:"南華大學",title:"推動在地社區農業碳中和"},
+  {uni:"南華大學",title:"雲水書車趴趴走 - 提升孩童多元感官學習"},
+  {uni:"南華大學",title:"擴展國際慢城學習－營造永續宜居城鄉生活"},
+  {uni:"南開科技大學",title:"坪頂人家永續生態農業發展"},
+  {uni:"南開科技大學",title:"建置在地優質老化永續長照服務網—打造南投不老城鎮"},
+  {uni:"南臺科技大學",title:"文化底蕴的在地創生與傳播--府城vs月津"},
+  {uni:"南臺科技大學",title:"左曜山生─創意生活加值計畫2.0"},
+  {uni:"南臺科技大學",title:"青銀共創打造在地智慧自在不老力"},
+  {uni:"南臺科技大學",title:"跨樂尬陣：南流西起共融藝起來"},
+  {uni:"南臺科技大學",title:"藏碳蘊漁：古都漁鄉之綠電創能與數智雙生跨界整合淨零永續行動計畫"},
+  {uni:"建國科技大學",title:"三生有幸，遇見二林"},
+  {uni:"美和科技大學",title:"健康走讀，文化傳承-原鄉長者文化安全照顧培力計畫"},
+  {uni:"美和科技大學",title:"智遊食肌 銀髮賦能計畫"},
+  {uni:"致理科技大學",title:"3R (USR Χ CSR Χ PSR )建構超高齡社會互助心價值"},
+  {uni:"致理科技大學",title:"女王的呼召—萬金國際旅遊在地共生循環帶"},
+  {uni:"致理科技大學",title:"安心住好宅-雙北都更整合創新服務計畫"},
+  {uni:"耕莘健康管理專科學校",title:"身心復原力 x 建構療癒村：照顧者身心適能與心理韌性促進計畫"},
+  {uni:"耕莘健康管理專科學校",title:"為愛啟程、串起微笑~跨國溫莘社會處方照顧計畫"},
+  {uni:"耕莘健康管理專科學校",title:"惜食共好莘願景"},
+  {uni:"耕莘健康管理專科學校",title:"循環共伴、永續莘未來~ 循環經濟 X 綠色照顧"},
+  {uni:"馬偕醫學大學",title:"青春山海藝起療"},
+  {uni:"馬偕醫學大學",title:"脫穎而出成為茭佼者"},
+  {uni:"馬偕醫學大學",title:"給三芝全面的愛_社區老人多層面健康促進計畫"},
+  {uni:"馬偕醫護管理專科學校",title:"「GO ! 馬偕特派員2.0」- 跨領域共學共創，牽手微伴青銀樂活與創生計畫"},
+  {uni:"馬偕醫護管理專科學校",title:"醫護有愛，偏鄉營照，數位共照，健康永續"},
+  {uni:"高雄醫學大學",title:"永續不只一夏－那瑪夏及國際偏鄉永續發展計畫"},
+  {uni:"高雄醫學大學",title:"永續荖濃人才培育與健康發展計畫"},
+  {uni:"高雄醫學大學",title:"空污下的大學社會責任-環境教育與健康促進永續發展計畫"},
+  {uni:"高雄醫學大學",title:"青銀攜手健康培力-永續旗津樂齡共融生活圈計畫"},
+  {uni:"健行科技大學",title:"陽光樂活、綠能永續扎根計畫"},
+  {uni:"國立中山大學",title:"作為NATIVE博物館的霧台─原民社會自然文化共構之永續學習計畫"},
+  {uni:"國立中山大學",title:"啟航：探索與守護的海洋教育旅程"},
+  {uni:"國立中山大學",title:"產學合創．在地共榮：共構地方永續協作平台2.0"},
+  {uni:"國立中山大學",title:"邁向永續轉型與創生：城市共事館的全球在地實踐"},
+  {uni:"國立中央大學",title:"mbhoyaw「復興」-以永續為關鍵詞的跨域共作"},
+  {uni:"國立中央大學",title:"身生不息2.0：桃園特殊需求社群DEI發展計畫"},
+  {uni:"國立中央大學",title:"數位偏鄉早療的社會實踐"},
+  {uni:"國立中正大學",title:"共創長者幸福人生_科際整合人權實踐方案"},
+  {uni:"國立中正大學",title:"阿里山鄒族文化與部落產業永續人才發展計畫"},
+  {uni:"國立中興大學",title:"「綠旱雙脈•興水同心」─ 兩河流域守護實驗室"},
+  {uni:"國立中興大學",title:"水尾社區園藝輔療共學計畫"},
+  {uni:"國立中興大學",title:"以南投清流、中原與眉原部落為起點，打造健康福祉的原鄉"},
+  {uni:"國立中興大學",title:"浪愛無國界：流浪動物減量與福祉實踐"},
+  {uni:"國立中興大學",title:"環境韌性與永續——生態復育森川里共榮"},
+  {uni:"國立成功大學",title:"城鄉相伴健康永續生活 · 東亞連攜"},
+  {uni:"國立成功大學",title:"從診間到人間～泡泡龍族群的生命款待"},
+  {uni:"國立成功大學",title:"惡地協作3.0 _ G.R.E.A.T.建構區域韌性與綠色網絡的共融淺山生活圈"},
+  {uni:"國立成功大學",title:"曾文溪的美麗與哀愁： 從水文與人文歷史、特色產業、到人工智慧數位永續系統"},
+  {uni:"國立成功大學",title:"新港東的心感動—共築療癒生態藝術村"},
+  {uni:"國立宜蘭大學",title:"大南澳地區實踐青創培力與六級化發展"},
+  {uni:"國立宜蘭大學",title:"青銀共耘—智慧農創、飛翔蘭陽"},
+  {uni:"國立東華大學",title:"比鄰共好：柔韌永續實踐計畫"},
+  {uni:"國立東華大學",title:"智匯綠經濟合作永共融"},
+  {uni:"國立虎尾科技大學",title:"水井村智慧減碳節水三生一體社會實踐計畫"},
+  {uni:"國立虎尾科技大學",title:"好糖，文化翻轉：糖都 Eco-museum 行動"},
+  {uni:"國立虎尾科技大學",title:"農業共學地方創生世代共好-實踐綠心到綠港之價值共創"},
+  {uni:"國立虎尾科技大學",title:"碳花薈萃-雲林花卉永續轉型與綠色人才培育"},
+  {uni:"國立金門大學",title:"金門永續水域環境營造與海洋生態教育基地建設：應對氣候變遷衝擊與AI趨勢的社區協力平台"},
+  {uni:"國立金門大學",title:"超高齡社區新藍圖：建設長者健康素養與安全守護網"},
+  {uni:"國立屏東大學",title:"朱雀先驅：屏東鄉村三師+C共學模式"},
+  {uni:"國立屏東大學",title:"讓生命不同凡「想」-身心障礙成人服務的韌力與再創"},
+  {uni:"國立屏東科技大學",title:"老幼共榮、幸福陪伴-共創永續安心家園"},
+  {uni:"國立屏東科技大學",title:"里山根經濟2.0- 林下經濟、生態旅遊的聯盟發展與農林地碳匯人才育成"},
+  {uni:"國立屏東科技大學",title:"沿山185熱帶有機廊道 農業數位轉型及生態系建構、深化與推廣"},
+  {uni:"國立屏東科技大學",title:"馬卡道健康農產業之文化韌性形塑與永續經濟建構"},
+  {uni:"國立屏東科技大學",title:"國境南灣飛夢園-大鵬展翅"},
+  {uni:"國立政治大學",title:"「多元共容‧文山共好」共生社區打造計畫"},
+  {uni:"國立政治大學",title:"韌性山村 • 永續翡翠"},
+  {uni:"國立高雄大學",title:"NUK×K12攜手築夢-STEM與機器人培育計畫"},
+  {uni:"國立高雄科技大學",title:"永續海岸創生—台17漁村實踐計畫"},
+  {uni:"國立高雄師範大學",title:"惡地社會學 _ 田寮月世界產業轉型與在地永續人才培育計畫"},
+  {uni:"國立高雄餐旅大學",title:"台灣地酒文化復育及場域產學鏈結、人才培育發展實踐計畫"},
+  {uni:"國立高雄餐旅大學",title:"田寮農產新食力，古力豬創新商機"},
+  {uni:"國立高雄餐旅大學",title:"關鍵食客-右堆綠色永續新粄塊六級智慧創生計畫"},
+  {uni:"國立清華大學",title:"REAL-X：從移居到宜居的區域永續發展支持系統"},
+  {uni:"國立清華大學",title:"TNUNAN歌劇音樂會：以文化回應式教學推動泰雅醫療人才培育計畫"},
+  {uni:"國立清華大學",title:"自然為本的韌性社區―以新竹市南寮沿海至香山的社區及其濕地為氣候調適實踐場域"},
+  {uni:"國立清華大學",title:"科技與社群的深度融合：以實證研究與素養教育共護頭前溪"},
+  {uni:"國立陽明交通大學",title:"守護獨老：以科技轉譯為青銀共創全齡社區行動計畫"},
+  {uni:"國立陽明交通大學",title:"新竹六燃作為想像共同體：建構生態-文化永續體"},
+  {uni:"國立雲林科技大學",title:"ACG：斗南小鎮文化創生新引擎"},
+  {uni:"國立雲林科技大學",title:"土庫小鎮數位賦能．建構樂活永續城鄉計畫"},
+  {uni:"國立雲林科技大學",title:"以淺山茶產業為載體之韌性農村社會實踐人才培力計畫"},
+  {uni:"國立雲林科技大學",title:"從心靈遍路到智能觀光：雲林朝聖廊帶的地方設計"},
+  {uni:"國立雲林科技大學",title:"雲林地區家禽羽毛廢棄物資源循環再生與減碳"},
+  {uni:"國立勤益科技大學",title:"中臺灣菇類產業創生與永續經營提升計畫"},
+  {uni:"國立勤益科技大學",title:"想到鐵工就是台中—鐵工藝術續創新猷"},
+  {uni:"國立嘉義大學",title:"妙手虫森2.0_Revive!永續環境健康帶回「嘉」"},
+  {uni:"國立嘉義大學",title:"嘉禮尪仔文藝復興與創生- 地方懸絲偶文化價值創新計畫"},
+  {uni:"國立彰化師範大學",title:"生態療癒．綠色永續：彰化生態藝術計畫"},
+  {uni:"國立彰化師範大學",title:"白沙×共好－偏鄉教育服務與研究推廣"},
+  {uni:"國立彰化師範大學",title:"韌性彰濱_氣候變遷下彰化濱海環境與產業永續計畫"},
+  {uni:"國立彰化師範大學",title:"彰化風光 風光彰化"},
+  {uni:"國立暨南國際大學",title:"Walk Tall：戶外教育生態系統創新plus計畫"},
+  {uni:"國立暨南國際大學",title:"水沙連區域產業永續發展計畫：地方創生 x 借鏡日本 x 連結泰國"},
+  {uni:"國立暨南國際大學",title:"水沙連創新教育行動聯盟：從韌性到永續、既國際也在地"},
+  {uni:"國立暨南國際大學",title:"綠色水沙連永續環境與人才培育深拓計畫：科技農業 × 循環經濟 × 淨零排放"},
+  {uni:"國立臺中科技大學",title:"健康樂活智慧照護銀健署"},
+  {uni:"國立臺中科技大學",title:"深耕山城永續共好-永續農遊與觀光創新加值計畫"},
+  {uni:"國立臺中教育大學",title:"全球化語境下的舊城新語──漫畫臺中學之扎根與擴散計畫"},
+  {uni:"國立臺北大學",title:"「海山學」的文化永續與社會實踐"},
+  {uni:"國立臺北大學",title:"前瞻超高齡的大學3E plus行動計畫"},
+  {uni:"國立臺北大學",title:"推動三鶯樹地區低碳共榮生活圈"},
+  {uni:"國立臺北科技大學",title:"泥好共好 - 科技賦能鶯歌陶瓷暨文化永續培力"},
+  {uni:"國立臺北護理健康大學",title:"足感心～全方位樂齡關懷培力計畫"},
+  {uni:"國立臺北護理健康大學",title:"智慧鏈結，健康未來：攜手合作發展在地關懷與人才培育新典範"},
+  {uni:"國立臺北護理健康大學",title:"鏈結資源永續健康-「北護護你健康、青銀共好深耕計畫」"},
+  {uni:"國立臺東大學",title:"三生有興：大學與社區的在地共創計畫"},
+  {uni:"國立臺東大學",title:"山海淨零大無限-大學與社區攜手實踐循環經濟、綠碳與藍碳"},
+  {uni:"國立臺東大學",title:"里山都歷永續USR計畫"},
+  {uni:"國立臺東大學",title:"臺東Y2計畫：深耕山海沙城好未來"},
+  {uni:"國立臺南大學",title:"幸福集氣、心願齊聚"},
+  {uni:"國立臺南大學",title:"青銀搖滾力：嘉南城鄉文化轉譯與創生"},
+  {uni:"國立臺南大學",title:"為偏鄉而教──打造七股偏鄉教育補給站4.0"},
+  {uni:"國立臺南藝術大學",title:"重返與扎根-南瀛地區影像行動計畫"},
+  {uni:"國立臺灣大學",title:"社區尺度之環境舒適度健檢與在地氣候行動：科學社會溝通作為方法"},
+  {uni:"國立臺灣大學",title:"尋找雲林農村生命力 – 永續農村營造計畫"},
+  {uni:"國立臺灣大學",title:"超高齡社會幸福學──在地青銀共好實踐"},
+  {uni:"國立臺灣大學",title:"臺大‧山林‧學院 2.0"},
+  {uni:"國立臺灣科技大學",title:"以百年水圳牽繫城南深溝：城市鄉村共生共農"},
+  {uni:"國立臺灣科技大學",title:"共好 Spark+：走在我的身邊，成為我的夥伴"},
+  {uni:"國立臺灣科技大學",title:"行動工程師培育計畫"},
+  {uni:"國立臺灣科技大學",title:"都市山城無限永續共培丌型人才-蹲城南、跨國際、深植社會責任基因"},
+  {uni:"國立臺灣師範大學",title:"時光共融：高齡長健與跨世代共學計畫"},
+  {uni:"國立臺灣海洋大學",title:"「貢」創「雙」贏：海鄉與山城的共生共榮"},
+  {uni:"國立臺灣海洋大學",title:"智慧樂活水產村"},
+  {uni:"國立臺灣海洋大學",title:"雲林四口，里海漁鄉"},
+  {uni:"國立臺灣海洋大學",title:"蔚藍新世代：深耕三漁、共創國際藍色經濟人才培育平台"},
+  {uni:"國立澎湖科技大學",title:"健康創齡湖東里海澎17線"},
+  {uni:"國立聯合大學",title:"聯合食安X食農X食教實踐苗栗永續農業"},
+  {uni:"崑山科技大學",title:"以技術為體、生活為用的循環經濟路徑—建構社區的永續韌性"},
+  {uni:"崑山科技大學",title:"宜棲臺南-數位觀光導覽建置與濕地環境永續推廣"},
+  {uni:"崑山科技大學",title:"南鄉農語-智慧食農及農村認同的多元應用與推廣"},
+  {uni:"崑山科技大學",title:"開江．破竹—台江地方創生與文化再現計劃"},
+  {uni:"敏實科技大學",title:"台三線客家區域發展-智慧農業(產業)環境永續與AI及ESG技術應用"},
+  {uni:"淡江大學",title:"走進淡水、面向國際_推廣台灣最具影響力的經典遊程與特色餐宴"},
+  {uni:"淡江大學",title:"淡水好生活：大學城賦創設計行動"},
+  {uni:"逢甲大學",title:"部落創生：淨零碳排及文化永續的韌性農場"},
+  {uni:"逢甲大學",title:"構建綠色諧能國際同盟共享智慧淨零典範"},
+  {uni:"朝陽科技大學",title:"農安紮根 豐味深釀_崙元廊道共學增韌擴散計畫"},
+  {uni:"朝陽科技大學",title:"「幼老共園」示範基地的建立與實踐的擴散"},
+  {uni:"朝陽科技大學",title:"「果香山城-城鄉共好_青銀領航×農蘊加值×創生共融」計畫"},
+  {uni:"朝陽科技大學",title:"北溝復麗—文化生態共融村"},
+  {uni:"朝陽科技大學",title:"貓裏法默跨域永續躍升計畫"},
+  {uni:"華梵大學",title:"石碇崩山-玉桂嶺地域以淡蘭古道為主軸的地方創生實踐"},
+  {uni:"華梵大學",title:"漫縵山房_藝術介入石碇老街活力提升計畫"},
+  {uni:"開南大學",title:"AI新視代：新住民新映像暨影像創作培力"},
+  {uni:"慈濟大學",title:"里山團結碳經濟-從永續消費到韌性社區建構共學計畫"},
+  {uni:"慈濟大學",title:"洄瀾再起：永續觀光山海情"},
+  {uni:"德育護理健康學院",title:"親子教育體驗設計師培育及社區共榮計畫"},
+  {uni:"義守大學",title:"美濃世代共榮：客庄文化與健康樂活的永續之路"},
+  {uni:"義守大學",title:"新園耕芯：智慧永續農業的循環新經濟"},
+  {uni:"義守大學",title:"燕巢樂齡實驗室：打造全齡友善智慧生活圈"},
+  {uni:"萬能科技大學",title:"夜市YES-中壢觀光夜市低碳永續教育與實踐"},
+  {uni:"萬能科技大學",title:"戀念新街溪-水域生態環境教育與實踐"},
+  {uni:"僑光科技大學",title:"台中心．綠生活-四季永續新視界"},
+  {uni:"僑光科技大學",title:"烏溪流「育」，創意長銷"},
+  {uni:"嘉南藥理大學",title:"二仁溪流域後現代城鎮漣漪翻轉策略：擴散河海聚落振興力量"},
+  {uni:"嘉南藥理大學",title:"永續安南：生態社區×環境教育×綠色產業的深耕發展"},
+  {uni:"嘉南藥理大學",title:"西港風‧敘事雲：智慧科技永續西港生活文化"},
+  {uni:"嘉南藥理大學",title:"活酪大內健康藥營-推動大內智慧農業與醫療"},
+  {uni:"嘉南藥理大學",title:"嘉藥攜手阿蓮：傳承共榮✕永續城鄉"},
+  {uni:"實踐大學",title:"內門文創生活之活化：悠活慢遊"},
+  {uni:"實踐大學",title:"共鳴·大社心家園：越南新住民共融創藝"},
+  {uni:"實踐大學",title:"在北投 向北投學習「深化」"},
+  {uni:"實踐大學",title:"漸凍病症及相似病徵病友的科技生活設計"},
+  {uni:"實踐大學",title:"囊螢東高{與南島語族相遇}創課微旅_在地風味國際化、龍后銀髮傳智慧"},
+  {uni:"臺北市立大學",title:"醫養結合與高教的視域融合與擴散：建構社會處方箋與連結工作者創新研發基地"},
+  {uni:"臺北醫學大學",title:"第三人生的創新提案：超高齡社會的孤獨處方箋"},
+  {uni:"輔仁大學",title:"水圳文化的傳承與創新：建構新莊生活環境博物園區"},
+  {uni:"輔仁大學",title:"打造新莊永續協力網絡：惜食經濟、地方文化誌、NPO網絡的共生"},
+  {uni:"輔仁大學",title:"樂價都原：原住民家庭與文化永續發展"},
+  {uni:"輔英科技大學",title:"南高雄地區邁向環境永續發展計畫"},
+  {uni:"輔英科技大學",title:"琉連忘返 愛待琉鄉-在地安養精準健康促進人才培育計畫"},
+  {uni:"銘傳大學",title:"龜旅價值再創－從人才培育到場域永續發展"},
+  {uni:"德明財經科技大學",title:"德明【甘丹】永續時尚公益平台雁行計畫"},
+  {uni:"樹德科技大學",title:"青銀共創 活躍老化-高齡友善社區之實踐"},
+  {uni:"樹德科技大學",title:"美濃湖與周邊社區永續發展：低碳水域運動與淨零碳排人才培育計畫"},
+  {uni:"樹德科技大學",title:"智慧城市之淨零轉型與電動運具科普推廣實踐計畫"},
+  {uni:"樹德科技大學",title:"橫山 USR 333-1+ 綠色永續 x 整體實踐 (II)"},
+  {uni:"靜宜大學",title:"建構愛與勇氣的奇幻旅程~海線地區新住民的共榮之路"},
+  {uni:"龍華科技大學",title:"自閉症特教生科技、生態與食農教育多元技藝計畫-龍潭肯納社福園區"},
+  {uni:"龍華科技大學",title:"桃園新屋：石滬文化、人文關懷與環境保護的永續教育藍圖"},
+  {uni:"嶺東科技大學",title:"產業再興-設計驅動白冷圳水流域農創品牌價值"},
 ];
 
-// Build cards with real Unsplash images
+// Build cards
 const grid = document.getElementById("cards-grid");
-UNIVERSITIES.forEach((u, i) => {
-  const seed = encodeURIComponent(u.kw);
-  const imgUrl = `https://picsum.photos/seed/${encodeURIComponent(u.name)}/300/180`;
+document.getElementById("plan-count").textContent = `共 ${PLANS.length} 份`;
+
+PLANS.forEach((p, i) => {
+  const kw = getImgSeed(p.title);
+  const imgUrl = `https://picsum.photos/seed/${encodeURIComponent(p.uni + p.title.slice(0,6))}/300/180`;
   const card = document.createElement("div");
-  card.className = "uni-card";
+  card.className = "plan-card";
+  card.dataset.search = (p.uni + p.title).toLowerCase();
   card.innerHTML = `
     <div class="img">
-      <img src="${imgUrl}" alt="${u.name}" loading="lazy" onerror="this.src='https://picsum.photos/seed/${i+1}/300/180'"/>
-      <div class="overlay"></div>
+      <img src="${imgUrl}" alt="${p.title}" loading="lazy" onerror="this.src='https://picsum.photos/seed/${i}/300/180'"/>
+      <div class="img-overlay"></div>
+      <div class="uni-tag">${p.uni}</div>
     </div>
     <div class="info">
-      <div class="name">${u.name}</div>
-      <div class="count">📄 ${u.plans} 份計畫</div>
-      <div class="qbtn">查詢計畫</div>
+      <div class="plan-title" title="${p.title}">${p.title}</div>
+      <div class="qbtn">查詢此計畫</div>
     </div>`;
-  card.onclick = () => submitQ(`${u.name}的 USR 計畫內容與核心目標是什麼？`);
+  card.onclick = () => submitQ(`${p.uni}的「${p.title}」計畫詳細內容是什麼？`);
   grid.appendChild(card);
 });
+
+// Search filter
+function filterCards(kw) {
+  const q = kw.toLowerCase();
+  let shown = 0;
+  document.querySelectorAll(".plan-card").forEach(c => {
+    const match = !q || c.dataset.search.includes(q);
+    c.classList.toggle("hidden", !match);
+    if (match) shown++;
+  });
+  document.getElementById("plan-count").textContent = `共 ${shown} 份`;
+}
 
 function toggleNav(el) {
   const isOpen = el.classList.contains("open");
   document.querySelectorAll(".nav-item").forEach(n => {
     n.classList.remove("open");
-    n.querySelector(".nav-item-header").classList.remove("active");
+    n.querySelector(".nav-header").classList.remove("active");
   });
   if (!isOpen) {
     el.classList.add("open");
-    el.querySelector(".nav-item-header").classList.add("active");
+    el.querySelector(".nav-header").classList.add("active");
   }
 }
 
@@ -446,7 +639,7 @@ function autoResize(el) {
 
 async function checkStatus() {
   try {
-    const res  = await fetch("/status");
+    const res = await fetch("/status");
     const data = await res.json();
     const pill = document.getElementById("status-pill");
     if (data.ready) {
@@ -477,7 +670,7 @@ async function askQuestion() {
   document.getElementById("ask-btn").disabled = true;
   const loadEl = appendMsg("🤔 AI 分析中，請稍候…", "loading");
   try {
-    const res  = await fetch("/ask", {method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({question})});
+    const res = await fetch("/ask", {method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({question})});
     const data = await res.json();
     loadEl.remove();
     if (!res.ok || data.error) appendMsg("⚠️ " + (data.error||"發生未知錯誤"), "bot");
@@ -488,7 +681,7 @@ async function askQuestion() {
 
 function appendMsg(text, type) {
   const box = document.getElementById("messages");
-  const el  = document.createElement("div");
+  const el = document.createElement("div");
   el.className = `msg ${type}`; el.textContent = text;
   box.appendChild(el); box.scrollTop = box.scrollHeight;
   return el;
@@ -503,7 +696,7 @@ function renderRAG(sources) {
     const key = `${s.source}-${s.page}`;
     if (seen.has(key)) return; seen.add(key);
     const c = document.createElement("div"); c.className = "rag-card";
-    const short = s.source.length > 18 ? s.source.slice(0,18)+"…" : s.source;
+    const short = s.source.length > 20 ? s.source.slice(0,20)+"…" : s.source;
     c.innerHTML = `<div class="rag-head"><div class="rag-badge">${i+1}</div><div class="rag-src" title="${s.source}">📄 ${short}</div></div><div class="rag-text">${s.source}</div><div class="rag-page">第 ${s.page} 頁　點擊展開</div>`;
     c.onclick = () => c.classList.toggle("expanded");
     body.appendChild(c);
