@@ -6,105 +6,100 @@
 <title>USR 計畫書智慧查詢系統</title>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
-body{font-family:"Segoe UI","Noto Sans TC",sans-serif;background:#f0f4f8;height:100vh;display:flex;flex-direction:column;overflow:hidden}
+body{font-family:"Segoe UI","Noto Sans TC",sans-serif;background:#f5f7fa;height:100vh;display:flex;flex-direction:column;overflow:hidden}
 
-/* ══ TOP BAR ══ */
-#topbar{height:46px;background:#1a2540;display:flex;align-items:center;padding:0 18px;gap:14px;flex-shrink:0;z-index:10}
-#topbar .logo{color:#fff;font-weight:700;font-size:.95rem;letter-spacing:.04em;white-space:nowrap}
-#topbar .logo span{color:#60a5fa}
-#status-pill{margin-left:auto;padding:3px 12px;border-radius:999px;font-size:.72rem;font-weight:600;background:rgba(52,211,153,.2);color:#6ee7b7}
-#status-pill.not-ready{background:rgba(239,68,68,.2);color:#fca5a5}
+/* ── TOP BAR ── */
+#topbar{height:48px;background:#fff;border-bottom:1px solid #e2e8f0;display:flex;align-items:center;padding:0 20px;gap:14px;flex-shrink:0;box-shadow:0 1px 4px rgba(0,0,0,.06)}
+#topbar .logo{color:#1e40af;font-weight:800;font-size:1rem;letter-spacing:.02em;white-space:nowrap}
+#topbar .logo span{color:#64748b;font-weight:500}
+#status-pill{margin-left:auto;padding:3px 12px;border-radius:999px;font-size:.72rem;font-weight:600;background:#dcfce7;color:#166534}
+#status-pill.not-ready{background:#fee2e2;color:#991b1b}
 
-/* ══ BODY LAYOUT ══ */
+/* ── LAYOUT ── */
 #layout{display:flex;flex:1;overflow:hidden}
 
-/* ══ LEFT SIDEBAR ══ */
-#sidebar{width:230px;background:#1e2a42;display:flex;flex-direction:column;flex-shrink:0;overflow-y:auto}
+/* ── LEFT SIDEBAR (white) ── */
+#sidebar{width:232px;background:#fff;border-right:1px solid #e2e8f0;display:flex;flex-direction:column;flex-shrink:0;overflow-y:auto}
 #sidebar::-webkit-scrollbar{width:4px}
-#sidebar::-webkit-scrollbar-thumb{background:#334155;border-radius:4px}
-.sb-section{padding:10px 0}
-.sb-section-title{padding:6px 16px;font-size:.68rem;color:#64748b;text-transform:uppercase;letter-spacing:.1em;font-weight:700}
+#sidebar::-webkit-scrollbar-thumb{background:#e2e8f0;border-radius:4px}
+.sb-section{padding:12px 0}
+.sb-section-title{padding:6px 16px;font-size:.67rem;color:#94a3b8;text-transform:uppercase;letter-spacing:.1em;font-weight:700}
 .nav-item{cursor:pointer;user-select:none}
-.nav-item-header{display:flex;align-items:center;gap:10px;padding:9px 16px;color:#94a3b8;font-size:.82rem;border-radius:0;transition:background .15s,color .15s}
-.nav-item-header:hover,.nav-item-header.active{background:#263354;color:#e2e8f0}
-.nav-item-header .icon{width:20px;height:20px;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:.75rem;flex-shrink:0}
-.nav-item-header .arrow{margin-left:auto;font-size:.65rem;transition:transform .2s}
-.nav-item.open .arrow{transform:rotate(90deg)}
-.sub-questions{display:none;padding:4px 0 4px 46px}
+.nav-item-header{display:flex;align-items:center;gap:9px;padding:8px 14px;color:#475569;font-size:.83rem;border-radius:8px;margin:1px 8px;transition:background .15s,color .15s}
+.nav-item-header:hover{background:#eff6ff;color:#1d4ed8}
+.nav-item-header.active{background:#dbeafe;color:#1d4ed8;font-weight:600}
+.nav-item-header .icon{width:26px;height:26px;border-radius:7px;display:flex;align-items:center;justify-content:center;font-size:.82rem;flex-shrink:0}
+.nav-item-header .arrow{margin-left:auto;font-size:.6rem;color:#94a3b8;transition:transform .2s}
+.nav-item.open .nav-item-header .arrow{transform:rotate(90deg)}
+.sub-questions{display:none;padding:2px 0 4px 50px}
 .nav-item.open .sub-questions{display:block}
-.sub-q{padding:6px 12px 6px 0;font-size:.78rem;color:#64748b;cursor:pointer;border-left:2px solid #334155;margin-bottom:2px;transition:color .15s,border-color .15s;line-height:1.4}
-.sub-q:hover{color:#93c5fd;border-left-color:#3b82f6}
+.sub-q{padding:5px 10px 5px 0;font-size:.78rem;color:#64748b;cursor:pointer;border-left:2px solid #e2e8f0;padding-left:8px;margin-bottom:2px;transition:color .15s,border-color .15s;line-height:1.4}
+.sub-q:hover{color:#2563ab;border-left-color:#3b82f6}
 
-/* ══ MAIN ══ */
+/* ── MAIN ── */
 #main{flex:1;display:flex;flex-direction:column;overflow:hidden}
+#hero{background:linear-gradient(120deg,#1e40af 0%,#3b82f6 70%,#60a5fa 100%);padding:18px 28px;flex-shrink:0}
+#hero h2{color:#fff;font-size:1.2rem;font-weight:700}
+#hero p{color:rgba(255,255,255,.8);font-size:.82rem;margin-top:4px}
 
-/* header */
-#hero{background:linear-gradient(120deg,#1e3a6e 0%,#2563a8 60%,#0ea5e9 100%);padding:18px 28px;flex-shrink:0}
-#hero h2{color:#fff;font-size:1.25rem;font-weight:700}
-#hero p{color:rgba(255,255,255,.75);font-size:.82rem;margin-top:4px}
-
-/* tabs */
-#tabs{display:flex;gap:4px;padding:10px 20px;background:#fff;border-bottom:1px solid #e2e8f0;flex-shrink:0}
+#tabs{display:flex;gap:4px;padding:10px 18px;background:#fff;border-bottom:1px solid #e2e8f0;flex-shrink:0}
 .tab{padding:6px 16px;border-radius:6px;font-size:.82rem;cursor:pointer;color:#64748b;transition:background .15s,color .15s;font-weight:500}
 .tab:hover{background:#f1f5f9}
 .tab.active{background:#dbeafe;color:#1d4ed8;font-weight:600}
 
-/* scrollable content */
-#content{flex:1;overflow-y:auto;padding:20px}
+#content{flex:1;overflow-y:auto;padding:20px 22px}
 #content::-webkit-scrollbar{width:5px}
 #content::-webkit-scrollbar-thumb{background:#cbd5e1;border-radius:4px}
+.section-label{font-size:.78rem;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.08em;margin-bottom:14px}
 
-/* section label */
-.section-label{font-size:.78rem;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.08em;margin-bottom:12px}
+/* ── CARDS ── */
+#cards-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:12px;margin-bottom:24px}
+.uni-card{background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 1px 6px rgba(0,0,0,.07);border:1px solid #f1f5f9;cursor:pointer;transition:transform .15s,box-shadow .15s,border-color .15s}
+.uni-card:hover{transform:translateY(-3px);box-shadow:0 8px 24px rgba(59,130,246,.18);border-color:#bfdbfe}
+.uni-card .img{height:80px;display:flex;align-items:center;justify-content:center;font-size:2rem}
+.uni-card .info{padding:8px 10px 10px}
+.uni-card .name{font-size:.76rem;font-weight:600;color:#1e293b;line-height:1.35}
+.uni-card .count{font-size:.68rem;color:#94a3b8;margin-top:3px}
+.uni-card .qbtn{margin-top:6px;display:inline-block;padding:3px 10px;background:#eff6ff;color:#1d4ed8;border-radius:999px;font-size:.68rem;font-weight:600;border:1px solid #bfdbfe}
 
-/* university cards */
-#cards-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:14px;margin-bottom:24px}
-.uni-card{background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 1px 8px rgba(0,0,0,.08);cursor:pointer;transition:transform .15s,box-shadow .15s}
-.uni-card:hover{transform:translateY(-3px);box-shadow:0 6px 20px rgba(0,0,0,.13)}
-.uni-card .img{height:90px;display:flex;align-items:center;justify-content:center;font-size:1.6rem;font-weight:700;color:#fff}
-.uni-card .info{padding:8px 10px}
-.uni-card .info .name{font-size:.78rem;font-weight:600;color:#1e293b;line-height:1.3}
-.uni-card .info .btn{margin-top:6px;display:inline-block;padding:3px 10px;background:#dbeafe;color:#1d4ed8;border-radius:999px;font-size:.7rem;font-weight:600}
-
-/* chat area */
-#chat-wrap{flex-shrink:0;background:#fff;border-top:1px solid #e2e8f0;padding:14px 20px}
-#messages{max-height:260px;overflow-y:auto;margin-bottom:10px;display:flex;flex-direction:column;gap:10px}
+/* ── CHAT ── */
+#chat-wrap{flex-shrink:0;background:#fff;border-top:1px solid #e2e8f0;padding:12px 18px}
+#messages{max-height:240px;overflow-y:auto;margin-bottom:10px;display:flex;flex-direction:column;gap:10px}
 #messages::-webkit-scrollbar{width:4px}
 #messages::-webkit-scrollbar-thumb{background:#e2e8f0;border-radius:4px}
-.msg{padding:10px 14px;border-radius:10px;font-size:.87rem;line-height:1.7;max-width:90%}
+.msg{padding:10px 14px;border-radius:10px;font-size:.86rem;line-height:1.75;max-width:88%}
 .msg.user{background:#dbeafe;color:#1e3a5f;align-self:flex-end;border-bottom-right-radius:2px}
 .msg.bot{background:#f8fafc;border:1px solid #e2e8f0;color:#1e293b;align-self:flex-start;border-bottom-left-radius:2px;white-space:pre-wrap}
-.msg.loading{color:#94a3b8;font-style:italic;background:#f8fafc;border:1px solid #e2e8f0}
-
+.msg.loading{color:#94a3b8;font-style:italic;background:#f8fafc;border:1px solid #e2e8f0;align-self:flex-start}
 #input-row{display:flex;gap:10px;align-items:flex-end}
-#question{flex:1;padding:10px 14px;border:1.5px solid #cbd5e1;border-radius:10px;font-size:.9rem;resize:none;height:44px;outline:none;transition:border-color .2s;font-family:inherit;line-height:1.4}
-#question:focus{border-color:#3b82f6}
-#ask-btn{padding:10px 20px;background:linear-gradient(135deg,#1d4ed8,#2563a8);color:#fff;border:none;border-radius:10px;font-size:.88rem;font-weight:600;cursor:pointer;white-space:nowrap;transition:opacity .2s}
-#ask-btn:disabled{opacity:.5;cursor:not-allowed}
+#question{flex:1;padding:10px 14px;border:1.5px solid #cbd5e1;border-radius:10px;font-size:.9rem;resize:none;height:44px;outline:none;transition:border-color .2s;font-family:inherit;line-height:1.4;background:#f8fafc}
+#question:focus{border-color:#3b82f6;background:#fff}
+#ask-btn{padding:10px 22px;background:linear-gradient(135deg,#1d4ed8,#3b82f6);color:#fff;border:none;border-radius:10px;font-size:.88rem;font-weight:600;cursor:pointer;transition:opacity .2s,transform .1s}
+#ask-btn:hover:not(:disabled){transform:translateY(-1px)}
+#ask-btn:disabled{opacity:.45;cursor:not-allowed}
 
-/* ══ RIGHT RAG PANEL ══ */
-#rag-panel{width:260px;background:#fff;border-left:1px solid #e2e8f0;display:flex;flex-direction:column;flex-shrink:0}
-#rag-header{padding:14px 16px;border-bottom:1px solid #e2e8f0;flex-shrink:0}
+/* ── RAG PANEL ── */
+#rag-panel{width:256px;background:#fff;border-left:1px solid #e2e8f0;display:flex;flex-direction:column;flex-shrink:0}
+#rag-header{padding:14px 16px;border-bottom:1px solid #e2e8f0;flex-shrink:0;background:#f8fafc}
 #rag-header h3{font-size:.85rem;font-weight:700;color:#1e293b}
-#rag-header p{font-size:.72rem;color:#94a3b8;margin-top:2px}
-#rag-body{flex:1;overflow-y:auto;padding:12px}
+#rag-header p{font-size:.7rem;color:#94a3b8;margin-top:2px}
+#rag-body{flex:1;overflow-y:auto;padding:10px}
 #rag-body::-webkit-scrollbar{width:4px}
 #rag-body::-webkit-scrollbar-thumb{background:#e2e8f0;border-radius:4px}
-.rag-empty{text-align:center;color:#cbd5e1;font-size:.8rem;margin-top:40px;line-height:1.8}
-.rag-empty .ico{font-size:2rem;display:block;margin-bottom:8px}
+.rag-empty{text-align:center;color:#cbd5e1;font-size:.8rem;margin-top:40px;line-height:2}
+.rag-empty .ico{font-size:1.8rem;display:block;margin-bottom:6px}
 .rag-card{background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:10px;margin-bottom:8px;cursor:pointer;transition:border-color .15s}
-.rag-card:hover{border-color:#93c5fd}
-.rag-card-head{display:flex;align-items:center;gap:6px;margin-bottom:6px}
-.rag-badge{background:#dbeafe;color:#1d4ed8;border-radius:4px;padding:2px 6px;font-size:.68rem;font-weight:700;flex-shrink:0}
-.rag-card-src{font-size:.72rem;color:#64748b;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.rag-card-text{font-size:.75rem;color:#475569;line-height:1.5;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
-.rag-card.expanded .rag-card-text{-webkit-line-clamp:unset}
-.rag-score{font-size:.68rem;color:#94a3b8;margin-top:4px}
+.rag-card:hover{border-color:#93c5fd;background:#eff6ff}
+.rag-card.expanded .rag-text{-webkit-line-clamp:unset!important}
+.rag-head{display:flex;align-items:center;gap:6px;margin-bottom:5px}
+.rag-badge{background:#dbeafe;color:#1d4ed8;border-radius:4px;padding:2px 7px;font-size:.68rem;font-weight:700}
+.rag-src{font-size:.71rem;color:#64748b;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.rag-text{font-size:.74rem;color:#475569;line-height:1.55;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
+.rag-page{font-size:.67rem;color:#94a3b8;margin-top:4px}
 </style>
 </head>
 <body>
 
-<!-- TOP BAR -->
 <div id="topbar">
   <div class="logo">📚 USR <span>計畫書智慧查詢系統</span></div>
   <div id="status-pill" class="not-ready">系統檢查中…</div>
@@ -119,89 +114,102 @@ body{font-family:"Segoe UI","Noto Sans TC",sans-serif;background:#f0f4f8;height:
 
     <div class="nav-item open" onclick="toggleNav(this)">
       <div class="nav-item-header active">
-        <div class="icon" style="background:#3b82f6">🗺️</div>
+        <div class="icon" style="background:#dbeafe">🗺️</div>
         各校計畫總覽
         <span class="arrow">▶</span>
       </div>
       <div class="sub-questions">
         <div class="sub-q" onclick="submitQ('哪些大學參與 USR 計畫？')">哪些大學參與 USR 計畫？</div>
-        <div class="sub-q" onclick="submitQ('各大學計畫的主題分類為何？')">各大學計畫的主題分類為何？</div>
-        <div class="sub-q" onclick="submitQ('請給我所有計畫書的核心摘要')">請給我所有計畫書的核心摘要</div>
+        <div class="sub-q" onclick="submitQ('各大學計畫的主題分類為何？')">各大學計畫主題分類</div>
+        <div class="sub-q" onclick="submitQ('請給我所有計畫書的核心摘要')">所有計畫書核心摘要</div>
       </div>
     </div>
 
     <div class="nav-item" onclick="toggleNav(this)">
       <div class="nav-item-header">
-        <div class="icon" style="background:#10b981">🌿</div>
+        <div class="icon" style="background:#dcfce7">🌿</div>
         永續發展主題
         <span class="arrow">▶</span>
       </div>
       <div class="sub-questions">
-        <div class="sub-q" onclick="submitQ('哪些計畫與淨零碳排相關？')">哪些計畫與淨零碳排相關？</div>
-        <div class="sub-q" onclick="submitQ('有哪些環境生態保育的計畫？')">有哪些環境生態保育的計畫？</div>
-        <div class="sub-q" onclick="submitQ('農業永續發展有哪些計畫？')">農業永續發展有哪些計畫？</div>
+        <div class="sub-q" onclick="submitQ('哪些計畫與淨零碳排相關？')">淨零碳排相關計畫</div>
+        <div class="sub-q" onclick="submitQ('有哪些環境生態保育的計畫？')">環境生態保育計畫</div>
+        <div class="sub-q" onclick="submitQ('農業永續發展有哪些計畫？')">農業永續發展計畫</div>
       </div>
     </div>
 
     <div class="nav-item" onclick="toggleNav(this)">
       <div class="nav-item-header">
-        <div class="icon" style="background:#f59e0b">👴</div>
+        <div class="icon" style="background:#fef9c3">👴</div>
         高齡照護計畫
         <span class="arrow">▶</span>
       </div>
       <div class="sub-questions">
-        <div class="sub-q" onclick="submitQ('哪些大學有高齡照護相關的 USR 計畫？')">哪些大學有高齡照護計畫？</div>
-        <div class="sub-q" onclick="submitQ('青銀共創的計畫有哪些？')">青銀共創計畫有哪些？</div>
-        <div class="sub-q" onclick="submitQ('智慧樂齡或銀髮科技相關計畫')">智慧樂齡相關計畫</div>
+        <div class="sub-q" onclick="submitQ('哪些大學有高齡照護相關的 USR 計畫？')">高齡照護相關計畫</div>
+        <div class="sub-q" onclick="submitQ('青銀共創的計畫有哪些？')">青銀共創計畫</div>
+        <div class="sub-q" onclick="submitQ('智慧樂齡或銀髮科技相關計畫')">智慧樂齡科技計畫</div>
       </div>
     </div>
 
     <div class="nav-item" onclick="toggleNav(this)">
       <div class="nav-item-header">
-        <div class="icon" style="background:#8b5cf6">🏘️</div>
+        <div class="icon" style="background:#ede9fe">🏘️</div>
         社區共融計畫
         <span class="arrow">▶</span>
       </div>
       <div class="sub-questions">
-        <div class="sub-q" onclick="submitQ('哪些計畫與社區營造或地方創生有關？')">社區營造與地方創生</div>
-        <div class="sub-q" onclick="submitQ('偏鄉教育相關的計畫有哪些？')">偏鄉教育相關計畫</div>
-        <div class="sub-q" onclick="submitQ('新住民或多元文化計畫有哪些？')">新住民多元文化計畫</div>
+        <div class="sub-q" onclick="submitQ('哪些計畫與社區營造或地方創生有關？')">社區營造地方創生</div>
+        <div class="sub-q" onclick="submitQ('偏鄉教育相關的計畫有哪些？')">偏鄉教育計畫</div>
+        <div class="sub-q" onclick="submitQ('新住民或多元文化計畫有哪些？')">新住民多元文化</div>
       </div>
     </div>
 
     <div class="nav-item" onclick="toggleNav(this)">
       <div class="nav-item-header">
-        <div class="icon" style="background:#ec4899">🧑‍🌾</div>
+        <div class="icon" style="background:#fce7f3">🧑‍🌾</div>
         原住民族計畫
         <span class="arrow">▶</span>
       </div>
       <div class="sub-questions">
         <div class="sub-q" onclick="submitQ('有哪些 USR 計畫與原住民族文化保存有關？')">原住民族文化保存</div>
-        <div class="sub-q" onclick="submitQ('部落產業發展相關計畫')">部落產業發展計畫</div>
-        <div class="sub-q" onclick="submitQ('原住民族醫療或健康計畫')">原民醫療健康計畫</div>
+        <div class="sub-q" onclick="submitQ('部落產業發展相關計畫')">部落產業發展</div>
+        <div class="sub-q" onclick="submitQ('原住民族醫療或健康計畫')">原民醫療健康</div>
       </div>
     </div>
 
     <div class="nav-item" onclick="toggleNav(this)">
       <div class="nav-item-header">
-        <div class="icon" style="background:#06b6d4">💻</div>
+        <div class="icon" style="background:#e0f2fe">💻</div>
         數位科技應用
         <span class="arrow">▶</span>
       </div>
       <div class="sub-questions">
-        <div class="sub-q" onclick="submitQ('哪些計畫結合 AI 或數位科技？')">AI 數位科技應用計畫</div>
+        <div class="sub-q" onclick="submitQ('哪些計畫結合 AI 或數位科技？')">AI 數位科技計畫</div>
         <div class="sub-q" onclick="submitQ('智慧農業相關的計畫有哪些？')">智慧農業計畫</div>
-        <div class="sub-q" onclick="submitQ('數位轉型與社區賦能的計畫')">數位轉型社區賦能</div>
+        <div class="sub-q" onclick="submitQ('數位轉型與社區賦能的計畫')">數位轉型賦能</div>
+      </div>
+    </div>
+
+    <div class="nav-item" onclick="toggleNav(this)">
+      <div class="nav-item-header">
+        <div class="icon" style="background:#ffedd5">🍽️</div>
+        產業文化創生
+        <span class="arrow">▶</span>
+      </div>
+      <div class="sub-questions">
+        <div class="sub-q" onclick="submitQ('有哪些計畫與文化創意產業有關？')">文化創意產業計畫</div>
+        <div class="sub-q" onclick="submitQ('食農教育相關計畫有哪些？')">食農教育計畫</div>
+        <div class="sub-q" onclick="submitQ('觀光旅遊相關的 USR 計畫')">觀光旅遊計畫</div>
       </div>
     </div>
   </div>
 </div>
 
-<!-- MAIN AREA -->
+<!-- MAIN -->
 <div id="main">
   <div id="hero">
     <h2>🎓 USR 智慧問答知識檢索中心</h2>
-    <p>整合全台 100+ 所大學社會責任計畫書・語意搜尋・即時 AI 解析</p>
+    <p>整合全台 101 所大學・257 份社會責任計畫書・語意搜尋・即時 AI 解析</p>
   </div>
 
   <div id="tabs">
@@ -211,18 +219,17 @@ body{font-family:"Segoe UI","Noto Sans TC",sans-serif;background:#f0f4f8;height:
   </div>
 
   <div id="content">
-    <!-- University cards -->
     <div id="uni-section">
-      <div class="section-label">重點計畫・點擊卡片直接查詢</div>
+      <div class="section-label">重點計畫・點擊卡片直接查詢該校詳情</div>
       <div id="cards-grid"></div>
     </div>
   </div>
 
-  <!-- Chat area (always visible at bottom) -->
   <div id="chat-wrap">
     <div id="messages"></div>
     <div id="input-row">
-      <textarea id="question" placeholder="請輸入問題，例如：中原大學的永續計畫內容是什麼？" rows="1"
+      <textarea id="question"
+        placeholder="請輸入問題，例如：中原大學的永續計畫內容是什麼？"
         oninput="autoResize(this)"
         onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();askQuestion()}"></textarea>
       <button id="ask-btn" onclick="askQuestion()" disabled>送出</button>
@@ -230,49 +237,127 @@ body{font-family:"Segoe UI","Noto Sans TC",sans-serif;background:#f0f4f8;height:
   </div>
 </div>
 
-<!-- RIGHT RAG PANEL -->
+<!-- RAG PANEL -->
 <div id="rag-panel">
   <div id="rag-header">
     <h3>📎 RAG 證據側欄</h3>
     <p>回答可驗證・可追溯・可展開</p>
   </div>
   <div id="rag-body">
-    <div class="rag-empty">
-      <span class="ico">🔍</span>
-      提問後將顯示<br>引用的計畫書段落
-    </div>
+    <div class="rag-empty"><span class="ico">🔍</span>提問後將顯示<br>引用的計畫書段落</div>
   </div>
 </div>
 
-</div><!-- /layout -->
+</div>
 
 <script>
-// ── University data ──
+// ── Complete university list (101 schools) ──
 const UNIVERSITIES = [
-  {name:"國立台灣大學",color:"#1d4ed8",icon:"🎓"},
-  {name:"國立成功大學",color:"#065f46",icon:"🌿"},
-  {name:"國立政治大學",color:"#7c3aed",icon:"📚"},
-  {name:"國立中興大學",color:"#b45309",icon:"🌾"},
-  {name:"國立清華大學",color:"#0369a1",icon:"⚗️"},
-  {name:"國立中山大學",color:"#0f766e",icon:"🌊"},
-  {name:"國立中央大學",color:"#6d28d9",icon:"🔭"},
-  {name:"國立暨南國際大學",color:"#166534",icon:"🏔️"},
-  {name:"國立彰化師範大學",color:"#9f1239",icon:"✏️"},
-  {name:"國立屏東大學",color:"#92400e",icon:"🌴"},
-  {name:"國立台南大學",color:"#1e3a8a",icon:"🏛️"},
-  {name:"國立東華大學",color:"#065f46",icon:"🦋"},
-  {name:"中原大學",color:"#7e22ce",icon:"⚙️"},
-  {name:"東海大學",color:"#b91c1c",icon:"🕊️"},
-  {name:"輔仁大學",color:"#1e40af",icon:"✝️"},
-  {name:"淡江大學",color:"#0f172a",icon:"🚢"},
-  {name:"逢甲大學",color:"#166534",icon:"🔧"},
-  {name:"中國醫藥大學",color:"#9f1239",icon:"⚕️"},
-  {name:"長庚大學",color:"#1d4ed8",icon:"🏥"},
-  {name:"慈濟大學",color:"#065f46",icon:"☯️"},
-  {name:"亞洲大學",color:"#7c3aed",icon:"🌏"},
-  {name:"大葉大學",color:"#b45309",icon:"🍃"},
-  {name:"南華大學",color:"#0369a1",icon:"🕊️"},
-  {name:"實踐大學",color:"#0f766e",icon:"🎨"},
+  {name:"大仁科技大學",icon:"⚙️",bg:"#dbeafe",c:"#1e40af",plans:1},
+  {name:"大同大學",icon:"🔧",bg:"#f0fdf4",c:"#166534",plans:1},
+  {name:"大葉大學",icon:"🍃",bg:"#dcfce7",c:"#15803d",plans:3},
+  {name:"中信科技大學",icon:"💡",bg:"#fef9c3",c:"#854d0e",plans:3},
+  {name:"中原大學",icon:"⚙️",bg:"#ede9fe",c:"#6d28d9",plans:2},
+  {name:"中國文化大學",icon:"📜",bg:"#fee2e2",c:"#991b1b",plans:2},
+  {name:"中國科技大學",icon:"💻",bg:"#e0f2fe",c:"#0369a1",plans:3},
+  {name:"中國醫藥大學",icon:"⚕️",bg:"#fce7f3",c:"#9d174d",plans:2},
+  {name:"中華大學",icon:"🌳",bg:"#dcfce7",c:"#166534",plans:2},
+  {name:"中華科技大學",icon:"🔬",bg:"#e0f2fe",c:"#0369a1",plans:2},
+  {name:"中華醫事科技大學",icon:"🏥",bg:"#fce7f3",c:"#9d174d",plans:1},
+  {name:"中臺科技大學",icon:"☕",bg:"#ffedd5",c:"#9a3412",plans:1},
+  {name:"元培醫事科技大學",icon:"💊",bg:"#fce7f3",c:"#9d174d",plans:2},
+  {name:"元智大學",icon:"🤖",bg:"#dbeafe",c:"#1e40af",plans:2},
+  {name:"文藻外語大學",icon:"🗣️",bg:"#ede9fe",c:"#6d28d9",plans:2},
+  {name:"台北海洋科技大學",icon:"🌊",bg:"#cffafe",c:"#155e75",plans:2},
+  {name:"台南應用科技大學",icon:"🎨",bg:"#fef9c3",c:"#854d0e",plans:3},
+  {name:"弘光科技大學",icon:"🌱",bg:"#dcfce7",c:"#15803d",plans:4},
+  {name:"正修科技大學",icon:"🏔️",bg:"#f0fdf4",c:"#166534",plans:2},
+  {name:"玄奘大學",icon:"☯️",bg:"#fef9c3",c:"#854d0e",plans:2},
+  {name:"佛光大學",icon:"🕊️",bg:"#ffedd5",c:"#9a3412",plans:2},
+  {name:"育達科技大學",icon:"🐦",bg:"#f0fdf4",c:"#166534",plans:2},
+  {name:"亞東科技大學",icon:"🔭",bg:"#dbeafe",c:"#1e40af",plans:2},
+  {name:"亞洲大學",icon:"🌏",bg:"#ede9fe",c:"#6d28d9",plans:4},
+  {name:"明志科技大學",icon:"🏭",bg:"#e0f2fe",c:"#0369a1",plans:5},
+  {name:"明新科技大學",icon:"🌿",bg:"#dcfce7",c:"#15803d",plans:3},
+  {name:"東吳大學",icon:"🏛️",bg:"#fef9c3",c:"#854d0e",plans:1},
+  {name:"東南科技大學",icon:"🌟",bg:"#ede9fe",c:"#6d28d9",plans:1},
+  {name:"東海大學",icon:"🦅",bg:"#fee2e2",c:"#991b1b",plans:1},
+  {name:"法鼓文理學院",icon:"🧘",bg:"#f0fdf4",c:"#166534",plans:1},
+  {name:"長庚大學",icon:"🏥",bg:"#dbeafe",c:"#1e40af",plans:4},
+  {name:"長庚科技大學",icon:"💉",bg:"#fce7f3",c:"#9d174d",plans:2},
+  {name:"長榮大學",icon:"🌺",bg:"#dcfce7",c:"#15803d",plans:3},
+  {name:"南華大學",icon:"📖",bg:"#fef9c3",c:"#854d0e",plans:3},
+  {name:"南開科技大學",icon:"🏡",bg:"#ffedd5",c:"#9a3412",plans:2},
+  {name:"南臺科技大學",icon:"🌆",bg:"#e0f2fe",c:"#0369a1",plans:5},
+  {name:"建國科技大學",icon:"🔨",bg:"#f0fdf4",c:"#166534",plans:1},
+  {name:"美和科技大學",icon:"🌸",bg:"#fce7f3",c:"#9d174d",plans:2},
+  {name:"致理科技大學",icon:"📊",bg:"#dbeafe",c:"#1e40af",plans:3},
+  {name:"耕莘健康管理專科學校",icon:"🌾",bg:"#dcfce7",c:"#15803d",plans:4},
+  {name:"馬偕醫學大學",icon:"💙",bg:"#e0f2fe",c:"#0369a1",plans:3},
+  {name:"馬偕醫護管理專科學校",icon:"🩺",bg:"#fce7f3",c:"#9d174d",plans:2},
+  {name:"高雄醫學大學",icon:"⚕️",bg:"#fee2e2",c:"#991b1b",plans:4},
+  {name:"健行科技大學",icon:"🏃",bg:"#fef9c3",c:"#854d0e",plans:1},
+  {name:"國立中山大學",icon:"🌊",bg:"#cffafe",c:"#155e75",plans:4},
+  {name:"國立中央大學",icon:"🔭",bg:"#ede9fe",c:"#6d28d9",plans:3},
+  {name:"國立中正大學",icon:"🎓",bg:"#dbeafe",c:"#1e40af",plans:2},
+  {name:"國立中興大學",icon:"🌾",bg:"#dcfce7",c:"#15803d",plans:5},
+  {name:"國立成功大學",icon:"🏆",bg:"#f0fdf4",c:"#166534",plans:5},
+  {name:"國立宜蘭大學",icon:"🍵",bg:"#fef9c3",c:"#854d0e",plans:2},
+  {name:"國立東華大學",icon:"🦋",bg:"#dcfce7",c:"#15803d",plans:2},
+  {name:"國立虎尾科技大學",icon:"🌻",bg:"#fef9c3",c:"#854d0e",plans:4},
+  {name:"國立金門大學",icon:"🏖️",bg:"#cffafe",c:"#155e75",plans:2},
+  {name:"國立屏東大學",icon:"🌴",bg:"#dcfce7",c:"#15803d",plans:2},
+  {name:"國立屏東科技大學",icon:"🐾",bg:"#f0fdf4",c:"#166534",plans:5},
+  {name:"國立政治大學",icon:"⚖️",bg:"#ede9fe",c:"#6d28d9",plans:2},
+  {name:"國立高雄大學",icon:"🌞",bg:"#fef9c3",c:"#854d0e",plans:1},
+  {name:"國立高雄科技大學",icon:"⚓",bg:"#cffafe",c:"#155e75",plans:1},
+  {name:"國立高雄師範大學",icon:"✏️",bg:"#fee2e2",c:"#991b1b",plans:1},
+  {name:"國立高雄餐旅大學",icon:"🍽️",bg:"#ffedd5",c:"#9a3412",plans:3},
+  {name:"國立清華大學",icon:"⚗️",bg:"#dbeafe",c:"#1e40af",plans:4},
+  {name:"國立陽明交通大學",icon:"🧬",bg:"#fce7f3",c:"#9d174d",plans:2},
+  {name:"國立雲林科技大學",icon:"🌾",bg:"#dcfce7",c:"#15803d",plans:5},
+  {name:"國立勤益科技大學",icon:"🔩",bg:"#e0f2fe",c:"#0369a1",plans:2},
+  {name:"國立嘉義大學",icon:"🎎",bg:"#fef9c3",c:"#854d0e",plans:2},
+  {name:"國立彰化師範大學",icon:"✏️",bg:"#ede9fe",c:"#6d28d9",plans:4},
+  {name:"國立暨南國際大學",icon:"🌏",bg:"#f0fdf4",c:"#166534",plans:4},
+  {name:"國立臺中科技大學",icon:"🏙️",bg:"#dbeafe",c:"#1e40af",plans:2},
+  {name:"國立臺中教育大學",icon:"📚",bg:"#fef9c3",c:"#854d0e",plans:1},
+  {name:"國立臺北大學",icon:"🌆",bg:"#ede9fe",c:"#6d28d9",plans:3},
+  {name:"國立臺北科技大學",icon:"⚙️",bg:"#e0f2fe",c:"#0369a1",plans:1},
+  {name:"國立臺北護理健康大學",icon:"🩺",bg:"#fce7f3",c:"#9d174d",plans:3},
+  {name:"國立臺東大學",icon:"🌄",bg:"#f0fdf4",c:"#166534",plans:4},
+  {name:"國立臺南大學",icon:"🏛️",bg:"#fef9c3",c:"#854d0e",plans:3},
+  {name:"國立臺南藝術大學",icon:"🎬",bg:"#ede9fe",c:"#6d28d9",plans:1},
+  {name:"國立臺灣大學",icon:"🎓",bg:"#dbeafe",c:"#1e40af",plans:4},
+  {name:"國立臺灣科技大學",icon:"🤖",bg:"#e0f2fe",c:"#0369a1",plans:4},
+  {name:"國立臺灣師範大學",icon:"✏️",bg:"#fce7f3",c:"#9d174d",plans:1},
+  {name:"國立臺灣海洋大學",icon:"🐟",bg:"#cffafe",c:"#155e75",plans:4},
+  {name:"國立澎湖科技大學",icon:"🏝️",bg:"#cffafe",c:"#155e75",plans:1},
+  {name:"國立聯合大學",icon:"🌿",bg:"#dcfce7",c:"#15803d",plans:1},
+  {name:"崑山科技大學",icon:"🏗️",bg:"#ffedd5",c:"#9a3412",plans:4},
+  {name:"敏實科技大學",icon:"🚗",bg:"#e0f2fe",c:"#0369a1",plans:1},
+  {name:"淡江大學",icon:"🚢",bg:"#dbeafe",c:"#1e40af",plans:2},
+  {name:"逢甲大學",icon:"🔆",bg:"#fef9c3",c:"#854d0e",plans:2},
+  {name:"朝陽科技大學",icon:"🌅",bg:"#ffedd5",c:"#9a3412",plans:5},
+  {name:"華梵大學",icon:"🏮",bg:"#fce7f3",c:"#9d174d",plans:2},
+  {name:"開南大學",icon:"✈️",bg:"#e0f2fe",c:"#0369a1",plans:1},
+  {name:"慈濟大學",icon:"☯️",bg:"#f0fdf4",c:"#166534",plans:2},
+  {name:"德育護理健康學院",icon:"🌺",bg:"#fce7f3",c:"#9d174d",plans:1},
+  {name:"義守大學",icon:"🌞",bg:"#fef9c3",c:"#854d0e",plans:3},
+  {name:"萬能科技大學",icon:"⚡",bg:"#ede9fe",c:"#6d28d9",plans:2},
+  {name:"僑光科技大學",icon:"🌉",bg:"#dbeafe",c:"#1e40af",plans:2},
+  {name:"嘉南藥理大學",icon:"🌿",bg:"#dcfce7",c:"#15803d",plans:5},
+  {name:"實踐大學",icon:"🎨",bg:"#fce7f3",c:"#9d174d",plans:5},
+  {name:"臺北市立大學",icon:"🏙️",bg:"#dbeafe",c:"#1e40af",plans:1},
+  {name:"臺北醫學大學",icon:"🏥",bg:"#fee2e2",c:"#991b1b",plans:1},
+  {name:"輔仁大學",icon:"✝️",bg:"#ede9fe",c:"#6d28d9",plans:3},
+  {name:"輔英科技大學",icon:"💊",bg:"#fce7f3",c:"#9d174d",plans:2},
+  {name:"銘傳大學",icon:"🐢",bg:"#cffafe",c:"#155e75",plans:1},
+  {name:"德明財經科技大學",icon:"💰",bg:"#fef9c3",c:"#854d0e",plans:1},
+  {name:"樹德科技大學",icon:"🌲",bg:"#dcfce7",c:"#15803d",plans:4},
+  {name:"靜宜大學",icon:"🌸",bg:"#fce7f3",c:"#9d174d",plans:1},
+  {name:"龍華科技大學",icon:"🐉",bg:"#fee2e2",c:"#991b1b",plans:2},
+  {name:"嶺東科技大學",icon:"🏔️",bg:"#f0fdf4",c:"#166534",plans:1},
 ];
 
 // Build cards
@@ -281,135 +366,105 @@ UNIVERSITIES.forEach(u => {
   const card = document.createElement("div");
   card.className = "uni-card";
   card.innerHTML = `
-    <div class="img" style="background:linear-gradient(135deg,${u.color},${u.color}99)">
-      <span style="font-size:2rem">${u.icon}</span>
+    <div class="img" style="background:${u.bg}">
+      <span style="font-size:2.2rem">${u.icon}</span>
     </div>
     <div class="info">
       <div class="name">${u.name}</div>
-      <div class="btn">查詢計畫</div>
+      <div class="count">📄 ${u.plans} 份計畫</div>
+      <div class="qbtn">查詢計畫</div>
     </div>`;
   card.onclick = () => submitQ(`${u.name}的 USR 計畫內容與核心目標是什麼？`);
   grid.appendChild(card);
 });
 
-// ── Nav toggle ──
 function toggleNav(el) {
-  el.classList.toggle("open");
-  el.querySelector(".nav-item-header").classList.toggle("active", el.classList.contains("open"));
+  const isOpen = el.classList.contains("open");
+  document.querySelectorAll(".nav-item").forEach(n => {
+    n.classList.remove("open");
+    n.querySelector(".nav-item-header").classList.remove("active");
+  });
+  if (!isOpen) {
+    el.classList.add("open");
+    el.querySelector(".nav-item-header").classList.add("active");
+  }
 }
 
-// ── Tab switch ──
 function switchTab(tab, el) {
   document.querySelectorAll(".tab").forEach(t => t.classList.remove("active"));
   el.classList.add("active");
-  const uniSec = document.getElementById("uni-section");
-  if (tab === "uni") uniSec.style.display = "block";
-  else if (tab === "chat") uniSec.style.display = "none";
-  else uniSec.style.display = "block";
+  document.getElementById("uni-section").style.display = tab === "chat" ? "none" : "block";
 }
 
-// ── Auto resize textarea ──
 function autoResize(el) {
   el.style.height = "44px";
   el.style.height = Math.min(el.scrollHeight, 100) + "px";
 }
 
-// ── Status check ──
 async function checkStatus() {
   try {
     const res  = await fetch("/status");
     const data = await res.json();
     const pill = document.getElementById("status-pill");
-    const btn  = document.getElementById("ask-btn");
     if (data.ready) {
       pill.textContent = `✅ 已載入 ${data.pdf_count} 份計畫書`;
       pill.className = "";
-      btn.disabled = false;
+      document.getElementById("ask-btn").disabled = false;
     } else {
       pill.textContent = "⚠️ 系統未就緒";
       pill.className = "not-ready";
     }
   } catch {
     document.getElementById("status-pill").textContent = "❌ 連線失敗";
+    document.getElementById("status-pill").className = "not-ready";
   }
 }
 
-// ── Submit question ──
 function submitQ(q) {
   document.getElementById("question").value = q;
   askQuestion();
+  document.getElementById("content").scrollTop = document.getElementById("content").scrollHeight;
 }
 
 async function askQuestion() {
   const qEl = document.getElementById("question");
   const question = qEl.value.trim();
   if (!question) return;
-
   appendMsg(question, "user");
-  qEl.value = "";
-  qEl.style.height = "44px";
+  qEl.value = ""; qEl.style.height = "44px";
   document.getElementById("ask-btn").disabled = true;
-
-  const loadingEl = appendMsg("AI 分析中，請稍候…", "loading");
-
+  const loadEl = appendMsg("🤔 AI 分析中，請稍候…", "loading");
   try {
-    const res  = await fetch("/ask", {
-      method: "POST",
-      headers: {"Content-Type":"application/json"},
-      body: JSON.stringify({question}),
-    });
+    const res  = await fetch("/ask", {method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({question})});
     const data = await res.json();
-    loadingEl.remove();
-
-    if (!res.ok || data.error) {
-      appendMsg("⚠️ " + (data.error || "發生未知錯誤"), "bot");
-    } else {
-      appendMsg(data.answer, "bot");
-      renderRAG(data.sources || []);
-    }
-  } catch {
-    loadingEl.remove();
-    appendMsg("⚠️ 無法連線至伺服器", "bot");
-  } finally {
-    document.getElementById("ask-btn").disabled = false;
-  }
+    loadEl.remove();
+    if (!res.ok || data.error) appendMsg("⚠️ " + (data.error||"發生未知錯誤"), "bot");
+    else { appendMsg(data.answer, "bot"); renderRAG(data.sources||[]); }
+  } catch { loadEl.remove(); appendMsg("⚠️ 無法連線至伺服器", "bot"); }
+  finally { document.getElementById("ask-btn").disabled = false; }
 }
 
 function appendMsg(text, type) {
   const box = document.getElementById("messages");
   const el  = document.createElement("div");
-  el.className = `msg ${type}`;
-  el.textContent = text;
-  box.appendChild(el);
-  box.scrollTop = box.scrollHeight;
+  el.className = `msg ${type}`; el.textContent = text;
+  box.appendChild(el); box.scrollTop = box.scrollHeight;
   return el;
 }
 
-// ── RAG panel ──
 function renderRAG(sources) {
   const body = document.getElementById("rag-body");
-  if (!sources.length) {
-    body.innerHTML = `<div class="rag-empty"><span class="ico">📭</span>本次查詢無引用段落</div>`;
-    return;
-  }
+  if (!sources.length) { body.innerHTML = `<div class="rag-empty"><span class="ico">📭</span>本次查詢無引用段落</div>`; return; }
   body.innerHTML = "";
   const seen = new Set();
-  sources.forEach((s, i) => {
+  sources.forEach((s,i) => {
     const key = `${s.source}-${s.page}`;
-    if (seen.has(key)) return;
-    seen.add(key);
-    const card = document.createElement("div");
-    card.className = "rag-card";
-    card.innerHTML = `
-      <div class="rag-card-head">
-        <div class="rag-badge">${i+1}</div>
-        <div class="rag-card-src" title="${s.source} 第${s.page}頁">
-          📄 ${s.source.length > 16 ? s.source.slice(0,16)+"…" : s.source}
-        </div>
-      </div>
-      <div class="rag-card-text">${s.source} 第 ${s.page} 頁</div>`;
-    card.onclick = () => card.classList.toggle("expanded");
-    body.appendChild(card);
+    if (seen.has(key)) return; seen.add(key);
+    const c = document.createElement("div"); c.className = "rag-card";
+    const shortName = s.source.length > 18 ? s.source.slice(0,18)+"…" : s.source;
+    c.innerHTML = `<div class="rag-head"><div class="rag-badge">${i+1}</div><div class="rag-src" title="${s.source}">📄 ${shortName}</div></div><div class="rag-text">${s.source}</div><div class="rag-page">第 ${s.page} 頁</div>`;
+    c.onclick = () => c.classList.toggle("expanded");
+    body.appendChild(c);
   });
 }
 
