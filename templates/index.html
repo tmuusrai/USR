@@ -3,149 +3,342 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>USR 計畫書問答系統</title>
+  <title>USR 計畫書智慧問答系統</title>
   <style>
-    body { font-family: sans-serif; max-width: 800px; margin: 40px auto; padding: 0 20px; }
-    h1 { font-size: 1.4rem; margin-bottom: 4px; }
-    p.sub { color: #666; font-size: 0.9rem; margin-top: 0; }
-    #status-bar { font-size: 0.8rem; padding: 4px 8px; border-radius: 4px; display: inline-block; margin-bottom: 16px; }
-    .ready { background: #d4edda; color: #155724; }
-    .not-ready { background: #f8d7da; color: #721c24; }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
+    body {
+      font-family: "Segoe UI", "Noto Sans TC", sans-serif;
+      background: #f0f4f8;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* ── Header ── */
+    header {
+      background: linear-gradient(135deg, #1a3c6e 0%, #2563a8 100%);
+      color: #fff;
+      padding: 28px 40px;
+      box-shadow: 0 2px 12px rgba(0,0,0,.25);
+    }
+    header h1 {
+      font-size: 1.6rem;
+      font-weight: 700;
+      letter-spacing: .04em;
+    }
+    header p {
+      margin-top: 6px;
+      font-size: .9rem;
+      opacity: .8;
+    }
+    #status-pill {
+      display: inline-block;
+      margin-top: 12px;
+      padding: 4px 14px;
+      border-radius: 999px;
+      font-size: .78rem;
+      font-weight: 600;
+      background: rgba(255,255,255,.15);
+      color: #fff;
+    }
+    #status-pill.ready   { background: rgba(52,211,153,.25); color: #6ee7b7; }
+    #status-pill.not-ready { background: rgba(239,68,68,.25); color: #fca5a5; }
+
+    /* ── Main layout ── */
+    main {
+      flex: 1;
+      max-width: 860px;
+      width: 100%;
+      margin: 36px auto;
+      padding: 0 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 24px;
+    }
+
+    /* ── Card ── */
+    .card {
+      background: #fff;
+      border-radius: 14px;
+      box-shadow: 0 2px 16px rgba(0,0,0,.08);
+      padding: 28px;
+    }
+
+    /* ── Input area ── */
+    .input-label {
+      font-size: .85rem;
+      font-weight: 600;
+      color: #475569;
+      margin-bottom: 10px;
+      text-transform: uppercase;
+      letter-spacing: .06em;
+    }
     textarea {
-      width: 100%; box-sizing: border-box;
-      height: 80px; padding: 10px; font-size: 1rem;
-      border: 1px solid #ccc; border-radius: 6px; resize: vertical;
+      width: 100%;
+      height: 110px;
+      padding: 14px;
+      font-size: 1rem;
+      color: #1e293b;
+      border: 1.5px solid #cbd5e1;
+      border-radius: 10px;
+      resize: vertical;
+      outline: none;
+      transition: border-color .2s;
+      line-height: 1.6;
     }
-    button {
-      margin-top: 8px; padding: 8px 24px; font-size: 1rem;
-      background: #1a73e8; color: #fff; border: none;
-      border-radius: 6px; cursor: pointer;
-    }
-    button:disabled { background: #aaa; cursor: not-allowed; }
+    textarea:focus { border-color: #2563a8; }
 
-    #result { margin-top: 24px; }
+    .btn-row {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      margin-top: 14px;
+    }
+    button#ask-btn {
+      padding: 10px 32px;
+      font-size: 1rem;
+      font-weight: 600;
+      background: linear-gradient(135deg, #1a3c6e, #2563a8);
+      color: #fff;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: opacity .2s, transform .1s;
+    }
+    button#ask-btn:hover:not(:disabled) { opacity: .88; transform: translateY(-1px); }
+    button#ask-btn:disabled { background: #94a3b8; cursor: not-allowed; }
+
+    #char-count { font-size: .8rem; color: #94a3b8; }
+
+    /* ── Loading ── */
+    #loading {
+      display: none;
+      align-items: center;
+      gap: 10px;
+      color: #64748b;
+      font-size: .9rem;
+    }
+    .spinner {
+      width: 18px; height: 18px;
+      border: 3px solid #e2e8f0;
+      border-top-color: #2563a8;
+      border-radius: 50%;
+      animation: spin .7s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── Answer ── */
+    #result-section { display: none; }
+
     #answer-box {
-      background: #f9f9f9; border: 1px solid #ddd;
-      border-radius: 6px; padding: 16px;
-      white-space: pre-wrap; line-height: 1.7;
+      font-size: .98rem;
+      line-height: 1.85;
+      color: #1e293b;
+      white-space: pre-wrap;
+    }
+
+    /* ── Sources ── */
+    #sources-section {
       display: none;
     }
-    #sources { margin-top: 12px; font-size: 0.85rem; color: #555; display: none; }
-    #sources span { margin-right: 12px; }
+    .sources-title {
+      font-size: .8rem;
+      font-weight: 700;
+      color: #94a3b8;
+      text-transform: uppercase;
+      letter-spacing: .08em;
+      margin-bottom: 12px;
+    }
+    .source-chips {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+    .chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: #eff6ff;
+      color: #1d4ed8;
+      border: 1px solid #bfdbfe;
+      border-radius: 999px;
+      padding: 4px 12px;
+      font-size: .8rem;
+      font-weight: 500;
+    }
+    .chip svg { width: 13px; height: 13px; flex-shrink: 0; }
+
+    /* ── Error ── */
     #error-box {
-      background: #fdecea; border: 1px solid #f5c6cb;
-      border-radius: 6px; padding: 12px; color: #c0392b;
       display: none;
+      background: #fff5f5;
+      border: 1px solid #fecaca;
+      border-radius: 10px;
+      padding: 14px 18px;
+      color: #b91c1c;
+      font-size: .9rem;
     }
-    #loading { display: none; color: #888; margin-top: 12px; }
+
+    /* ── Footer ── */
+    footer {
+      text-align: center;
+      padding: 16px;
+      font-size: .78rem;
+      color: #94a3b8;
+    }
   </style>
 </head>
 <body>
 
-  <h1>USR 社會責任計畫書問答系統</h1>
-  <p class="sub">根據計畫書內容回答，僅限計畫書範圍內的問題。</p>
+<header>
+  <h1>🎓 USR 計畫書智慧問答系統</h1>
+  <p>整合全台大學社會責任計畫書，以 AI 語意搜尋即時解答您的問題</p>
+  <div id="status-pill" class="not-ready">系統檢查中…</div>
+</header>
 
-  <div id="status-bar" class="not-ready">檢查系統狀態中...</div>
+<main>
 
-  <textarea id="question" placeholder="請輸入您的問題，例如：這份計畫的核心目標是什麼？" maxlength="500"></textarea>
-  <br />
-  <button id="ask-btn" onclick="askQuestion()" disabled>送出問題</button>
-
-  <div id="loading">查詢中，請稍候...</div>
-
-  <div id="result">
-    <div id="error-box"></div>
-    <div id="answer-box"></div>
-    <div id="sources"></div>
+  <!-- 輸入卡 -->
+  <div class="card">
+    <div class="input-label">輸入您的問題</div>
+    <textarea id="question"
+      placeholder="例如：哪些學校的計畫聚焦在高齡照護？中原大學的永續目標是什麼？"
+      maxlength="500"
+      oninput="updateCount()"></textarea>
+    <div class="btn-row">
+      <button id="ask-btn" onclick="askQuestion()" disabled>送出問題</button>
+      <div id="loading">
+        <div class="spinner"></div>
+        <span>AI 分析中，請稍候…</span>
+      </div>
+      <span id="char-count" style="margin-left:auto">0 / 500</span>
+    </div>
   </div>
 
-  <script>
-    // 頁面載入後檢查後端是否就緒
-    async function checkStatus() {
-      try {
-        const res = await fetch("/status");
-        const data = await res.json();
-        const bar = document.getElementById("status-bar");
-        const btn = document.getElementById("ask-btn");
-        if (data.ready) {
-          bar.textContent = `系統就緒　已載入 ${data.pdf_count} 份計畫書`;
-          bar.className = "ready";
-          btn.disabled = false;
-        } else {
-          bar.textContent = "系統尚未就緒，請聯絡管理員";
-          bar.className = "not-ready";
-        }
-      } catch {
-        document.getElementById("status-bar").textContent = "無法連線至伺服器";
+  <!-- 錯誤 -->
+  <div id="error-box"></div>
+
+  <!-- 回答卡 -->
+  <div class="card" id="result-section">
+    <div class="input-label" style="margin-bottom:16px">AI 回答</div>
+    <div id="answer-box"></div>
+  </div>
+
+  <!-- 來源卡 -->
+  <div class="card" id="sources-section">
+    <div class="sources-title">參考來源</div>
+    <div class="source-chips" id="chips"></div>
+  </div>
+
+</main>
+
+<footer>Powered by Voyage AI · Gemini · FAISS &nbsp;|&nbsp; USR 計畫書資料庫</footer>
+
+<script>
+  function updateCount() {
+    const len = document.getElementById("question").value.length;
+    document.getElementById("char-count").textContent = `${len} / 500`;
+  }
+
+  async function checkStatus() {
+    try {
+      const res  = await fetch("/status");
+      const data = await res.json();
+      const pill = document.getElementById("status-pill");
+      const btn  = document.getElementById("ask-btn");
+      if (data.ready) {
+        pill.textContent = `✅ 系統就緒　已載入 ${data.pdf_count} 份計畫書`;
+        pill.className = "ready";
+        btn.disabled = false;
+      } else {
+        pill.textContent = "⚠️ 系統尚未就緒，請聯絡管理員";
+        pill.className = "not-ready";
       }
+    } catch {
+      document.getElementById("status-pill").textContent = "❌ 無法連線至伺服器";
     }
+  }
 
-    async function askQuestion() {
-      const question = document.getElementById("question").value.trim();
-      if (!question) return;
+  async function askQuestion() {
+    const question = document.getElementById("question").value.trim();
+    if (!question) return;
 
-      // 重置畫面
-      setVisible("error-box", false);
-      setVisible("answer-box", false);
-      setVisible("sources", false);
-      setVisible("loading", true);
-      document.getElementById("ask-btn").disabled = true;
+    hide("error-box");
+    hide("result-section");
+    hide("sources-section");
+    show("loading", "flex");
+    document.getElementById("ask-btn").disabled = true;
 
-      try {
-        const res = await fetch("/ask", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ question }),
-        });
-        const data = await res.json();
+    try {
+      const res  = await fetch("/ask", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ question }),
+      });
+      const data = await res.json();
 
-        if (!res.ok || data.error) {
-          showError(data.error || "發生未知錯誤");
-        } else {
-          showAnswer(data.answer, data.sources);
-        }
-      } catch {
-        showError("無法連線至伺服器，請稍後再試。");
-      } finally {
-        setVisible("loading", false);
-        document.getElementById("ask-btn").disabled = false;
+      if (!res.ok || data.error) {
+        showError(data.error || "發生未知錯誤");
+      } else {
+        showAnswer(data.answer, data.sources);
       }
+    } catch {
+      showError("無法連線至伺服器，請稍後再試。");
+    } finally {
+      hide("loading");
+      document.getElementById("ask-btn").disabled = false;
     }
+  }
 
-    function showAnswer(answer, sources) {
-      const box = document.getElementById("answer-box");
-      box.textContent = answer;
-      setVisible("answer-box", true);
+  function showAnswer(answer, sources) {
+    document.getElementById("answer-box").textContent = answer;
+    show("result-section");
 
-      if (sources && sources.length > 0) {
-        const src = document.getElementById("sources");
-        src.innerHTML = "參考來源：" +
-          sources.map(s => `<span>📄 ${s.source} 第 ${s.page} 頁</span>`).join("");
-        setVisible("sources", true);
-      }
+    if (sources && sources.length > 0) {
+      const seen = new Set();
+      const chips = document.getElementById("chips");
+      chips.innerHTML = "";
+      sources.forEach(s => {
+        const key = `${s.source}-${s.page}`;
+        if (seen.has(key)) return;
+        seen.add(key);
+        const chip = document.createElement("div");
+        chip.className = "chip";
+        chip.innerHTML = `
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+            <polyline points="14 2 14 8 20 8"/>
+          </svg>
+          ${s.source} &nbsp;第 ${s.page} 頁`;
+        chips.appendChild(chip);
+      });
+      show("sources-section");
     }
+  }
 
-    function showError(msg) {
-      const box = document.getElementById("error-box");
-      box.textContent = msg;
-      setVisible("error-box", true);
+  function showError(msg) {
+    const box = document.getElementById("error-box");
+    box.textContent = "⚠️ " + msg;
+    show("error-box");
+  }
+
+  function show(id, display = "block") {
+    document.getElementById(id).style.display = display;
+  }
+  function hide(id) {
+    document.getElementById(id).style.display = "none";
+  }
+
+  document.getElementById("question").addEventListener("keydown", e => {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      if (!document.getElementById("ask-btn").disabled) askQuestion();
     }
+  });
 
-    function setVisible(id, visible) {
-      document.getElementById(id).style.display = visible ? "block" : "none";
-    }
-
-    // Enter 送出（Shift+Enter 換行）
-    document.getElementById("question").addEventListener("keydown", (e) => {
-      if (e.key === "Enter" && !e.shiftKey) {
-        e.preventDefault();
-        if (!document.getElementById("ask-btn").disabled) askQuestion();
-      }
-    });
-
-    checkStatus();
-  </script>
+  checkStatus();
+</script>
 
 </body>
 </html>
