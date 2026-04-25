@@ -9,90 +9,94 @@
 body{font-family:"Segoe UI","Noto Sans TC",sans-serif;background:#f5f7fa;height:100vh;display:flex;flex-direction:column;overflow:hidden}
 
 /* ── TOP BAR ── */
-#topbar{height:48px;background:#fff;border-bottom:1px solid #e2e8f0;display:flex;align-items:center;padding:0 20px;gap:14px;flex-shrink:0;box-shadow:0 1px 4px rgba(0,0,0,.06)}
+#topbar{height:50px;background:#fff;border-bottom:1px solid #e2e8f0;display:flex;align-items:center;padding:0 22px;gap:14px;flex-shrink:0;box-shadow:0 1px 4px rgba(0,0,0,.06)}
 #topbar .logo{color:#1e40af;font-weight:800;font-size:1rem;letter-spacing:.02em;white-space:nowrap}
 #topbar .logo span{color:#64748b;font-weight:500}
-#status-pill{margin-left:auto;padding:3px 12px;border-radius:999px;font-size:.72rem;font-weight:600;background:#dcfce7;color:#166534}
+#status-pill{margin-left:auto;padding:4px 14px;border-radius:999px;font-size:.72rem;font-weight:600;background:#dcfce7;color:#166534}
 #status-pill.not-ready{background:#fee2e2;color:#991b1b}
 
 /* ── LAYOUT ── */
 #layout{display:flex;flex:1;overflow:hidden}
 
-/* ── LEFT SIDEBAR (white) ── */
-#sidebar{width:232px;background:#fff;border-right:1px solid #e2e8f0;display:flex;flex-direction:column;flex-shrink:0;overflow-y:auto}
+/* ── LEFT SIDEBAR ── */
+#sidebar{width:252px;background:#fff;border-right:1px solid #e2e8f0;display:flex;flex-direction:column;flex-shrink:0;overflow-y:auto}
 #sidebar::-webkit-scrollbar{width:4px}
 #sidebar::-webkit-scrollbar-thumb{background:#e2e8f0;border-radius:4px}
-.sb-section{padding:12px 0}
-.sb-section-title{padding:6px 16px;font-size:.67rem;color:#94a3b8;text-transform:uppercase;letter-spacing:.1em;font-weight:700}
-.nav-item{cursor:pointer;user-select:none}
-.nav-item-header{display:flex;align-items:center;gap:9px;padding:8px 14px;color:#475569;font-size:.83rem;border-radius:8px;margin:1px 8px;transition:background .15s,color .15s}
+.sb-section{padding:14px 0}
+.sb-section-title{padding:6px 18px 10px;font-size:.67rem;color:#94a3b8;text-transform:uppercase;letter-spacing:.12em;font-weight:700}
+.nav-item{cursor:pointer;user-select:none;margin-bottom:2px}
+.nav-item-header{display:flex;align-items:center;gap:10px;padding:10px 14px;color:#475569;font-size:.84rem;border-radius:8px;margin:0 8px;transition:background .15s,color .15s}
 .nav-item-header:hover{background:#eff6ff;color:#1d4ed8}
 .nav-item-header.active{background:#dbeafe;color:#1d4ed8;font-weight:600}
-.nav-item-header .icon{width:26px;height:26px;border-radius:7px;display:flex;align-items:center;justify-content:center;font-size:.82rem;flex-shrink:0}
-.nav-item-header .arrow{margin-left:auto;font-size:.6rem;color:#94a3b8;transition:transform .2s}
+.nav-item-header .icon{width:28px;height:28px;border-radius:7px;display:flex;align-items:center;justify-content:center;font-size:.88rem;flex-shrink:0}
+.nav-item-header .label{flex:1;line-height:1.3}
+.nav-item-header .arrow{font-size:.6rem;color:#94a3b8;transition:transform .2s;flex-shrink:0}
 .nav-item.open .nav-item-header .arrow{transform:rotate(90deg)}
-.sub-questions{display:none;padding:2px 0 4px 50px}
+.sub-questions{display:none;padding:4px 0 8px 52px}
 .nav-item.open .sub-questions{display:block}
-.sub-q{padding:5px 10px 5px 0;font-size:.78rem;color:#64748b;cursor:pointer;border-left:2px solid #e2e8f0;padding-left:8px;margin-bottom:2px;transition:color .15s,border-color .15s;line-height:1.4}
-.sub-q:hover{color:#2563ab;border-left-color:#3b82f6}
+.sub-q{padding:7px 10px 7px 10px;font-size:.79rem;color:#64748b;cursor:pointer;border-left:2px solid #e2e8f0;margin-bottom:3px;transition:color .15s,border-color .15s,background .15s;line-height:1.45;border-radius:0 6px 6px 0}
+.sub-q:hover{color:#2563ab;border-left-color:#3b82f6;background:#f0f7ff}
 
 /* ── MAIN ── */
-#main{flex:1;display:flex;flex-direction:column;overflow:hidden}
-#hero{background:linear-gradient(120deg,#1e40af 0%,#3b82f6 70%,#60a5fa 100%);padding:18px 28px;flex-shrink:0}
-#hero h2{color:#fff;font-size:1.2rem;font-weight:700}
-#hero p{color:rgba(255,255,255,.8);font-size:.82rem;margin-top:4px}
+#main{flex:1;display:flex;flex-direction:column;overflow:hidden;min-width:0}
+#hero{background:linear-gradient(120deg,#1e40af 0%,#3b82f6 65%,#60a5fa 100%);padding:20px 30px;flex-shrink:0}
+#hero h2{color:#fff;font-size:1.25rem;font-weight:700}
+#hero p{color:rgba(255,255,255,.82);font-size:.83rem;margin-top:5px}
 
-#tabs{display:flex;gap:4px;padding:10px 18px;background:#fff;border-bottom:1px solid #e2e8f0;flex-shrink:0}
-.tab{padding:6px 16px;border-radius:6px;font-size:.82rem;cursor:pointer;color:#64748b;transition:background .15s,color .15s;font-weight:500}
+#tabs{display:flex;gap:4px;padding:10px 20px;background:#fff;border-bottom:1px solid #e2e8f0;flex-shrink:0}
+.tab{padding:7px 18px;border-radius:7px;font-size:.82rem;cursor:pointer;color:#64748b;transition:background .15s,color .15s;font-weight:500}
 .tab:hover{background:#f1f5f9}
 .tab.active{background:#dbeafe;color:#1d4ed8;font-weight:600}
 
-#content{flex:1;overflow-y:auto;padding:20px 22px}
+#content{flex:1;overflow-y:auto;padding:22px 24px}
 #content::-webkit-scrollbar{width:5px}
 #content::-webkit-scrollbar-thumb{background:#cbd5e1;border-radius:4px}
-.section-label{font-size:.78rem;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.08em;margin-bottom:14px}
+.section-label{font-size:.78rem;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.08em;margin-bottom:16px}
 
 /* ── CARDS ── */
-#cards-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:12px;margin-bottom:24px}
-.uni-card{background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 1px 6px rgba(0,0,0,.07);border:1px solid #f1f5f9;cursor:pointer;transition:transform .15s,box-shadow .15s,border-color .15s}
-.uni-card:hover{transform:translateY(-3px);box-shadow:0 8px 24px rgba(59,130,246,.18);border-color:#bfdbfe}
-.uni-card .img{height:80px;display:flex;align-items:center;justify-content:center;font-size:2rem}
-.uni-card .info{padding:8px 10px 10px}
-.uni-card .name{font-size:.76rem;font-weight:600;color:#1e293b;line-height:1.35}
-.uni-card .count{font-size:.68rem;color:#94a3b8;margin-top:3px}
-.uni-card .qbtn{margin-top:6px;display:inline-block;padding:3px 10px;background:#eff6ff;color:#1d4ed8;border-radius:999px;font-size:.68rem;font-weight:600;border:1px solid #bfdbfe}
+#cards-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:16px;margin-bottom:28px}
+.uni-card{background:#fff;border-radius:14px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,.07);border:1px solid #f1f5f9;cursor:pointer;transition:transform .15s,box-shadow .2s,border-color .15s}
+.uni-card:hover{transform:translateY(-4px);box-shadow:0 10px 28px rgba(59,130,246,.2);border-color:#bfdbfe}
+.uni-card .img{height:120px;overflow:hidden;position:relative}
+.uni-card .img img{width:100%;height:100%;object-fit:cover;transition:transform .3s}
+.uni-card:hover .img img{transform:scale(1.06)}
+.uni-card .overlay{position:absolute;inset:0;background:linear-gradient(to bottom,transparent 40%,rgba(0,0,0,.45))}
+.uni-card .info{padding:10px 12px 12px}
+.uni-card .name{font-size:.82rem;font-weight:700;color:#1e293b;line-height:1.35}
+.uni-card .count{font-size:.7rem;color:#94a3b8;margin-top:3px}
+.uni-card .qbtn{margin-top:8px;display:inline-block;padding:4px 12px;background:#eff6ff;color:#1d4ed8;border-radius:999px;font-size:.7rem;font-weight:600;border:1px solid #bfdbfe}
 
 /* ── CHAT ── */
-#chat-wrap{flex-shrink:0;background:#fff;border-top:1px solid #e2e8f0;padding:12px 18px}
-#messages{max-height:240px;overflow-y:auto;margin-bottom:10px;display:flex;flex-direction:column;gap:10px}
+#chat-wrap{flex-shrink:0;background:#fff;border-top:1px solid #e2e8f0;padding:14px 20px}
+#messages{max-height:240px;overflow-y:auto;margin-bottom:12px;display:flex;flex-direction:column;gap:10px}
 #messages::-webkit-scrollbar{width:4px}
 #messages::-webkit-scrollbar-thumb{background:#e2e8f0;border-radius:4px}
-.msg{padding:10px 14px;border-radius:10px;font-size:.86rem;line-height:1.75;max-width:88%}
+.msg{padding:10px 14px;border-radius:10px;font-size:.87rem;line-height:1.75;max-width:88%}
 .msg.user{background:#dbeafe;color:#1e3a5f;align-self:flex-end;border-bottom-right-radius:2px}
 .msg.bot{background:#f8fafc;border:1px solid #e2e8f0;color:#1e293b;align-self:flex-start;border-bottom-left-radius:2px;white-space:pre-wrap}
 .msg.loading{color:#94a3b8;font-style:italic;background:#f8fafc;border:1px solid #e2e8f0;align-self:flex-start}
 #input-row{display:flex;gap:10px;align-items:flex-end}
 #question{flex:1;padding:10px 14px;border:1.5px solid #cbd5e1;border-radius:10px;font-size:.9rem;resize:none;height:44px;outline:none;transition:border-color .2s;font-family:inherit;line-height:1.4;background:#f8fafc}
 #question:focus{border-color:#3b82f6;background:#fff}
-#ask-btn{padding:10px 22px;background:linear-gradient(135deg,#1d4ed8,#3b82f6);color:#fff;border:none;border-radius:10px;font-size:.88rem;font-weight:600;cursor:pointer;transition:opacity .2s,transform .1s}
+#ask-btn{padding:11px 24px;background:linear-gradient(135deg,#1d4ed8,#3b82f6);color:#fff;border:none;border-radius:10px;font-size:.9rem;font-weight:600;cursor:pointer;transition:opacity .2s,transform .1s;white-space:nowrap}
 #ask-btn:hover:not(:disabled){transform:translateY(-1px)}
 #ask-btn:disabled{opacity:.45;cursor:not-allowed}
 
 /* ── RAG PANEL ── */
-#rag-panel{width:256px;background:#fff;border-left:1px solid #e2e8f0;display:flex;flex-direction:column;flex-shrink:0}
-#rag-header{padding:14px 16px;border-bottom:1px solid #e2e8f0;flex-shrink:0;background:#f8fafc}
-#rag-header h3{font-size:.85rem;font-weight:700;color:#1e293b}
-#rag-header p{font-size:.7rem;color:#94a3b8;margin-top:2px}
-#rag-body{flex:1;overflow-y:auto;padding:10px}
+#rag-panel{width:260px;background:#fff;border-left:1px solid #e2e8f0;display:flex;flex-direction:column;flex-shrink:0}
+#rag-header{padding:15px 16px;border-bottom:1px solid #e2e8f0;flex-shrink:0;background:#f8fafc}
+#rag-header h3{font-size:.86rem;font-weight:700;color:#1e293b}
+#rag-header p{font-size:.7rem;color:#94a3b8;margin-top:3px}
+#rag-body{flex:1;overflow-y:auto;padding:12px}
 #rag-body::-webkit-scrollbar{width:4px}
 #rag-body::-webkit-scrollbar-thumb{background:#e2e8f0;border-radius:4px}
-.rag-empty{text-align:center;color:#cbd5e1;font-size:.8rem;margin-top:40px;line-height:2}
-.rag-empty .ico{font-size:1.8rem;display:block;margin-bottom:6px}
-.rag-card{background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:10px;margin-bottom:8px;cursor:pointer;transition:border-color .15s}
+.rag-empty{text-align:center;color:#cbd5e1;font-size:.8rem;margin-top:48px;line-height:2}
+.rag-empty .ico{font-size:2rem;display:block;margin-bottom:8px}
+.rag-card{background:#f8fafc;border:1px solid #e2e8f0;border-radius:9px;padding:10px 11px;margin-bottom:9px;cursor:pointer;transition:border-color .15s,background .15s}
 .rag-card:hover{border-color:#93c5fd;background:#eff6ff}
 .rag-card.expanded .rag-text{-webkit-line-clamp:unset!important}
-.rag-head{display:flex;align-items:center;gap:6px;margin-bottom:5px}
-.rag-badge{background:#dbeafe;color:#1d4ed8;border-radius:4px;padding:2px 7px;font-size:.68rem;font-weight:700}
+.rag-head{display:flex;align-items:center;gap:7px;margin-bottom:5px}
+.rag-badge{background:#dbeafe;color:#1d4ed8;border-radius:4px;padding:2px 7px;font-size:.68rem;font-weight:700;flex-shrink:0}
 .rag-src{font-size:.71rem;color:#64748b;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .rag-text{font-size:.74rem;color:#475569;line-height:1.55;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
 .rag-page{font-size:.67rem;color:#94a3b8;margin-top:4px}
@@ -115,91 +119,127 @@ body{font-family:"Segoe UI","Noto Sans TC",sans-serif;background:#f5f7fa;height:
     <div class="nav-item open" onclick="toggleNav(this)">
       <div class="nav-item-header active">
         <div class="icon" style="background:#dbeafe">🗺️</div>
-        各校計畫總覽
+        <span class="label">各校計畫總覽</span>
         <span class="arrow">▶</span>
       </div>
       <div class="sub-questions">
         <div class="sub-q" onclick="submitQ('哪些大學參與 USR 計畫？')">哪些大學參與 USR 計畫？</div>
         <div class="sub-q" onclick="submitQ('各大學計畫的主題分類為何？')">各大學計畫主題分類</div>
         <div class="sub-q" onclick="submitQ('請給我所有計畫書的核心摘要')">所有計畫書核心摘要</div>
+        <div class="sub-q" onclick="submitQ('哪些學校計畫獲得最多資源或規模最大？')">規模最大的計畫有哪些？</div>
+        <div class="sub-q" onclick="submitQ('各校 USR 計畫的共同特色是什麼？')">各校計畫共同特色</div>
+        <div class="sub-q" onclick="submitQ('114 年度 USR 計畫的整體趨勢為何？')">114年度整體趨勢</div>
       </div>
     </div>
 
     <div class="nav-item" onclick="toggleNav(this)">
       <div class="nav-item-header">
         <div class="icon" style="background:#dcfce7">🌿</div>
-        永續發展主題
+        <span class="label">永續發展主題</span>
         <span class="arrow">▶</span>
       </div>
       <div class="sub-questions">
         <div class="sub-q" onclick="submitQ('哪些計畫與淨零碳排相關？')">淨零碳排相關計畫</div>
         <div class="sub-q" onclick="submitQ('有哪些環境生態保育的計畫？')">環境生態保育計畫</div>
         <div class="sub-q" onclick="submitQ('農業永續發展有哪些計畫？')">農業永續發展計畫</div>
+        <div class="sub-q" onclick="submitQ('與里山倡議或生態保育相關的計畫')">里山倡議生態保育</div>
+        <div class="sub-q" onclick="submitQ('海洋或水資源相關的永續計畫有哪些？')">海洋水資源永續</div>
+        <div class="sub-q" onclick="submitQ('循環經濟相關的 USR 計畫有哪些？')">循環經濟計畫</div>
+        <div class="sub-q" onclick="submitQ('氣候變遷調適相關計畫有哪些？')">氣候變遷調適計畫</div>
       </div>
     </div>
 
     <div class="nav-item" onclick="toggleNav(this)">
       <div class="nav-item-header">
         <div class="icon" style="background:#fef9c3">👴</div>
-        高齡照護計畫
+        <span class="label">高齡照護計畫</span>
         <span class="arrow">▶</span>
       </div>
       <div class="sub-questions">
         <div class="sub-q" onclick="submitQ('哪些大學有高齡照護相關的 USR 計畫？')">高齡照護相關計畫</div>
         <div class="sub-q" onclick="submitQ('青銀共創的計畫有哪些？')">青銀共創計畫</div>
         <div class="sub-q" onclick="submitQ('智慧樂齡或銀髮科技相關計畫')">智慧樂齡科技計畫</div>
+        <div class="sub-q" onclick="submitQ('失智症照護或預防相關計畫有哪些？')">失智症照護預防</div>
+        <div class="sub-q" onclick="submitQ('在地老化與社區長照服務計畫')">在地老化社區長照</div>
+        <div class="sub-q" onclick="submitQ('超高齡社會因應策略相關計畫')">超高齡社會因應策略</div>
       </div>
     </div>
 
     <div class="nav-item" onclick="toggleNav(this)">
       <div class="nav-item-header">
         <div class="icon" style="background:#ede9fe">🏘️</div>
-        社區共融計畫
+        <span class="label">社區共融計畫</span>
         <span class="arrow">▶</span>
       </div>
       <div class="sub-questions">
         <div class="sub-q" onclick="submitQ('哪些計畫與社區營造或地方創生有關？')">社區營造地方創生</div>
         <div class="sub-q" onclick="submitQ('偏鄉教育相關的計畫有哪些？')">偏鄉教育計畫</div>
         <div class="sub-q" onclick="submitQ('新住民或多元文化計畫有哪些？')">新住民多元文化</div>
+        <div class="sub-q" onclick="submitQ('身心障礙者服務相關的計畫有哪些？')">身心障礙者服務</div>
+        <div class="sub-q" onclick="submitQ('兒童或青少年培力計畫有哪些？')">兒童青少年培力</div>
+        <div class="sub-q" onclick="submitQ('食物銀行或惜食相關計畫有哪些？')">惜食食物銀行計畫</div>
+        <div class="sub-q" onclick="submitQ('大學與社區共學共創的具體做法')">大學社區共學共創</div>
       </div>
     </div>
 
     <div class="nav-item" onclick="toggleNav(this)">
       <div class="nav-item-header">
         <div class="icon" style="background:#fce7f3">🧑‍🌾</div>
-        原住民族計畫
+        <span class="label">原住民族計畫</span>
         <span class="arrow">▶</span>
       </div>
       <div class="sub-questions">
         <div class="sub-q" onclick="submitQ('有哪些 USR 計畫與原住民族文化保存有關？')">原住民族文化保存</div>
         <div class="sub-q" onclick="submitQ('部落產業發展相關計畫')">部落產業發展</div>
         <div class="sub-q" onclick="submitQ('原住民族醫療或健康計畫')">原民醫療健康</div>
+        <div class="sub-q" onclick="submitQ('原住民族語言復振相關計畫')">原民語言復振</div>
+        <div class="sub-q" onclick="submitQ('原住民族教育與人才培育計畫')">原民教育人才培育</div>
       </div>
     </div>
 
     <div class="nav-item" onclick="toggleNav(this)">
       <div class="nav-item-header">
         <div class="icon" style="background:#e0f2fe">💻</div>
-        數位科技應用
+        <span class="label">數位科技應用</span>
         <span class="arrow">▶</span>
       </div>
       <div class="sub-questions">
         <div class="sub-q" onclick="submitQ('哪些計畫結合 AI 或數位科技？')">AI 數位科技計畫</div>
         <div class="sub-q" onclick="submitQ('智慧農業相關的計畫有哪些？')">智慧農業計畫</div>
-        <div class="sub-q" onclick="submitQ('數位轉型與社區賦能的計畫')">數位轉型賦能</div>
+        <div class="sub-q" onclick="submitQ('數位轉型與社區賦能的計畫')">數位轉型賦能計畫</div>
+        <div class="sub-q" onclick="submitQ('物聯網 IoT 或感測器應用在社區的計畫')">IoT 感測社區應用</div>
+        <div class="sub-q" onclick="submitQ('遠距醫療或健康科技計畫有哪些？')">遠距醫療健康科技</div>
+        <div class="sub-q" onclick="submitQ('數位學習或線上教育相關計畫')">數位學習線上教育</div>
       </div>
     </div>
 
     <div class="nav-item" onclick="toggleNav(this)">
       <div class="nav-item-header">
         <div class="icon" style="background:#ffedd5">🍽️</div>
-        產業文化創生
+        <span class="label">產業文化創生</span>
         <span class="arrow">▶</span>
       </div>
       <div class="sub-questions">
         <div class="sub-q" onclick="submitQ('有哪些計畫與文化創意產業有關？')">文化創意產業計畫</div>
         <div class="sub-q" onclick="submitQ('食農教育相關計畫有哪些？')">食農教育計畫</div>
         <div class="sub-q" onclick="submitQ('觀光旅遊相關的 USR 計畫')">觀光旅遊計畫</div>
+        <div class="sub-q" onclick="submitQ('工藝或傳統技藝傳承相關計畫')">工藝傳統技藝傳承</div>
+        <div class="sub-q" onclick="submitQ('咖啡茶葉等特色農產品計畫有哪些？')">特色農產品計畫</div>
+        <div class="sub-q" onclick="submitQ('文創品牌或地方品牌建立的計畫')">地方品牌建立計畫</div>
+      </div>
+    </div>
+
+    <div class="nav-item" onclick="toggleNav(this)">
+      <div class="nav-item-header">
+        <div class="icon" style="background:#f0fdf4">🌍</div>
+        <span class="label">國際連結計畫</span>
+        <span class="arrow">▶</span>
+      </div>
+      <div class="sub-questions">
+        <div class="sub-q" onclick="submitQ('哪些 USR 計畫具有國際連結或合作？')">具國際連結的計畫</div>
+        <div class="sub-q" onclick="submitQ('跨國合作或國際交流的計畫有哪些？')">跨國合作交流計畫</div>
+        <div class="sub-q" onclick="submitQ('與東南亞國家合作的計畫有哪些？')">東南亞合作計畫</div>
+        <div class="sub-q" onclick="submitQ('國際慢城或國際認證相關計畫')">國際慢城認證計畫</div>
       </div>
     </div>
   </div>
@@ -251,123 +291,126 @@ body{font-family:"Segoe UI","Noto Sans TC",sans-serif;background:#f5f7fa;height:
 </div>
 
 <script>
-// ── Complete university list (101 schools) ──
+// 每所大學對應一張 Unsplash 主題圖片（依地域/特色關鍵字）
 const UNIVERSITIES = [
-  {name:"大仁科技大學",icon:"⚙️",bg:"#dbeafe",c:"#1e40af",plans:1},
-  {name:"大同大學",icon:"🔧",bg:"#f0fdf4",c:"#166534",plans:1},
-  {name:"大葉大學",icon:"🍃",bg:"#dcfce7",c:"#15803d",plans:3},
-  {name:"中信科技大學",icon:"💡",bg:"#fef9c3",c:"#854d0e",plans:3},
-  {name:"中原大學",icon:"⚙️",bg:"#ede9fe",c:"#6d28d9",plans:2},
-  {name:"中國文化大學",icon:"📜",bg:"#fee2e2",c:"#991b1b",plans:2},
-  {name:"中國科技大學",icon:"💻",bg:"#e0f2fe",c:"#0369a1",plans:3},
-  {name:"中國醫藥大學",icon:"⚕️",bg:"#fce7f3",c:"#9d174d",plans:2},
-  {name:"中華大學",icon:"🌳",bg:"#dcfce7",c:"#166534",plans:2},
-  {name:"中華科技大學",icon:"🔬",bg:"#e0f2fe",c:"#0369a1",plans:2},
-  {name:"中華醫事科技大學",icon:"🏥",bg:"#fce7f3",c:"#9d174d",plans:1},
-  {name:"中臺科技大學",icon:"☕",bg:"#ffedd5",c:"#9a3412",plans:1},
-  {name:"元培醫事科技大學",icon:"💊",bg:"#fce7f3",c:"#9d174d",plans:2},
-  {name:"元智大學",icon:"🤖",bg:"#dbeafe",c:"#1e40af",plans:2},
-  {name:"文藻外語大學",icon:"🗣️",bg:"#ede9fe",c:"#6d28d9",plans:2},
-  {name:"台北海洋科技大學",icon:"🌊",bg:"#cffafe",c:"#155e75",plans:2},
-  {name:"台南應用科技大學",icon:"🎨",bg:"#fef9c3",c:"#854d0e",plans:3},
-  {name:"弘光科技大學",icon:"🌱",bg:"#dcfce7",c:"#15803d",plans:4},
-  {name:"正修科技大學",icon:"🏔️",bg:"#f0fdf4",c:"#166534",plans:2},
-  {name:"玄奘大學",icon:"☯️",bg:"#fef9c3",c:"#854d0e",plans:2},
-  {name:"佛光大學",icon:"🕊️",bg:"#ffedd5",c:"#9a3412",plans:2},
-  {name:"育達科技大學",icon:"🐦",bg:"#f0fdf4",c:"#166534",plans:2},
-  {name:"亞東科技大學",icon:"🔭",bg:"#dbeafe",c:"#1e40af",plans:2},
-  {name:"亞洲大學",icon:"🌏",bg:"#ede9fe",c:"#6d28d9",plans:4},
-  {name:"明志科技大學",icon:"🏭",bg:"#e0f2fe",c:"#0369a1",plans:5},
-  {name:"明新科技大學",icon:"🌿",bg:"#dcfce7",c:"#15803d",plans:3},
-  {name:"東吳大學",icon:"🏛️",bg:"#fef9c3",c:"#854d0e",plans:1},
-  {name:"東南科技大學",icon:"🌟",bg:"#ede9fe",c:"#6d28d9",plans:1},
-  {name:"東海大學",icon:"🦅",bg:"#fee2e2",c:"#991b1b",plans:1},
-  {name:"法鼓文理學院",icon:"🧘",bg:"#f0fdf4",c:"#166534",plans:1},
-  {name:"長庚大學",icon:"🏥",bg:"#dbeafe",c:"#1e40af",plans:4},
-  {name:"長庚科技大學",icon:"💉",bg:"#fce7f3",c:"#9d174d",plans:2},
-  {name:"長榮大學",icon:"🌺",bg:"#dcfce7",c:"#15803d",plans:3},
-  {name:"南華大學",icon:"📖",bg:"#fef9c3",c:"#854d0e",plans:3},
-  {name:"南開科技大學",icon:"🏡",bg:"#ffedd5",c:"#9a3412",plans:2},
-  {name:"南臺科技大學",icon:"🌆",bg:"#e0f2fe",c:"#0369a1",plans:5},
-  {name:"建國科技大學",icon:"🔨",bg:"#f0fdf4",c:"#166534",plans:1},
-  {name:"美和科技大學",icon:"🌸",bg:"#fce7f3",c:"#9d174d",plans:2},
-  {name:"致理科技大學",icon:"📊",bg:"#dbeafe",c:"#1e40af",plans:3},
-  {name:"耕莘健康管理專科學校",icon:"🌾",bg:"#dcfce7",c:"#15803d",plans:4},
-  {name:"馬偕醫學大學",icon:"💙",bg:"#e0f2fe",c:"#0369a1",plans:3},
-  {name:"馬偕醫護管理專科學校",icon:"🩺",bg:"#fce7f3",c:"#9d174d",plans:2},
-  {name:"高雄醫學大學",icon:"⚕️",bg:"#fee2e2",c:"#991b1b",plans:4},
-  {name:"健行科技大學",icon:"🏃",bg:"#fef9c3",c:"#854d0e",plans:1},
-  {name:"國立中山大學",icon:"🌊",bg:"#cffafe",c:"#155e75",plans:4},
-  {name:"國立中央大學",icon:"🔭",bg:"#ede9fe",c:"#6d28d9",plans:3},
-  {name:"國立中正大學",icon:"🎓",bg:"#dbeafe",c:"#1e40af",plans:2},
-  {name:"國立中興大學",icon:"🌾",bg:"#dcfce7",c:"#15803d",plans:5},
-  {name:"國立成功大學",icon:"🏆",bg:"#f0fdf4",c:"#166534",plans:5},
-  {name:"國立宜蘭大學",icon:"🍵",bg:"#fef9c3",c:"#854d0e",plans:2},
-  {name:"國立東華大學",icon:"🦋",bg:"#dcfce7",c:"#15803d",plans:2},
-  {name:"國立虎尾科技大學",icon:"🌻",bg:"#fef9c3",c:"#854d0e",plans:4},
-  {name:"國立金門大學",icon:"🏖️",bg:"#cffafe",c:"#155e75",plans:2},
-  {name:"國立屏東大學",icon:"🌴",bg:"#dcfce7",c:"#15803d",plans:2},
-  {name:"國立屏東科技大學",icon:"🐾",bg:"#f0fdf4",c:"#166534",plans:5},
-  {name:"國立政治大學",icon:"⚖️",bg:"#ede9fe",c:"#6d28d9",plans:2},
-  {name:"國立高雄大學",icon:"🌞",bg:"#fef9c3",c:"#854d0e",plans:1},
-  {name:"國立高雄科技大學",icon:"⚓",bg:"#cffafe",c:"#155e75",plans:1},
-  {name:"國立高雄師範大學",icon:"✏️",bg:"#fee2e2",c:"#991b1b",plans:1},
-  {name:"國立高雄餐旅大學",icon:"🍽️",bg:"#ffedd5",c:"#9a3412",plans:3},
-  {name:"國立清華大學",icon:"⚗️",bg:"#dbeafe",c:"#1e40af",plans:4},
-  {name:"國立陽明交通大學",icon:"🧬",bg:"#fce7f3",c:"#9d174d",plans:2},
-  {name:"國立雲林科技大學",icon:"🌾",bg:"#dcfce7",c:"#15803d",plans:5},
-  {name:"國立勤益科技大學",icon:"🔩",bg:"#e0f2fe",c:"#0369a1",plans:2},
-  {name:"國立嘉義大學",icon:"🎎",bg:"#fef9c3",c:"#854d0e",plans:2},
-  {name:"國立彰化師範大學",icon:"✏️",bg:"#ede9fe",c:"#6d28d9",plans:4},
-  {name:"國立暨南國際大學",icon:"🌏",bg:"#f0fdf4",c:"#166534",plans:4},
-  {name:"國立臺中科技大學",icon:"🏙️",bg:"#dbeafe",c:"#1e40af",plans:2},
-  {name:"國立臺中教育大學",icon:"📚",bg:"#fef9c3",c:"#854d0e",plans:1},
-  {name:"國立臺北大學",icon:"🌆",bg:"#ede9fe",c:"#6d28d9",plans:3},
-  {name:"國立臺北科技大學",icon:"⚙️",bg:"#e0f2fe",c:"#0369a1",plans:1},
-  {name:"國立臺北護理健康大學",icon:"🩺",bg:"#fce7f3",c:"#9d174d",plans:3},
-  {name:"國立臺東大學",icon:"🌄",bg:"#f0fdf4",c:"#166534",plans:4},
-  {name:"國立臺南大學",icon:"🏛️",bg:"#fef9c3",c:"#854d0e",plans:3},
-  {name:"國立臺南藝術大學",icon:"🎬",bg:"#ede9fe",c:"#6d28d9",plans:1},
-  {name:"國立臺灣大學",icon:"🎓",bg:"#dbeafe",c:"#1e40af",plans:4},
-  {name:"國立臺灣科技大學",icon:"🤖",bg:"#e0f2fe",c:"#0369a1",plans:4},
-  {name:"國立臺灣師範大學",icon:"✏️",bg:"#fce7f3",c:"#9d174d",plans:1},
-  {name:"國立臺灣海洋大學",icon:"🐟",bg:"#cffafe",c:"#155e75",plans:4},
-  {name:"國立澎湖科技大學",icon:"🏝️",bg:"#cffafe",c:"#155e75",plans:1},
-  {name:"國立聯合大學",icon:"🌿",bg:"#dcfce7",c:"#15803d",plans:1},
-  {name:"崑山科技大學",icon:"🏗️",bg:"#ffedd5",c:"#9a3412",plans:4},
-  {name:"敏實科技大學",icon:"🚗",bg:"#e0f2fe",c:"#0369a1",plans:1},
-  {name:"淡江大學",icon:"🚢",bg:"#dbeafe",c:"#1e40af",plans:2},
-  {name:"逢甲大學",icon:"🔆",bg:"#fef9c3",c:"#854d0e",plans:2},
-  {name:"朝陽科技大學",icon:"🌅",bg:"#ffedd5",c:"#9a3412",plans:5},
-  {name:"華梵大學",icon:"🏮",bg:"#fce7f3",c:"#9d174d",plans:2},
-  {name:"開南大學",icon:"✈️",bg:"#e0f2fe",c:"#0369a1",plans:1},
-  {name:"慈濟大學",icon:"☯️",bg:"#f0fdf4",c:"#166534",plans:2},
-  {name:"德育護理健康學院",icon:"🌺",bg:"#fce7f3",c:"#9d174d",plans:1},
-  {name:"義守大學",icon:"🌞",bg:"#fef9c3",c:"#854d0e",plans:3},
-  {name:"萬能科技大學",icon:"⚡",bg:"#ede9fe",c:"#6d28d9",plans:2},
-  {name:"僑光科技大學",icon:"🌉",bg:"#dbeafe",c:"#1e40af",plans:2},
-  {name:"嘉南藥理大學",icon:"🌿",bg:"#dcfce7",c:"#15803d",plans:5},
-  {name:"實踐大學",icon:"🎨",bg:"#fce7f3",c:"#9d174d",plans:5},
-  {name:"臺北市立大學",icon:"🏙️",bg:"#dbeafe",c:"#1e40af",plans:1},
-  {name:"臺北醫學大學",icon:"🏥",bg:"#fee2e2",c:"#991b1b",plans:1},
-  {name:"輔仁大學",icon:"✝️",bg:"#ede9fe",c:"#6d28d9",plans:3},
-  {name:"輔英科技大學",icon:"💊",bg:"#fce7f3",c:"#9d174d",plans:2},
-  {name:"銘傳大學",icon:"🐢",bg:"#cffafe",c:"#155e75",plans:1},
-  {name:"德明財經科技大學",icon:"💰",bg:"#fef9c3",c:"#854d0e",plans:1},
-  {name:"樹德科技大學",icon:"🌲",bg:"#dcfce7",c:"#15803d",plans:4},
-  {name:"靜宜大學",icon:"🌸",bg:"#fce7f3",c:"#9d174d",plans:1},
-  {name:"龍華科技大學",icon:"🐉",bg:"#fee2e2",c:"#991b1b",plans:2},
-  {name:"嶺東科技大學",icon:"🏔️",bg:"#f0fdf4",c:"#166534",plans:1},
+  {name:"大仁科技大學",kw:"pingtung,taiwan",plans:1},
+  {name:"大同大學",kw:"taipei,technology",plans:1},
+  {name:"大葉大學",kw:"changhua,countryside",plans:3},
+  {name:"中信科技大學",kw:"tainan,campus",plans:3},
+  {name:"中原大學",kw:"taoyuan,university",plans:2},
+  {name:"中國文化大學",kw:"taipei,mountain",plans:2},
+  {name:"中國科技大學",kw:"taipei,modern",plans:3},
+  {name:"中國醫藥大學",kw:"taichung,medicine",plans:2},
+  {name:"中華大學",kw:"hsinchu,forest",plans:2},
+  {name:"中華科技大學",kw:"taipei,community",plans:2},
+  {name:"中華醫事科技大學",kw:"tainan,healthcare",plans:1},
+  {name:"中臺科技大學",kw:"taichung,coffee",plans:1},
+  {name:"元培醫事科技大學",kw:"hsinchu,health",plans:2},
+  {name:"元智大學",kw:"taoyuan,innovation",plans:2},
+  {name:"文藻外語大學",kw:"kaohsiung,culture",plans:2},
+  {name:"台北海洋科技大學",kw:"taipei,ocean",plans:2},
+  {name:"台南應用科技大學",kw:"tainan,art",plans:3},
+  {name:"弘光科技大學",kw:"taichung,coast",plans:4},
+  {name:"正修科技大學",kw:"kaohsiung,indigenous",plans:2},
+  {name:"玄奘大學",kw:"hsinchu,temple",plans:2},
+  {name:"佛光大學",kw:"yilan,forest",plans:2},
+  {name:"育達科技大學",kw:"miaoli,bird",plans:2},
+  {name:"亞東科技大學",kw:"taipei,elderly",plans:2},
+  {name:"亞洲大學",kw:"taichung,landscape",plans:4},
+  {name:"明志科技大學",kw:"xinbei,river",plans:5},
+  {name:"明新科技大學",kw:"hsinchu,bamboo",plans:3},
+  {name:"東吳大學",kw:"taipei,river",plans:1},
+  {name:"東南科技大學",kw:"taipei,community",plans:1},
+  {name:"東海大學",kw:"taichung,lake",plans:1},
+  {name:"法鼓文理學院",kw:"taipei,zen,nature",plans:1},
+  {name:"長庚大學",kw:"taoyuan,hospital",plans:4},
+  {name:"長庚科技大學",kw:"taoyuan,nursing",plans:2},
+  {name:"長榮大學",kw:"tainan,indigenous",plans:3},
+  {name:"南華大學",kw:"chiayi,library",plans:3},
+  {name:"南開科技大學",kw:"nantou,mountain",plans:2},
+  {name:"南臺科技大學",kw:"tainan,city",plans:5},
+  {name:"建國科技大學",kw:"changhua,workshop",plans:1},
+  {name:"美和科技大學",kw:"pingtung,indigenous",plans:2},
+  {name:"致理科技大學",kw:"xinbei,elderly",plans:3},
+  {name:"耕莘健康管理專科學校",kw:"xinbei,care",plans:4},
+  {name:"馬偕醫學大學",kw:"taipei,medical",plans:3},
+  {name:"馬偕醫護管理專科學校",kw:"taipei,nursing",plans:2},
+  {name:"高雄醫學大學",kw:"kaohsiung,medical",plans:4},
+  {name:"健行科技大學",kw:"taoyuan,trail",plans:1},
+  {name:"國立中山大學",kw:"kaohsiung,sea",plans:4},
+  {name:"國立中央大學",kw:"taoyuan,starry,sky",plans:3},
+  {name:"國立中正大學",kw:"chiayi,university",plans:2},
+  {name:"國立中興大學",kw:"taichung,agriculture",plans:5},
+  {name:"國立成功大學",kw:"tainan,heritage",plans:5},
+  {name:"國立宜蘭大學",kw:"yilan,farmland",plans:2},
+  {name:"國立東華大學",kw:"hualien,mountain",plans:2},
+  {name:"國立虎尾科技大學",kw:"yunlin,flower",plans:4},
+  {name:"國立金門大學",kw:"kinmen,island",plans:2},
+  {name:"國立屏東大學",kw:"pingtung,tropical",plans:2},
+  {name:"國立屏東科技大學",kw:"pingtung,nature",plans:5},
+  {name:"國立政治大學",kw:"taipei,maokong",plans:2},
+  {name:"國立高雄大學",kw:"kaohsiung,robot",plans:1},
+  {name:"國立高雄科技大學",kw:"kaohsiung,harbor",plans:1},
+  {name:"國立高雄師範大學",kw:"kaohsiung,badlands",plans:1},
+  {name:"國立高雄餐旅大學",kw:"kaohsiung,food",plans:3},
+  {name:"國立清華大學",kw:"hsinchu,science",plans:4},
+  {name:"國立陽明交通大學",kw:"taipei,biotech",plans:2},
+  {name:"國立雲林科技大學",kw:"yunlin,design",plans:5},
+  {name:"國立勤益科技大學",kw:"taichung,mushroom",plans:2},
+  {name:"國立嘉義大學",kw:"chiayi,forest",plans:2},
+  {name:"國立彰化師範大學",kw:"changhua,coast",plans:4},
+  {name:"國立暨南國際大學",kw:"nantou,lake",plans:4},
+  {name:"國立臺中科技大學",kw:"taichung,urban",plans:2},
+  {name:"國立臺中教育大學",kw:"taichung,education",plans:1},
+  {name:"國立臺北大學",kw:"xinbei,river",plans:3},
+  {name:"國立臺北科技大學",kw:"taipei,pottery",plans:1},
+  {name:"國立臺北護理健康大學",kw:"taipei,nursing",plans:3},
+  {name:"國立臺東大學",kw:"taitung,coast",plans:4},
+  {name:"國立臺南大學",kw:"tainan,ancient",plans:3},
+  {name:"國立臺南藝術大學",kw:"tainan,art,gallery",plans:1},
+  {name:"國立臺灣大學",kw:"taipei,research",plans:4},
+  {name:"國立臺灣科技大學",kw:"taipei,engineering",plans:4},
+  {name:"國立臺灣師範大學",kw:"taipei,campus",plans:1},
+  {name:"國立臺灣海洋大學",kw:"keelung,ocean",plans:4},
+  {name:"國立澎湖科技大學",kw:"penghu,island",plans:1},
+  {name:"國立聯合大學",kw:"miaoli,hakka",plans:1},
+  {name:"崑山科技大學",kw:"tainan,architecture",plans:4},
+  {name:"敏實科技大學",kw:"taoyuan,automotive",plans:1},
+  {name:"淡江大學",kw:"tamsui,sea",plans:2},
+  {name:"逢甲大學",kw:"taichung,nightmarket",plans:2},
+  {name:"朝陽科技大學",kw:"taichung,valley",plans:5},
+  {name:"華梵大學",kw:"taipei,mountain,ancient",plans:2},
+  {name:"開南大學",kw:"taoyuan,multicultural",plans:1},
+  {name:"慈濟大學",kw:"hualien,volunteer",plans:2},
+  {name:"德育護理健康學院",kw:"taipei,healthcare",plans:1},
+  {name:"義守大學",kw:"kaohsiung,campus",plans:3},
+  {name:"萬能科技大學",kw:"taoyuan,river",plans:2},
+  {name:"僑光科技大學",kw:"taichung,waterway",plans:2},
+  {name:"嘉南藥理大學",kw:"tainan,pharmacy",plans:5},
+  {name:"實踐大學",kw:"taipei,design",plans:5},
+  {name:"臺北市立大學",kw:"taipei,sports",plans:1},
+  {name:"臺北醫學大學",kw:"taipei,medicine",plans:1},
+  {name:"輔仁大學",kw:"xinbei,campus",plans:3},
+  {name:"輔英科技大學",kw:"kaohsiung,community",plans:2},
+  {name:"銘傳大學",kw:"taoyuan,turtle,island",plans:1},
+  {name:"德明財經科技大學",kw:"taipei,fashion",plans:1},
+  {name:"樹德科技大學",kw:"kaohsiung,lake",plans:4},
+  {name:"靜宜大學",kw:"taichung,multicultural",plans:1},
+  {name:"龍華科技大學",kw:"taoyuan,wetland",plans:2},
+  {name:"嶺東科技大學",kw:"taichung,design",plans:1},
 ];
 
-// Build cards
+// Build cards with real Unsplash images
 const grid = document.getElementById("cards-grid");
-UNIVERSITIES.forEach(u => {
+UNIVERSITIES.forEach((u, i) => {
+  const seed = encodeURIComponent(u.kw);
+  const imgUrl = `https://picsum.photos/seed/${encodeURIComponent(u.name)}/300/180`;
   const card = document.createElement("div");
   card.className = "uni-card";
   card.innerHTML = `
-    <div class="img" style="background:${u.bg}">
-      <span style="font-size:2.2rem">${u.icon}</span>
+    <div class="img">
+      <img src="${imgUrl}" alt="${u.name}" loading="lazy" onerror="this.src='https://picsum.photos/seed/${i+1}/300/180'"/>
+      <div class="overlay"></div>
     </div>
     <div class="info">
       <div class="name">${u.name}</div>
@@ -423,7 +466,6 @@ async function checkStatus() {
 function submitQ(q) {
   document.getElementById("question").value = q;
   askQuestion();
-  document.getElementById("content").scrollTop = document.getElementById("content").scrollHeight;
 }
 
 async function askQuestion() {
@@ -461,8 +503,8 @@ function renderRAG(sources) {
     const key = `${s.source}-${s.page}`;
     if (seen.has(key)) return; seen.add(key);
     const c = document.createElement("div"); c.className = "rag-card";
-    const shortName = s.source.length > 18 ? s.source.slice(0,18)+"…" : s.source;
-    c.innerHTML = `<div class="rag-head"><div class="rag-badge">${i+1}</div><div class="rag-src" title="${s.source}">📄 ${shortName}</div></div><div class="rag-text">${s.source}</div><div class="rag-page">第 ${s.page} 頁</div>`;
+    const short = s.source.length > 18 ? s.source.slice(0,18)+"…" : s.source;
+    c.innerHTML = `<div class="rag-head"><div class="rag-badge">${i+1}</div><div class="rag-src" title="${s.source}">📄 ${short}</div></div><div class="rag-text">${s.source}</div><div class="rag-page">第 ${s.page} 頁　點擊展開</div>`;
     c.onclick = () => c.classList.toggle("expanded");
     body.appendChild(c);
   });
