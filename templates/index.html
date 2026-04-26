@@ -98,14 +98,48 @@ body{font-family:"Segoe UI","Noto Sans TC",sans-serif;background:#f5f7fa;height:
 .rag-src{font-size:.71rem;color:#64748b;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .rag-text{font-size:.74rem;color:#475569;line-height:1.55;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
 .rag-page{font-size:.67rem;color:#94a3b8;margin-top:4px}
+
+/* ── RESPONSIVE ── */
+.menu-btn,.rag-btn{display:none;background:none;border:none;font-size:1.2rem;cursor:pointer;padding:4px 8px;border-radius:6px;line-height:1;color:#475569}
+.menu-btn:hover,.rag-btn:hover{background:#f1f5f9}
+.overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.38);z-index:90}
+.overlay.show{display:block}
+
+@media(max-width:1024px){
+  #sidebar{width:220px}
+  #rag-panel{width:220px}
+}
+@media(max-width:768px){
+  .menu-btn,.rag-btn{display:inline-block}
+  #sidebar{
+    position:fixed;top:50px;left:0;bottom:0;z-index:100;
+    width:280px;transform:translateX(-100%);transition:transform .25s ease;
+    box-shadow:4px 0 20px rgba(0,0,0,.15)
+  }
+  #sidebar.open{transform:translateX(0)}
+  #rag-panel{
+    position:fixed;top:50px;right:0;bottom:0;z-index:100;
+    width:280px;transform:translateX(100%);transition:transform .25s ease;
+    box-shadow:-4px 0 20px rgba(0,0,0,.15)
+  }
+  #rag-panel.open{transform:translateX(0)}
+  #main{width:100%}
+  #cards-grid{grid-template-columns:repeat(2,1fr)}
+}
+@media(max-width:380px){
+  #cards-grid{grid-template-columns:1fr}
+}
 </style>
 </head>
 <body>
 
 <div id="topbar">
+  <button class="menu-btn" onclick="toggleSidebar()" title="功能導覽">☰</button>
   <div class="logo">📚 USR <span>計畫書智慧查詢系統</span></div>
   <div id="status-pill" class="not-ready">系統檢查中…</div>
+  <button class="rag-btn" onclick="toggleRag()" title="RAG 側欄">📎</button>
 </div>
+<div class="overlay" id="overlay" onclick="closePanels()"></div>
 
 <div id="layout">
 
@@ -289,6 +323,22 @@ body{font-family:"Segoe UI","Noto Sans TC",sans-serif;background:#f5f7fa;height:
 </div>
 
 <script>
+function toggleSidebar() {
+  document.getElementById("sidebar").classList.toggle("open");
+  document.getElementById("rag-panel").classList.remove("open");
+  document.getElementById("overlay").classList.toggle("show", document.getElementById("sidebar").classList.contains("open"));
+}
+function toggleRag() {
+  document.getElementById("rag-panel").classList.toggle("open");
+  document.getElementById("sidebar").classList.remove("open");
+  document.getElementById("overlay").classList.toggle("show", document.getElementById("rag-panel").classList.contains("open"));
+}
+function closePanels() {
+  document.getElementById("sidebar").classList.remove("open");
+  document.getElementById("rag-panel").classList.remove("open");
+  document.getElementById("overlay").classList.remove("show");
+}
+
 // ── 依計畫名稱關鍵字自動對應圖片主題 ──
 function getImgSeed(title) {
   const rules = [
@@ -657,6 +707,7 @@ async function checkStatus() {
 }
 
 function submitQ(q) {
+  closePanels();
   document.getElementById("question").value = q;
   askQuestion();
 }
