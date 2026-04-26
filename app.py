@@ -112,7 +112,7 @@ def load_or_build_index() -> FAISS:
 def build_qa_chain(vectorstore: FAISS):
     """建立 RAG chain（LCEL）。"""
     llm = ChatGoogleGenerativeAI(
-        model="gemini-3-flash",
+        model="gemini-3-flash-preview",
         google_api_key=GOOGLE_API_KEY,
         temperature=0.2,
     )
