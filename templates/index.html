@@ -111,6 +111,7 @@ body{font-family:"Segoe UI","Noto Sans TC",sans-serif;background:#f5f7fa;height:
 }
 @media(max-width:768px){
   .menu-btn,.rag-btn{display:inline-block}
+  body{height:100svh}
   #sidebar{
     position:fixed;top:50px;left:0;bottom:0;z-index:100;
     width:280px;transform:translateX(-100%);transition:transform .25s ease;
@@ -123,8 +124,13 @@ body{font-family:"Segoe UI","Noto Sans TC",sans-serif;background:#f5f7fa;height:
     box-shadow:-4px 0 20px rgba(0,0,0,.15)
   }
   #rag-panel.open{transform:translateX(0)}
+  #layout{height:calc(100svh - 50px)}
   #main{width:100%}
+  #hero{padding:14px 18px}
+  #hero h2{font-size:1rem}
   #cards-grid{grid-template-columns:repeat(2,1fr)}
+  #chat-wrap{padding:10px 12px}
+  #messages{max-height:160px}
 }
 @media(max-width:380px){
   #cards-grid{grid-template-columns:1fr}
