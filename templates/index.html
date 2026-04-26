@@ -10,8 +10,6 @@ body{font-family:"Segoe UI","Noto Sans TC",sans-serif;background:#f5f7fa;height:
 #topbar{height:50px;background:#fff;border-bottom:1px solid #e2e8f0;display:flex;align-items:center;padding:0 22px;gap:14px;flex-shrink:0;box-shadow:0 1px 4px rgba(0,0,0,.06)}
 #topbar .logo{color:#1e40af;font-weight:800;font-size:1rem;white-space:nowrap}
 #topbar .logo span{color:#64748b;font-weight:500}
-#status-pill{margin-left:auto;padding:4px 14px;border-radius:999px;font-size:.72rem;font-weight:600;background:#dcfce7;color:#166534}
-#status-pill.not-ready{background:#fee2e2;color:#991b1b}
 #layout{display:flex;flex:1;overflow:hidden}
 
 /* SIDEBAR */
@@ -142,7 +140,6 @@ body{font-family:"Segoe UI","Noto Sans TC",sans-serif;background:#f5f7fa;height:
 <div id="topbar">
   <button class="menu-btn" onclick="toggleSidebar()" title="功能導覽">☰</button>
   <div class="logo">📚 USR <span>計畫書智慧查詢系統</span></div>
-  <div id="status-pill" class="not-ready">系統檢查中…</div>
   <button class="rag-btn" onclick="toggleRag()" title="RAG 側欄">📎</button>
 </div>
 <div class="overlay" id="overlay" onclick="closePanels()"></div>
@@ -697,19 +694,8 @@ async function checkStatus() {
   try {
     const res = await fetch("/status");
     const data = await res.json();
-    const pill = document.getElementById("status-pill");
-    if (data.ready) {
-      pill.textContent = `✅ 已載入 ${data.pdf_count} 份計畫書`;
-      pill.className = "";
-      document.getElementById("ask-btn").disabled = false;
-    } else {
-      pill.textContent = "⚠️ 系統未就緒";
-      pill.className = "not-ready";
-    }
-  } catch {
-    document.getElementById("status-pill").textContent = "❌ 連線失敗";
-    document.getElementById("status-pill").className = "not-ready";
-  }
+    if (data.ready) document.getElementById("ask-btn").disabled = false;
+  } catch {}
 }
 
 function submitQ(q) {
