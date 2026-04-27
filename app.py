@@ -7,7 +7,7 @@ sys.stdout.reconfigure(encoding="utf-8")
 sys.stderr.reconfigure(encoding="utf-8")
 
 from dotenv import load_dotenv
-from flask import Flask, request, jsonify, render_template, session, redirect, url_for
+from flask import Flask, request, jsonify, render_template, session, redirect, url_for, Response, stream_with_context
 from flask_cors import CORS
 
 from langchain_community.document_loaders import PyPDFLoader
@@ -16,7 +16,7 @@ from langchain_community.vectorstores import FAISS
 from langchain_voyageai import VoyageAIEmbeddings
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_core.prompts import PromptTemplate
-from langchain_core.runnables import RunnableLambda
+from langchain_core.runnables import RunnableLambda  # noqa: F401 (kept for rebuild compatibility)
 
 load_dotenv()
 
@@ -112,43 +112,23 @@ def load_or_build_index() -> FAISS:
     return vectorstore
 
 
-def build_qa_chain(vectorstore: FAISS):
-    """建立 RAG chain（LCEL）。"""
-    llm = ChatGoogleGenerativeAI(
-        model="gemini-2.5-flash",
-        google_api_key=GOOGLE_API_KEY,
-        temperature=0.2,
-    )
-    retriever = vectorstore.as_retriever(
+# ── 啟動時初始化 ──────────────────────────────────────
+llm = ChatGoogleGenerativeAI(
+    model="gemini-2.5-flash",
+    google_api_key=GOOGLE_API_KEY,
+    temperature=0.2,
+)
+
+try:
+    vectorstore = load_or_build_index()
+    retriever   = vectorstore.as_retriever(
         search_type="similarity",
         search_kwargs={"k": TOP_K},
     )
-
-    def _run(input_dict):
-        query = input_dict["query"]
-        docs = retriever.invoke(query)
-        context = "\n\n".join(doc.page_content for doc in docs)
-        prompt_value = RAG_PROMPT.invoke({"context": context, "question": query})
-        answer = llm.invoke(prompt_value)
-        content = answer.content
-        if isinstance(content, list):
-            content = "".join(
-                block.get("text", "") if isinstance(block, dict) else str(block)
-                for block in content
-            )
-        return {"result": content, "source_documents": docs}
-
-    return RunnableLambda(_run)
-
-
-# ── 啟動時初始化 ──────────────────────────────────────
-try:
-    vectorstore = load_or_build_index()
-    qa_chain    = build_qa_chain(vectorstore)
     print("[APP] RAG 系統就緒。")
 except FileNotFoundError as e:
     vectorstore = None
-    qa_chain    = None
+    retriever   = None
     print(f"[APP] 警告：{e}")
 
 
@@ -181,7 +161,7 @@ def ask():
     if SITE_PASSWORD and not session.get("authenticated"):
         return jsonify({"error": "請先登入。"}), 401
 
-    if qa_chain is None:
+    if retriever is None:
         return jsonify({"error": "索引尚未建立，請先將 PDF 放入 pdfs/ 資料夾後重啟伺服器。"}), 503
 
     data = request.get_json(silent=True) or {}
@@ -192,39 +172,53 @@ def ask():
     if len(question) > 500:
         return jsonify({"error": "問題不得超過 500 字。"}), 400
 
-    try:
-        result = qa_chain.invoke({"query": question})
-        answer = result["result"]
+    def generate():
+        try:
+            docs = retriever.invoke(question)
+            context = "\n\n".join(doc.page_content for doc in docs)
+            prompt_value = RAG_PROMPT.invoke({"context": context, "question": question})
 
-        sources = []
-        for doc in result.get("source_documents", []):
-            meta = doc.metadata
-            sources.append({
-                "source": Path(meta.get("source", "")).name,
-                "page":   meta.get("page", 0) + 1,
-            })
-        # 去重（同一頁可能被撈多次）
-        seen = set()
-        unique_sources = []
-        for s in sources:
-            key = (s["source"], s["page"])
-            if key not in seen:
-                seen.add(key)
-                unique_sources.append(s)
+            sources = []
+            seen = set()
+            for doc in docs:
+                meta = doc.metadata
+                src  = Path(meta.get("source", "")).name
+                page = meta.get("page", 0) + 1
+                if (src, page) not in seen:
+                    seen.add((src, page))
+                    sources.append({"source": src, "page": page})
 
-        return jsonify({"answer": answer, "sources": unique_sources})
+            yield f"data: {json.dumps({'type': 'sources', 'sources': sources}, ensure_ascii=False)}\n\n"
 
-    except Exception as e:
-        import traceback
-        print(f"[ERROR] /ask：{e}")
-        print(traceback.format_exc())
-        return jsonify({"error": "查詢時發生錯誤，請稍後再試。"}), 500
+            for chunk in llm.stream(prompt_value):
+                content = chunk.content
+                if isinstance(content, list):
+                    content = "".join(
+                        block.get("text", "") if isinstance(block, dict) else str(block)
+                        for block in content
+                    )
+                if content:
+                    yield f"data: {json.dumps({'type': 'chunk', 'text': content}, ensure_ascii=False)}\n\n"
+
+            yield f"data: {json.dumps({'type': 'done'})}\n\n"
+
+        except Exception as e:
+            import traceback
+            print(f"[ERROR] /ask stream：{e}")
+            print(traceback.format_exc())
+            yield f"data: {json.dumps({'type': 'error', 'error': '查詢時發生錯誤，請稍後再試。'}, ensure_ascii=False)}\n\n"
+
+    return Response(
+        stream_with_context(generate()),
+        mimetype="text/event-stream",
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+    )
 
 
 @app.route("/rebuild-index", methods=["POST"])
 def rebuild_index():
     """重新建立索引（上傳新 PDF 後呼叫）。"""
-    global vectorstore, qa_chain
+    global vectorstore, retriever
 
     # 刪除舊索引
     for f in INDEX_DIR.glob("*"):
@@ -232,7 +226,10 @@ def rebuild_index():
 
     try:
         vectorstore = load_or_build_index()
-        qa_chain    = build_qa_chain(vectorstore)
+        retriever   = vectorstore.as_retriever(
+            search_type="similarity",
+            search_kwargs={"k": TOP_K},
+        )
         return jsonify({"message": "索引重建完成。"})
     except FileNotFoundError as e:
         return jsonify({"error": str(e)}), 400
@@ -247,7 +244,7 @@ def status():
     pdf_count = len(list(PDF_DIR.rglob("*.pdf"))) if PDF_DIR.exists() else 0
     index_ready = (INDEX_DIR / "index.faiss").exists()
     return jsonify({
-        "ready":      qa_chain is not None,
+        "ready":      retriever is not None,
         "pdf_count":  pdf_count,
         "index_ready": index_ready,
     })

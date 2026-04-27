@@ -739,15 +739,66 @@ async function askQuestion() {
   appendMsg(question, "user");
   qEl.value = ""; qEl.style.height = "44px";
   document.getElementById("ask-btn").disabled = true;
-  const loadEl = appendMsg("🤔 AI 分析中，請稍候…", "loading");
+
+  const box = document.getElementById("messages");
+  const botEl = appendMsg("🤔 AI 分析中，請稍候…", "loading");
+  let started = false;
+  let answerText = "";
+
   try {
     const res = await fetch("/ask", {method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({question})});
-    const data = await res.json();
-    loadEl.remove();
-    if (!res.ok || data.error) appendMsg("⚠️ " + (data.error||"發生未知錯誤"), "bot");
-    else { appendMsg(data.answer, "bot"); renderRAG(data.sources||[]); }
-  } catch { loadEl.remove(); appendMsg("⚠️ 無法連線至伺服器", "bot"); }
-  finally { document.getElementById("ask-btn").disabled = false; }
+
+    if (!res.ok) {
+      const data = await res.json();
+      botEl.className = "msg bot";
+      botEl.textContent = "⚠️ " + (data.error || "發生未知錯誤");
+      return;
+    }
+
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = "";
+
+    while (true) {
+      const {done, value} = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, {stream: true});
+      const lines = buffer.split("\n");
+      buffer = lines.pop();
+
+      for (const line of lines) {
+        if (!line.startsWith("data: ")) continue;
+        let evt;
+        try { evt = JSON.parse(line.slice(6)); } catch { continue; }
+
+        if (evt.type === "chunk") {
+          if (!started) {
+            started = true;
+            botEl.className = "msg bot";
+            botEl.textContent = "";
+          }
+          answerText += evt.text;
+          botEl.textContent = answerText;
+          box.scrollTop = box.scrollHeight;
+        } else if (evt.type === "sources") {
+          renderRAG(evt.sources || []);
+        } else if (evt.type === "error") {
+          botEl.className = "msg bot";
+          botEl.textContent = "⚠️ " + evt.error;
+        }
+      }
+    }
+
+    if (!started) {
+      botEl.className = "msg bot";
+      botEl.textContent = "（無回應）";
+    }
+  } catch {
+    botEl.className = "msg bot";
+    botEl.textContent = "⚠️ 無法連線至伺服器";
+  } finally {
+    document.getElementById("ask-btn").disabled = false;
+  }
 }
 
 function appendMsg(text, type) {
