@@ -7,7 +7,7 @@ sys.stdout.reconfigure(encoding="utf-8")
 sys.stderr.reconfigure(encoding="utf-8")
 
 from dotenv import load_dotenv
-from flask import Flask, request, jsonify, render_template
+from flask import Flask, request, jsonify, render_template, session, redirect, url_for
 from flask_cors import CORS
 
 from langchain_community.document_loaders import PyPDFLoader
@@ -22,9 +22,11 @@ load_dotenv()
 
 app = Flask(__name__)
 CORS(app)
+app.secret_key = os.getenv("SECRET_KEY", os.urandom(32))
 
 # ── 設定 ──────────────────────────────────────────────
 GOOGLE_API_KEY  = os.getenv("GOOGLE_API_KEY")
+SITE_PASSWORD   = os.getenv("SITE_PASSWORD", "")
 VOYAGE_API_KEY  = os.getenv("VOYAGE_API_KEY")
 CHUNK_SIZE      = int(os.getenv("CHUNK_SIZE", 800))
 CHUNK_OVERLAP   = int(os.getenv("CHUNK_OVERLAP", 100))
@@ -152,11 +154,30 @@ except FileNotFoundError as e:
 # ── 路由 ──────────────────────────────────────────────
 @app.route("/")
 def index():
-    return render_template("index.html")
+    authenticated = not SITE_PASSWORD or session.get("authenticated", False)
+    return render_template("index.html", authenticated=authenticated)
+
+
+@app.route("/login", methods=["POST"])
+def login():
+    data = request.get_json(silent=True) or {}
+    if data.get("password") == SITE_PASSWORD:
+        session["authenticated"] = True
+        return jsonify({"ok": True})
+    return jsonify({"ok": False, "error": "密碼錯誤，請再試一次。"}), 401
+
+
+@app.route("/logout")
+def logout():
+    session.pop("authenticated", None)
+    return redirect(url_for("index"))
 
 
 @app.route("/ask", methods=["POST"])
 def ask():
+    if SITE_PASSWORD and not session.get("authenticated"):
+        return jsonify({"error": "請先登入。"}), 401
+
     if qa_chain is None:
         return jsonify({"error": "索引尚未建立，請先將 PDF 放入 pdfs/ 資料夾後重啟伺服器。"}), 503
 

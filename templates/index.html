@@ -97,6 +97,17 @@ body{font-family:"Segoe UI","Noto Sans TC",sans-serif;background:#f5f7fa;height:
 .rag-text{font-size:.74rem;color:#475569;line-height:1.55;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
 .rag-page{font-size:.67rem;color:#94a3b8;margin-top:4px}
 
+/* ── LOGIN OVERLAY ── */
+#login-overlay{position:fixed;inset:0;z-index:999;background:linear-gradient(135deg,#1e3a8a 0%,#1e40af 50%,#2563eb 100%);display:flex;align-items:center;justify-content:center}
+.login-box{background:#fff;border-radius:20px;padding:48px 40px;width:100%;max-width:380px;box-shadow:0 24px 60px rgba(0,0,0,.25);text-align:center}
+.login-box .login-icon{font-size:2.8rem;margin-bottom:12px}
+.login-box h2{font-size:1.3rem;font-weight:800;color:#1e293b;margin-bottom:4px}
+.login-box p{font-size:.83rem;color:#64748b;margin-bottom:28px}
+.login-box input[type=password]{width:100%;padding:12px 16px;border:1.5px solid #e2e8f0;border-radius:10px;font-size:.95rem;outline:none;transition:border-color .2s;text-align:center;letter-spacing:.1em}
+.login-box input[type=password]:focus{border-color:#3b82f6}
+.login-box button{margin-top:14px;width:100%;padding:13px;background:linear-gradient(135deg,#1d4ed8,#3b82f6);color:#fff;border:none;border-radius:10px;font-size:.95rem;font-weight:700;cursor:pointer;transition:opacity .2s}
+.login-box button:hover{opacity:.88}
+#login-err{color:#ef4444;font-size:.82rem;margin-top:10px;min-height:20px}
 /* ── RESPONSIVE ── */
 .menu-btn,.rag-btn{display:none;background:none;border:none;font-size:1.2rem;cursor:pointer;padding:4px 8px;border-radius:6px;line-height:1;color:#475569}
 .menu-btn:hover,.rag-btn:hover{background:#f1f5f9}
@@ -136,6 +147,20 @@ body{font-family:"Segoe UI","Noto Sans TC",sans-serif;background:#f5f7fa;height:
 </style>
 </head>
 <body>
+
+{% if not authenticated %}
+<div id="login-overlay">
+  <div class="login-box">
+    <div class="login-icon">🔐</div>
+    <h2>USR 計畫書智慧查詢系統</h2>
+    <p>請輸入存取密碼以繼續</p>
+    <input type="password" id="pw-input" placeholder="請輸入密碼"
+      onkeydown="if(event.key==='Enter') doLogin()"/>
+    <button onclick="doLogin()">進入系統</button>
+    <div id="login-err"></div>
+  </div>
+</div>
+{% endif %}
 
 <div id="topbar">
   <button class="menu-btn" onclick="toggleSidebar()" title="功能導覽">☰</button>
@@ -744,6 +769,23 @@ function renderRAG(sources) {
     c.onclick = () => c.classList.toggle("expanded");
     body.appendChild(c);
   });
+}
+
+async function doLogin() {
+  const pw = document.getElementById("pw-input").value;
+  const errEl = document.getElementById("login-err");
+  if (!pw) { errEl.textContent = "請輸入密碼。"; return; }
+  try {
+    const res = await fetch("/login", {method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({password:pw})});
+    const data = await res.json();
+    if (data.ok) {
+      document.getElementById("login-overlay").remove();
+    } else {
+      errEl.textContent = data.error || "密碼錯誤，請再試一次。";
+      document.getElementById("pw-input").value = "";
+      document.getElementById("pw-input").focus();
+    }
+  } catch { errEl.textContent = "無法連線，請稍後再試。"; }
 }
 
 checkStatus();
