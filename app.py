@@ -127,7 +127,13 @@ def build_qa_chain(vectorstore: FAISS):
         context = "\n\n".join(doc.page_content for doc in docs)
         prompt_value = RAG_PROMPT.invoke({"context": context, "question": query})
         answer = llm.invoke(prompt_value)
-        return {"result": answer.content, "source_documents": docs}
+        content = answer.content
+        if isinstance(content, list):
+            content = "".join(
+                block.get("text", "") if isinstance(block, dict) else str(block)
+                for block in content
+            )
+        return {"result": content, "source_documents": docs}
 
     return RunnableLambda(_run)
 
