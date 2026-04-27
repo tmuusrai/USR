@@ -153,8 +153,11 @@ body{font-family:"Segoe UI","Noto Sans TC",sans-serif;background:#f5f7fa;height:
   <div class="login-box">
     <div class="login-icon">🔐</div>
     <h2>USR 計畫書智慧查詢系統</h2>
-    <p>請輸入存取密碼以繼續</p>
-    <input type="password" id="pw-input" placeholder="請輸入密碼"
+    <p>請輸入帳號與密碼以繼續</p>
+    <input type="text" id="un-input" placeholder="帳號" autocomplete="username"
+      style="margin-bottom:10px"
+      onkeydown="if(event.key==='Enter') document.getElementById('pw-input').focus()"/>
+    <input type="password" id="pw-input" placeholder="密碼" autocomplete="current-password"
       onkeydown="if(event.key==='Enter') doLogin()"/>
     <button onclick="doLogin()">進入系統</button>
     <div id="login-err"></div>
@@ -772,16 +775,18 @@ function renderRAG(sources) {
 }
 
 async function doLogin() {
+  const un = document.getElementById("un-input").value.trim();
   const pw = document.getElementById("pw-input").value;
   const errEl = document.getElementById("login-err");
-  if (!pw) { errEl.textContent = "請輸入密碼。"; return; }
+  if (!un) { errEl.textContent = "請輸入帳號。"; document.getElementById("un-input").focus(); return; }
+  if (!pw) { errEl.textContent = "請輸入密碼。"; document.getElementById("pw-input").focus(); return; }
   try {
-    const res = await fetch("/login", {method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({password:pw})});
+    const res = await fetch("/login", {method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({username:un, password:pw})});
     const data = await res.json();
     if (data.ok) {
       document.getElementById("login-overlay").remove();
     } else {
-      errEl.textContent = data.error || "密碼錯誤，請再試一次。";
+      errEl.textContent = data.error || "帳號或密碼錯誤，請再試一次。";
       document.getElementById("pw-input").value = "";
       document.getElementById("pw-input").focus();
     }

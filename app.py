@@ -26,6 +26,7 @@ app.secret_key = os.getenv("SECRET_KEY", os.urandom(32))
 
 # ── 設定 ──────────────────────────────────────────────
 GOOGLE_API_KEY  = os.getenv("GOOGLE_API_KEY")
+SITE_USERNAME   = os.getenv("SITE_USERNAME", "")
 SITE_PASSWORD   = os.getenv("SITE_PASSWORD", "")
 VOYAGE_API_KEY  = os.getenv("VOYAGE_API_KEY")
 CHUNK_SIZE      = int(os.getenv("CHUNK_SIZE", 800))
@@ -161,10 +162,12 @@ def index():
 @app.route("/login", methods=["POST"])
 def login():
     data = request.get_json(silent=True) or {}
-    if data.get("password") == SITE_PASSWORD:
+    username_ok = not SITE_USERNAME or data.get("username") == SITE_USERNAME
+    password_ok = not SITE_PASSWORD or data.get("password") == SITE_PASSWORD
+    if username_ok and password_ok:
         session["authenticated"] = True
         return jsonify({"ok": True})
-    return jsonify({"ok": False, "error": "密碼錯誤，請再試一次。"}), 401
+    return jsonify({"ok": False, "error": "帳號或密碼錯誤，請再試一次。"}), 401
 
 
 @app.route("/logout")
