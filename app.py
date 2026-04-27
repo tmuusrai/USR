@@ -112,7 +112,7 @@ def load_or_build_index() -> FAISS:
 def build_qa_chain(vectorstore: FAISS):
     """建立 RAG chain（LCEL）。"""
     llm = ChatGoogleGenerativeAI(
-        model="gemini-3.0-flash",
+        model="gemini-3-flash",
         google_api_key=GOOGLE_API_KEY,
         temperature=0.2,
     )
@@ -191,7 +191,9 @@ def ask():
         return jsonify({"answer": answer, "sources": unique_sources})
 
     except Exception as e:
+        import traceback
         print(f"[ERROR] /ask：{e}")
+        print(traceback.format_exc())
         return jsonify({"error": "查詢時發生錯誤，請稍後再試。"}), 500
 
 
