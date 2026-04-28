@@ -63,7 +63,11 @@ body{font-family:"Segoe UI","Noto Sans TC",sans-serif;background:#f5f7fa;height:
 .plan-card.hidden{display:none}
 
 /* CHAT */
-#chat-wrap{flex-shrink:0;background:#fff;border-top:1px solid #e2e8f0;padding:14px 20px}
+#chat-wrap{flex-shrink:0;background:#fff;border-top:1px solid #e2e8f0;padding:14px 20px;min-height:120px}
+#resize-handle{position:absolute;top:0;left:0;right:0;height:6px;cursor:ns-resize;display:flex;align-items:center;justify-content:center;margin:-14px -20px 10px}
+#resize-handle::before{content:"";width:40px;height:3px;background:#cbd5e1;border-radius:999px;transition:background .15s}
+#resize-handle:hover::before{background:#94a3b8}
+#chat-wrap{position:relative}
 #messages{max-height:220px;overflow-y:auto;margin-bottom:12px;display:flex;flex-direction:column;gap:10px}
 #messages::-webkit-scrollbar{width:4px}
 #messages::-webkit-scrollbar-thumb{background:#e2e8f0;border-radius:4px}
@@ -331,6 +335,7 @@ body{font-family:"Segoe UI","Noto Sans TC",sans-serif;background:#f5f7fa;height:
     </div>
   </div>
   <div id="chat-wrap">
+    <div id="resize-handle" title="拖曳調整大小"></div>
     <div id="messages"></div>
     <div id="input-row">
       <textarea id="question" placeholder="請輸入問題，例如：有哪些計畫關注高齡照護？"
@@ -824,6 +829,42 @@ function renderRAG(sources) {
     body.appendChild(c);
   });
 }
+
+// ── 拖曳調整對話框高度 ──
+(function(){
+  const handle = document.getElementById("resize-handle");
+  const wrap   = document.getElementById("chat-wrap");
+  const msgs   = document.getElementById("messages");
+  let startY, startH;
+
+  function onMove(e) {
+    const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+    const delta = startY - clientY;
+    const newH = Math.min(Math.max(startH + delta, 110), window.innerHeight * 0.75);
+    wrap.style.height = newH + "px";
+    msgs.style.maxHeight = (newH - 80) + "px";
+  }
+  function onUp() {
+    document.removeEventListener("mousemove", onMove);
+    document.removeEventListener("mouseup", onUp);
+    document.removeEventListener("touchmove", onMove);
+    document.removeEventListener("touchend", onUp);
+    document.body.style.userSelect = "";
+  }
+  handle.addEventListener("mousedown", e => {
+    startY = e.clientY;
+    startH = wrap.offsetHeight;
+    document.body.style.userSelect = "none";
+    document.addEventListener("mousemove", onMove);
+    document.addEventListener("mouseup", onUp);
+  });
+  handle.addEventListener("touchstart", e => {
+    startY = e.touches[0].clientY;
+    startH = wrap.offsetHeight;
+    document.addEventListener("touchmove", onMove, {passive:true});
+    document.addEventListener("touchend", onUp);
+  });
+})();
 
 async function doLogin() {
   const un = document.getElementById("un-input").value.trim();
