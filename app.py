@@ -37,10 +37,28 @@ PDF_DIR         = Path("pdfs")
 INDEX_DIR       = Path("faiss_index")
 
 # ── Embedding 模型（全域共用，避免重複初始化）──────────
-embeddings = VoyageAIEmbeddings(
+class _CachedEmbeddings:
+    """Query embedding 快取，相同問題不重複呼叫 Voyage AI。"""
+    def __init__(self, base):
+        self._base  = base
+        self._cache = {}
+
+    def embed_query(self, text):
+        if text not in self._cache:
+            self._cache[text] = self._base.embed_query(text)
+        return self._cache[text]
+
+    def embed_documents(self, texts):
+        return self._base.embed_documents(texts)
+
+    def __getattr__(self, name):
+        return getattr(self._base, name)
+
+_base_embeddings = VoyageAIEmbeddings(
     voyage_api_key=VOYAGE_API_KEY,
     model="voyage-3",
 )
+embeddings = _CachedEmbeddings(_base_embeddings)
 
 # ── RAG Prompt ────────────────────────────────────────
 RAG_PROMPT = PromptTemplate(
