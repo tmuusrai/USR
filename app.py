@@ -48,6 +48,9 @@ class _CachedEmbeddings:
             self._cache[text] = self._base.embed_query(text)
         return self._cache[text]
 
+    def __call__(self, text):
+        return self.embed_query(text)
+
     def embed_documents(self, texts):
         return self._base.embed_documents(texts)
 
