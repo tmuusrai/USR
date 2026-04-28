@@ -7,9 +7,9 @@
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 body{font-family:"Segoe UI","Noto Sans TC",sans-serif;background:#f5f7fa;height:100vh;display:flex;flex-direction:column;overflow:hidden}
-#topbar{height:50px;background:#fff;border-bottom:1px solid #e2e8f0;display:flex;align-items:center;padding:0 22px;gap:14px;flex-shrink:0;box-shadow:0 1px 4px rgba(0,0,0,.06)}
-#topbar .logo{color:#1e40af;font-weight:800;font-size:1rem;white-space:nowrap}
-#topbar .logo span{color:#64748b;font-weight:500}
+#topbar{height:58px;background:linear-gradient(120deg,#1e3a8a 0%,#1e40af 50%,#2563eb 100%);border-bottom:none;display:flex;align-items:center;padding:0 22px;gap:14px;flex-shrink:0;box-shadow:0 2px 8px rgba(30,64,175,.3)}
+#topbar .logo{color:#fff;font-weight:800;font-size:1.05rem;white-space:nowrap}
+#topbar .logo span{color:rgba(255,255,255,.75);font-weight:500}
 #layout{display:flex;flex:1;overflow:hidden}
 
 /* SIDEBAR */
@@ -114,8 +114,8 @@ body{font-family:"Segoe UI","Noto Sans TC",sans-serif;background:#f5f7fa;height:
 .login-box button:hover{opacity:.88}
 #login-err{color:#ef4444;font-size:.82rem;margin-top:10px;min-height:20px}
 /* ── RESPONSIVE ── */
-.menu-btn,.rag-btn{display:none;background:none;border:none;font-size:1.2rem;cursor:pointer;padding:4px 8px;border-radius:6px;line-height:1;color:#475569}
-.menu-btn:hover,.rag-btn:hover{background:#f1f5f9}
+.menu-btn,.rag-btn{display:none;background:none;border:none;font-size:1.2rem;cursor:pointer;padding:4px 8px;border-radius:6px;line-height:1;color:rgba(255,255,255,.85)}
+.menu-btn:hover,.rag-btn:hover{background:rgba(255,255,255,.15)}
 .overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.38);z-index:90}
 .overlay.show{display:block}
 
@@ -127,18 +127,18 @@ body{font-family:"Segoe UI","Noto Sans TC",sans-serif;background:#f5f7fa;height:
   .menu-btn,.rag-btn{display:inline-block}
   body{height:100svh}
   #sidebar{
-    position:fixed;top:50px;left:0;bottom:0;z-index:100;
+    position:fixed;top:58px;left:0;bottom:0;z-index:100;
     width:280px;transform:translateX(-100%);transition:transform .25s ease;
     box-shadow:4px 0 20px rgba(0,0,0,.15)
   }
   #sidebar.open{transform:translateX(0)}
   #rag-panel{
-    position:fixed;top:50px;right:0;bottom:0;z-index:100;
+    position:fixed;top:58px;right:0;bottom:0;z-index:100;
     width:280px;transform:translateX(100%);transition:transform .25s ease;
     box-shadow:-4px 0 20px rgba(0,0,0,.15)
   }
   #rag-panel.open{transform:translateX(0)}
-  #layout{height:calc(100svh - 50px)}
+  #layout{height:calc(100svh - 58px)}
   #main{width:100%}
   #hero{padding:14px 18px}
   #hero h2{font-size:1rem}
