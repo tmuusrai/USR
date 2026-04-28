@@ -114,7 +114,7 @@ def load_or_build_index() -> FAISS:
 
 # ── 啟動時初始化 ──────────────────────────────────────
 llm = ChatGoogleGenerativeAI(
-    model="gemini-2.5-flash",
+    model="gemini-3-flash",
     google_api_key=GOOGLE_API_KEY,
     temperature=0.2,
 )
