@@ -256,6 +256,16 @@ def rebuild_index():
         return jsonify({"error": "索引重建失敗。"}), 500
 
 
+@app.route("/warmup")
+def warmup():
+    """預熱 Voyage AI 連線，減少第一次問答的延遲。"""
+    try:
+        embeddings.embed_query("warmup")
+        return jsonify({"ok": True})
+    except Exception:
+        return jsonify({"ok": False})
+
+
 @app.route("/status")
 def status():
     """健康檢查：確認系統是否就緒。"""

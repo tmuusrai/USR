@@ -889,6 +889,7 @@ async function doLogin() {
 }
 
 checkStatus();
+fetch("/warmup").catch(() => {});
 </script>
 </body>
 </html>
