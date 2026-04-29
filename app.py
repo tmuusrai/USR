@@ -211,7 +211,7 @@ def ask():
 
             yield f"data: {json.dumps({'type': 'sources', 'sources': sources}, ensure_ascii=False)}\n\n"
 
-            last_chunk = None
+            answer_chars = 0
             for chunk in llm.stream(prompt_value):
                 content = chunk.content
                 if isinstance(content, list):
@@ -220,11 +220,12 @@ def ask():
                         for block in content
                     )
                 if content:
+                    answer_chars += len(content)
                     yield f"data: {json.dumps({'type': 'chunk', 'text': content}, ensure_ascii=False)}\n\n"
-                last_chunk = chunk
 
             prompt_chars = len(prompt_value.to_string())
-            print(f"[TOKEN] prompt_chars={prompt_chars} (~{prompt_chars//2} tokens估算)")
+            total_chars = prompt_chars + answer_chars
+            print(f"[TOKEN] 輸入={prompt_chars}字元(~{prompt_chars//2}tokens) 輸出={answer_chars}字元(~{answer_chars//2}tokens) 合計~{total_chars//2}tokens")
 
             yield f"data: {json.dumps({'type': 'done'})}\n\n"
 
