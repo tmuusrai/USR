@@ -223,9 +223,10 @@ def ask():
                     yield f"data: {json.dumps({'type': 'chunk', 'text': content}, ensure_ascii=False)}\n\n"
                 last_chunk = chunk
 
-            if last_chunk and hasattr(last_chunk, "usage_metadata") and last_chunk.usage_metadata:
-                u = last_chunk.usage_metadata
-                print(f"[TOKEN] input={u.get('input_tokens')} output={u.get('output_tokens')} total={u.get('total_tokens')}")
+            if last_chunk:
+                u = getattr(last_chunk, "usage_metadata", None) or {}
+                r = getattr(last_chunk, "response_metadata", None) or {}
+                print(f"[TOKEN] usage_metadata={u} response_metadata={r}")
 
             yield f"data: {json.dumps({'type': 'done'})}\n\n"
 
