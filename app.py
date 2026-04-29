@@ -223,10 +223,8 @@ def ask():
                     yield f"data: {json.dumps({'type': 'chunk', 'text': content}, ensure_ascii=False)}\n\n"
                 last_chunk = chunk
 
-            if last_chunk:
-                u = getattr(last_chunk, "usage_metadata", None) or {}
-                r = getattr(last_chunk, "response_metadata", None) or {}
-                print(f"[TOKEN] usage_metadata={u} response_metadata={r}")
+            prompt_chars = len(prompt_value.to_string())
+            print(f"[TOKEN] prompt_chars={prompt_chars} (~{prompt_chars//2} tokens估算)")
 
             yield f"data: {json.dumps({'type': 'done'})}\n\n"
 
