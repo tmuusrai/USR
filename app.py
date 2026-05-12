@@ -10,7 +10,7 @@ from dotenv import load_dotenv
 from flask import Flask, request, jsonify, render_template, session, redirect, url_for, Response, stream_with_context
 from flask_cors import CORS
 
-from langchain_community.document_loaders import PyPDFLoader
+from langchain_community.document_loaders import PyPDFLoader, TextLoader
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_community.vectorstores import FAISS
 from langchain_voyageai import VoyageAIEmbeddings
@@ -31,9 +31,10 @@ SITE_PASSWORD   = os.getenv("SITE_PASSWORD", "")
 VOYAGE_API_KEY  = os.getenv("VOYAGE_API_KEY")
 CHUNK_SIZE      = int(os.getenv("CHUNK_SIZE", 800))
 CHUNK_OVERLAP   = int(os.getenv("CHUNK_OVERLAP", 100))
-TOP_K           = int(os.getenv("TOP_K_RESULTS", 5))
+TOP_K           = int(os.getenv("TOP_K_RESULTS", 10))
 
 PDF_DIR         = Path("pdfs")
+EXTRA_DIR       = Path("extra_docs")
 INDEX_DIR       = Path("faiss_index")
 
 # ── Embedding 模型（全域共用，避免重複初始化）──────────
@@ -106,6 +107,12 @@ def load_or_build_index() -> FAISS:
         print(f"  讀取：{pdf_path.name}")
         loader = PyPDFLoader(str(pdf_path))
         docs.extend(loader.load())
+
+    if EXTRA_DIR.exists():
+        for txt_path in EXTRA_DIR.rglob("*.txt"):
+            print(f"  讀取補充文件：{txt_path.name}")
+            loader = TextLoader(str(txt_path), encoding="utf-8")
+            docs.extend(loader.load())
 
     splitter = RecursiveCharacterTextSplitter(
         chunk_size=CHUNK_SIZE,
