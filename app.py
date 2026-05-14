@@ -325,7 +325,29 @@ def tool_search_rag(query: str, k: int = 5):
     return "\n\n---\n\n".join(results), sources
 
 
-def react_agent_stream(question: str, max_steps: int = 6):
+def _normalize_content(content):
+    if isinstance(content, list):
+        return "".join(
+            block.get("text", "") if isinstance(block, dict) else str(block)
+            for block in content
+        )
+    return content
+
+
+def _force_final_answer(messages):
+    """當 Gemini 不按格式時，強制取得最終答案。"""
+    from langchain_core.messages import HumanMessage
+    msgs = list(messages) + [
+        HumanMessage(content="請根據以上所有搜尋結果，直接用繁體中文給出完整的分析回答，不需要再搜尋。")
+    ]
+    response = llm.invoke(msgs)
+    text = _normalize_content(response.content)
+    if "Final Answer:" in text:
+        return text.split("Final Answer:")[-1].strip()
+    return text
+
+
+def react_agent_stream(question: str, max_steps: int = 5):
     """Generator：每完成一步就 yield，避免 SSE 連線閒置斷線。"""
     from langchain_core.messages import HumanMessage, AIMessage, SystemMessage
 
@@ -336,22 +358,15 @@ def react_agent_stream(question: str, max_steps: int = 6):
 
     all_sources = []
     seen_sources = set()
+    searched = False
 
     for step in range(max_steps):
         response = llm.invoke(messages)
-        content = response.content
-        if isinstance(content, list):
-            text = "".join(
-                block.get("text", "") if isinstance(block, dict) else str(block)
-                for block in content
-            )
-        else:
-            text = content
+        text = _normalize_content(response.content)
 
         if "Final Answer:" in text:
-            final = text.split("Final Answer:")[-1].strip()
             yield "sources", all_sources
-            yield "answer", final
+            yield "answer", text.split("Final Answer:")[-1].strip()
             return
 
         if "Action: search_rag" in text and "Action Input:" in text:
@@ -368,6 +383,7 @@ def react_agent_stream(question: str, max_steps: int = 6):
             yield "step", {"step": step + 1, "preview": preview}
             try:
                 observation, sources = tool_search_rag(query, k)
+                searched = True
                 for s in sources:
                     key = (s["source"], s["page"])
                     if key not in seen_sources:
@@ -378,12 +394,18 @@ def react_agent_stream(question: str, max_steps: int = 6):
             messages.append(AIMessage(content=text))
             messages.append(HumanMessage(content=f"Observation:\n{observation}"))
         else:
-            yield "sources", all_sources
-            yield "answer", text
+            # Gemini 沒照格式，若已有搜尋結果就強制取最終答案
+            if searched:
+                yield "sources", all_sources
+                yield "answer", _force_final_answer(messages)
+            else:
+                yield "sources", all_sources
+                yield "answer", text
             return
 
+    # 達到最大步驟，強制總結
     yield "sources", all_sources
-    yield "answer", "已達最大推理步驟，無法完成分析"
+    yield "answer", _force_final_answer(messages)
 
 
 @app.route("/agent", methods=["POST"])
@@ -403,7 +425,7 @@ def agent_ask():
 
     def generate():
         try:
-            yield f"data: {json.dumps({'type': 'status', 'text': '🤖 Agent 模式啟動，開始多步推理...'}, ensure_ascii=False)}\n\n"
+            yield f"data: {json.dumps({'type': 'status', 'text': '🤖 Agent 模式啟動，第一步：分析問題（約 5-10 秒）...'}, ensure_ascii=False)}\n\n"
             step_count = 0
             for event_type, data in react_agent_stream(question):
                 if event_type == "step":
