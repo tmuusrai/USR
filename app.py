@@ -18,6 +18,7 @@ from langchain_voyageai import VoyageAIEmbeddings
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_core.prompts import PromptTemplate
 from langchain_core.runnables import RunnableLambda  # noqa: F401 (kept for rebuild compatibility)
+from langchain_core.embeddings import Embeddings
 
 load_dotenv()
 
@@ -39,25 +40,19 @@ EXTRA_DIR       = Path("extra_docs")
 INDEX_DIR       = Path("faiss_index")
 
 # ── Embedding 模型（全域共用，避免重複初始化）──────────
-class _CachedEmbeddings:
+class _CachedEmbeddings(Embeddings):
     """Query embedding 快取，相同問題不重複呼叫 Voyage AI。"""
     def __init__(self, base):
         self._base  = base
         self._cache = {}
 
-    def embed_query(self, text):
+    def embed_query(self, text: str) -> list:
         if text not in self._cache:
             self._cache[text] = self._base.embed_query(text)
         return self._cache[text]
 
-    def __call__(self, text):
-        return self.embed_query(text)
-
-    def embed_documents(self, texts):
+    def embed_documents(self, texts: list) -> list:
         return self._base.embed_documents(texts)
-
-    def __getattr__(self, name):
-        return getattr(self._base, name)
 
 _base_embeddings = VoyageAIEmbeddings(
     voyage_api_key=VOYAGE_API_KEY,
@@ -364,7 +359,8 @@ def react_agent_stream(question: str, max_steps: int = 5):
                     seen_sources.add(key)
                     all_sources.append(s)
         except Exception as e:
-            print(f"[AGENT] 搜尋失敗 {query}：{e}")
+            import traceback
+            print(f"[AGENT] 搜尋失敗 {query}：{e}\n{traceback.format_exc()}")
 
     yield "sources", all_sources
 
