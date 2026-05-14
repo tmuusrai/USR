@@ -284,26 +284,21 @@ def ask():
 
 
 # ── ReAct Agent ───────────────────────────────────────
-REACT_SYSTEM_PROMPT = """你是 USR 計畫書自主研究助理，專門處理複雜的跨校比較與趨勢分析。
+AGENT_PLAN_PROMPT = """針對以下問題，請列出 2~3 個最適合的繁體中文搜尋關鍵字，用來從 USR 計畫書資料庫中找到相關內容。
 
-你可以使用以下工具：
-- search_rag(query, k): 搜尋 USR 計畫書資料庫，k 為回傳筆數（預設5）
+問題：{question}
 
-請嚴格依照以下格式逐步推理：
+只輸出 JSON 陣列，不要其他文字，例如：
+["高齡照護 USR 計畫", "青銀共創 大學社會責任", "失智症 照護"]"""
 
-Thought: 分析問題，決定需要搜尋什麼
-Action: search_rag
-Action Input: {"query": "具體搜尋詞", "k": 5}
+AGENT_ANSWER_PROMPT = """你是 USR 計畫書研究助理，請根據以下資料回答問題。
 
-收到 Observation 後繼續推理，直到資料足夠時：
-Thought: 我已有足夠資訊
-Final Answer: [完整、有條理的分析回答]
+問題：{question}
 
-規則：
-- 複雜的跨校比較或趨勢分析問題，至少搜尋 2-3 次再給答案
-- 每次只能執行一個 Action
-- Final Answer 必須整合所有 Observation 的資訊，用繁體中文回答
-"""
+搜尋到的資料：
+{context}
+
+請用繁體中文給出完整、有條理的分析回答，整合所有資料內容。"""
 
 
 def tool_search_rag(query: str, k: int = 5):
@@ -334,98 +329,59 @@ def _normalize_content(content):
     return content
 
 
-def _force_final_answer(messages):
-    """當 Gemini 不按格式時，強制取得最終答案。"""
-    from langchain_core.messages import HumanMessage
-    msgs = list(messages) + [
-        HumanMessage(content="請根據以上所有搜尋結果，直接用繁體中文給出完整的分析回答，不需要再搜尋。")
-    ]
-    response = llm.invoke(msgs)
-    text = _normalize_content(response.content)
-    if "Final Answer:" in text:
-        return text.split("Final Answer:")[-1].strip()
-    return text
-
-
 def react_agent_stream(question: str, max_steps: int = 5):
-    """Generator：每完成一步就 yield，避免 SSE 連線閒置斷線。"""
-    from langchain_core.messages import HumanMessage, AIMessage, SystemMessage
-
-    messages = [
-        SystemMessage(content=REACT_SYSTEM_PROMPT),
-        HumanMessage(content=question),
-    ]
+    """固定 2 步架構：Gemini 規劃搜尋詞 → 執行搜尋 → Gemini 整合回答。"""
+    import re
+    from langchain_core.messages import HumanMessage
 
     all_sources = []
     seen_sources = set()
-    searched = False
 
-    for step in range(max_steps):
-        yield "heartbeat", None  # 防止 SSE 連線閒置斷線
-        try:
-            response = llm.invoke(messages)
-            text = _normalize_content(response.content)
-        except Exception as e:
-            print(f"[AGENT] llm.invoke 失敗 step={step}：{e}")
-            yield "sources", all_sources
-            yield "answer", f"推理過程發生錯誤，請重新提問。（{e}）"
-            return
-
-        text_lower = text.lower()
-        print(f"[AGENT] step={step+1} text前100字：{text[:100].replace(chr(10),' ')}")
-
-        if "final answer:" in text_lower:
-            idx = text_lower.index("final answer:")
-            yield "sources", all_sources
-            yield "answer", text[idx + len("final answer:"):].strip()
-            return
-
-        if "action: search_rag" in text_lower and "action input:" in text_lower:
-            try:
-                ai_idx = text_lower.index("action input:")
-                raw = text[ai_idx + len("action input:"):].strip().split("\n")[0]
-                params = json.loads(raw)
-                query = params.get("query", question)
-                k = int(params.get("k", 5))
-                preview = f"搜尋：{query}"
-            except Exception:
-                query = question
-                k = 5
-                preview = f"搜尋：{query[:80]}"
-            yield "step", {"step": step + 1, "preview": preview}
-            try:
-                observation, sources = tool_search_rag(query, k)
-                searched = True
-                for s in sources:
-                    key = (s["source"], s["page"])
-                    if key not in seen_sources:
-                        seen_sources.add(key)
-                        all_sources.append(s)
-            except Exception as e:
-                print(f"[AGENT] tool_search_rag 失敗：{e}")
-                observation = f"搜尋失敗：{e}"
-            messages.append(AIMessage(content=text))
-            messages.append(HumanMessage(content=f"Observation:\n{observation}"))
-        else:
-            print(f"[AGENT] 格式不符，searched={searched}，強制取答案")
-            yield "heartbeat", None
-            try:
-                final = _force_final_answer(messages) if searched else (text.strip() or "無法取得回答，請重新提問。")
-            except Exception as e:
-                print(f"[AGENT] _force_final_answer 失敗：{e}")
-                final = text.strip() or "分析過程發生問題，請重新提問。"
-            yield "sources", all_sources
-            yield "answer", final
-            return
-
-    # 達到最大步驟，強制總結
+    # ── 步驟 1：讓 Gemini 決定要搜尋什麼 ──
     yield "heartbeat", None
     try:
-        final = _force_final_answer(messages)
+        plan_res = llm.invoke([HumanMessage(content=AGENT_PLAN_PROMPT.format(question=question))])
+        plan_text = _normalize_content(plan_res.content).strip()
+        print(f"[AGENT] 搜尋計畫：{plan_text}")
+        match = re.search(r'\[.*?\]', plan_text, re.DOTALL)
+        queries = json.loads(match.group()) if match else [question]
+        if not isinstance(queries, list) or not queries:
+            queries = [question]
     except Exception as e:
-        print(f"[AGENT] 最終總結失敗：{e}")
-        final = "已達最大推理步驟，請換個方式提問。"
+        print(f"[AGENT] 搜尋計畫失敗：{e}")
+        queries = [question]
+
+    # ── 步驟 2：執行搜尋 ──
+    all_context = []
+    for i, query in enumerate(queries[:3]):
+        yield "step", {"step": i + 1, "preview": f"搜尋：{str(query)[:80]}"}
+        try:
+            observation, sources = tool_search_rag(str(query), k=5)
+            all_context.append(f"【搜尋 {i+1}：{query}】\n{observation}")
+            for s in sources:
+                key = (s["source"], s["page"])
+                if key not in seen_sources:
+                    seen_sources.add(key)
+                    all_sources.append(s)
+        except Exception as e:
+            print(f"[AGENT] 搜尋失敗 {query}：{e}")
+
     yield "sources", all_sources
+
+    # ── 步驟 3：Gemini 整合回答 ──
+    yield "heartbeat", None
+    try:
+        context = "\n\n".join(all_context) if all_context else "查無相關資料"
+        answer_res = llm.invoke([HumanMessage(content=AGENT_ANSWER_PROMPT.format(
+            question=question, context=context
+        ))])
+        final = _normalize_content(answer_res.content).strip()
+        if not final:
+            final = "抱歉，無法完成分析，請重新提問。"
+    except Exception as e:
+        print(f"[AGENT] 整合回答失敗：{e}")
+        final = f"分析過程發生錯誤，請重新提問。（{e}）"
+
     yield "answer", final
 
 
