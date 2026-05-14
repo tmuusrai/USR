@@ -371,14 +371,19 @@ def react_agent_stream(question: str, max_steps: int = 5):
             yield "answer", f"推理過程發生錯誤，請重新提問。（{e}）"
             return
 
-        if "Final Answer:" in text:
+        text_lower = text.lower()
+        print(f"[AGENT] step={step+1} text前100字：{text[:100].replace(chr(10),' ')}")
+
+        if "final answer:" in text_lower:
+            idx = text_lower.index("final answer:")
             yield "sources", all_sources
-            yield "answer", text.split("Final Answer:")[-1].strip()
+            yield "answer", text[idx + len("final answer:"):].strip()
             return
 
-        if "Action: search_rag" in text and "Action Input:" in text:
+        if "action: search_rag" in text_lower and "action input:" in text_lower:
             try:
-                raw = text.split("Action Input:")[-1].strip().split("\n")[0]
+                ai_idx = text_lower.index("action input:")
+                raw = text[ai_idx + len("action input:"):].strip().split("\n")[0]
                 params = json.loads(raw)
                 query = params.get("query", question)
                 k = int(params.get("k", 5))
@@ -402,18 +407,15 @@ def react_agent_stream(question: str, max_steps: int = 5):
             messages.append(AIMessage(content=text))
             messages.append(HumanMessage(content=f"Observation:\n{observation}"))
         else:
-            if searched:
-                yield "heartbeat", None
-                try:
-                    final = _force_final_answer(messages)
-                except Exception as e:
-                    print(f"[AGENT] _force_final_answer 失敗：{e}")
-                    final = "分析過程發生問題，請重新提問。"
-                yield "sources", all_sources
-                yield "answer", final
-            else:
-                yield "sources", all_sources
-                yield "answer", text if text.strip() else "無法取得回答，請重新提問。"
+            print(f"[AGENT] 格式不符，searched={searched}，強制取答案")
+            yield "heartbeat", None
+            try:
+                final = _force_final_answer(messages) if searched else (text.strip() or "無法取得回答，請重新提問。")
+            except Exception as e:
+                print(f"[AGENT] _force_final_answer 失敗：{e}")
+                final = text.strip() or "分析過程發生問題，請重新提問。"
+            yield "sources", all_sources
+            yield "answer", final
             return
 
     # 達到最大步驟，強制總結
