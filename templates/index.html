@@ -468,9 +468,11 @@ async function askQuestion() {
         const ct = evt.timing || {};
         const clientTotal = Math.round(t_done - t_send);
         const bar = document.getElementById("timing-bar");
-        bar.textContent = [
-          `⏱  Voyage AI：${ct.voyage_ms ?? "—"} ms  │  FAISS：${ct.faiss_ms ?? "—"} ms  │  Gemini 首字：${ct.gemini_first_ms ?? "—"} ms  │  Gemini 完成：${ct.gemini_total_ms ?? "—"} ms  │  總計：${ct.total_ms ?? "—"} ms  │  Client：${clientTotal} ms`
-        ].join("");
+        if (ct.agent_steps !== undefined) {
+          bar.textContent = `🤖 Agent 模式  │  推理步驟：${ct.agent_steps} 步  │  伺服器總計：${ct.total_ms ?? "—"} ms  │  Client：${clientTotal} ms`;
+        } else {
+          bar.textContent = `⏱  Voyage AI：${ct.voyage_ms ?? "—"} ms  │  FAISS：${ct.faiss_ms ?? "—"} ms  │  Gemini 首字：${ct.gemini_first_ms ?? "—"} ms  │  Gemini 完成：${ct.gemini_total_ms ?? "—"} ms  │  總計：${ct.total_ms ?? "—"} ms  │  Client：${clientTotal} ms`;
+        }
         bar.style.display = "block";
       } else if (evt.type === "error") {
         botEl.className = "msg bot";

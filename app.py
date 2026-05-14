@@ -425,6 +425,7 @@ def agent_ask():
 
     def generate():
         try:
+            t_agent_start = time.perf_counter()
             yield f"data: {json.dumps({'type': 'status', 'text': '🤖 Agent 模式啟動，第一步：分析問題（約 5-10 秒）...'}, ensure_ascii=False)}\n\n"
             step_count = 0
             for event_type, data in react_agent_stream(question):
@@ -434,8 +435,11 @@ def agent_ask():
                 elif event_type == "sources":
                     yield f"data: {json.dumps({'type': 'sources', 'sources': data}, ensure_ascii=False)}\n\n"
                 elif event_type == "answer":
+                    t_agent_end = time.perf_counter()
+                    total_ms = round((t_agent_end - t_agent_start) * 1000)
+                    timing = {"total_ms": total_ms, "agent_steps": step_count}
                     yield f"data: {json.dumps({'type': 'chunk', 'text': data}, ensure_ascii=False)}\n\n"
-                    yield f"data: {json.dumps({'type': 'done', 'timing': {}, 'steps': step_count})}\n\n"
+                    yield f"data: {json.dumps({'type': 'done', 'timing': timing, 'steps': step_count})}\n\n"
         except Exception as e:
             import traceback
             print(f"[ERROR] /agent：{e}\n{traceback.format_exc()}")
