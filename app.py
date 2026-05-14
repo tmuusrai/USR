@@ -361,6 +361,7 @@ def react_agent_stream(question: str, max_steps: int = 5):
     searched = False
 
     for step in range(max_steps):
+        yield "heartbeat", None  # 防止 SSE 連線閒置斷線
         try:
             response = llm.invoke(messages)
             text = _normalize_content(response.content)
@@ -402,6 +403,7 @@ def react_agent_stream(question: str, max_steps: int = 5):
             messages.append(HumanMessage(content=f"Observation:\n{observation}"))
         else:
             if searched:
+                yield "heartbeat", None
                 try:
                     final = _force_final_answer(messages)
                 except Exception as e:
@@ -415,6 +417,7 @@ def react_agent_stream(question: str, max_steps: int = 5):
             return
 
     # 達到最大步驟，強制總結
+    yield "heartbeat", None
     try:
         final = _force_final_answer(messages)
     except Exception as e:
@@ -445,7 +448,9 @@ def agent_ask():
             yield f"data: {json.dumps({'type': 'status', 'text': '🤖 Agent 模式啟動，第一步：分析問題（約 5-10 秒）...'}, ensure_ascii=False)}\n\n"
             step_count = 0
             for event_type, data in react_agent_stream(question):
-                if event_type == "step":
+                if event_type == "heartbeat":
+                    yield ": keepalive\n\n"  # SSE comment，保持連線不斷
+                elif event_type == "step":
                     step_count += 1
                     yield f"data: {json.dumps({'type': 'step', 'step': data['step'], 'preview': data['preview']}, ensure_ascii=False)}\n\n"
                 elif event_type == "sources":
