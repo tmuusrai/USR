@@ -355,13 +355,18 @@ def react_agent_stream(question: str, max_steps: int = 6):
             return
 
         if "Action: search_rag" in text and "Action Input:" in text:
-            preview = text[:150].replace("\n", " ")
-            yield "step", {"step": step + 1, "preview": preview}
             try:
                 raw = text.split("Action Input:")[-1].strip().split("\n")[0]
                 params = json.loads(raw)
                 query = params.get("query", question)
                 k = int(params.get("k", 5))
+                preview = f"搜尋：{query}"
+            except Exception:
+                query = question
+                k = 5
+                preview = f"搜尋：{query[:80]}"
+            yield "step", {"step": step + 1, "preview": preview}
+            try:
                 observation, sources = tool_search_rag(query, k)
                 for s in sources:
                     key = (s["source"], s["page"])
