@@ -306,17 +306,23 @@ Final Answer: [完整、有條理的分析回答]
 """
 
 
-def tool_search_rag(query: str, k: int = 5) -> str:
+def tool_search_rag(query: str, k: int = 5):
+    """回傳 (觀察文字, sources列表)"""
     vec = embeddings.embed_query(query)
     docs = vectorstore.similarity_search_by_vector(vec, k=k)
     if not docs:
-        return "查無相關資料"
+        return "查無相關資料", []
     results = []
+    sources = []
+    seen = set()
     for i, doc in enumerate(docs):
         src = Path(doc.metadata.get("source", "")).name
         page = doc.metadata.get("page", 0) + 1
         results.append(f"[{i+1}] {src} 第{page}頁\n{doc.page_content[:400]}")
-    return "\n\n---\n\n".join(results)
+        if (src, page) not in seen:
+            seen.add((src, page))
+            sources.append({"source": src, "page": page})
+    return "\n\n---\n\n".join(results), sources
 
 
 def react_agent_stream(question: str, max_steps: int = 6):
@@ -327,6 +333,9 @@ def react_agent_stream(question: str, max_steps: int = 6):
         SystemMessage(content=REACT_SYSTEM_PROMPT),
         HumanMessage(content=question),
     ]
+
+    all_sources = []
+    seen_sources = set()
 
     for step in range(max_steps):
         response = llm.invoke(messages)
@@ -341,6 +350,7 @@ def react_agent_stream(question: str, max_steps: int = 6):
 
         if "Final Answer:" in text:
             final = text.split("Final Answer:")[-1].strip()
+            yield "sources", all_sources
             yield "answer", final
             return
 
@@ -352,15 +362,22 @@ def react_agent_stream(question: str, max_steps: int = 6):
                 params = json.loads(raw)
                 query = params.get("query", question)
                 k = int(params.get("k", 5))
-                observation = tool_search_rag(query, k)
+                observation, sources = tool_search_rag(query, k)
+                for s in sources:
+                    key = (s["source"], s["page"])
+                    if key not in seen_sources:
+                        seen_sources.add(key)
+                        all_sources.append(s)
             except Exception as e:
                 observation = f"工具執行失敗：{e}"
             messages.append(AIMessage(content=text))
             messages.append(HumanMessage(content=f"Observation:\n{observation}"))
         else:
+            yield "sources", all_sources
             yield "answer", text
             return
 
+    yield "sources", all_sources
     yield "answer", "已達最大推理步驟，無法完成分析"
 
 
@@ -387,6 +404,8 @@ def agent_ask():
                 if event_type == "step":
                     step_count += 1
                     yield f"data: {json.dumps({'type': 'step', 'step': data['step'], 'preview': data['preview']}, ensure_ascii=False)}\n\n"
+                elif event_type == "sources":
+                    yield f"data: {json.dumps({'type': 'sources', 'sources': data}, ensure_ascii=False)}\n\n"
                 elif event_type == "answer":
                     yield f"data: {json.dumps({'type': 'chunk', 'text': data}, ensure_ascii=False)}\n\n"
                     yield f"data: {json.dumps({'type': 'done', 'timing': {}, 'steps': step_count})}\n\n"
