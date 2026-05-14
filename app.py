@@ -319,25 +319,27 @@ def tool_search_rag(query: str, k: int = 5) -> str:
     return "\n\n---\n\n".join(results)
 
 
-def react_agent(question: str, max_steps: int = 6):
+def react_agent_stream(question: str, max_steps: int = 6):
+    """Generator：每完成一步就 yield，避免 SSE 連線閒置斷線。"""
     from langchain_core.messages import HumanMessage, AIMessage, SystemMessage
 
     messages = [
         SystemMessage(content=REACT_SYSTEM_PROMPT),
         HumanMessage(content=question),
     ]
-    steps_log = []
 
     for step in range(max_steps):
         response = llm.invoke(messages)
         text = response.content
-        steps_log.append({"step": step + 1, "agent": text})
 
         if "Final Answer:" in text:
             final = text.split("Final Answer:")[-1].strip()
-            return final, steps_log
+            yield "answer", final
+            return
 
         if "Action: search_rag" in text and "Action Input:" in text:
+            preview = text[:150].replace("\n", " ")
+            yield "step", {"step": step + 1, "preview": preview}
             try:
                 raw = text.split("Action Input:")[-1].strip().split("\n")[0]
                 params = json.loads(raw)
@@ -346,13 +348,13 @@ def react_agent(question: str, max_steps: int = 6):
                 observation = tool_search_rag(query, k)
             except Exception as e:
                 observation = f"工具執行失敗：{e}"
-            steps_log[-1]["observation"] = observation[:200]
             messages.append(AIMessage(content=text))
             messages.append(HumanMessage(content=f"Observation:\n{observation}"))
         else:
-            return text, steps_log
+            yield "answer", text
+            return
 
-    return "已達最大推理步驟，無法完成分析", steps_log
+    yield "answer", "已達最大推理步驟，無法完成分析"
 
 
 @app.route("/agent", methods=["POST"])
@@ -373,12 +375,14 @@ def agent_ask():
     def generate():
         try:
             yield f"data: {json.dumps({'type': 'status', 'text': '🤖 Agent 模式啟動，開始多步推理...'}, ensure_ascii=False)}\n\n"
-            answer, steps = react_agent(question)
-            for s in steps:
-                preview = s["agent"][:120].replace("\n", " ")
-                yield f"data: {json.dumps({'type': 'step', 'step': s['step'], 'preview': preview}, ensure_ascii=False)}\n\n"
-            yield f"data: {json.dumps({'type': 'chunk', 'text': answer}, ensure_ascii=False)}\n\n"
-            yield f"data: {json.dumps({'type': 'done', 'timing': {}, 'steps': len(steps)})}\n\n"
+            step_count = 0
+            for event_type, data in react_agent_stream(question):
+                if event_type == "step":
+                    step_count += 1
+                    yield f"data: {json.dumps({'type': 'step', 'step': data['step'], 'preview': data['preview']}, ensure_ascii=False)}\n\n"
+                elif event_type == "answer":
+                    yield f"data: {json.dumps({'type': 'chunk', 'text': data}, ensure_ascii=False)}\n\n"
+                    yield f"data: {json.dumps({'type': 'done', 'timing': {}, 'steps': step_count})}\n\n"
         except Exception as e:
             import traceback
             print(f"[ERROR] /agent：{e}\n{traceback.format_exc()}")
