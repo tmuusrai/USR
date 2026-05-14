@@ -1,6 +1,7 @@
 import os
 import sys
 import json
+import time
 from pathlib import Path
 
 sys.stdout.reconfigure(encoding="utf-8")
@@ -31,7 +32,7 @@ SITE_PASSWORD   = os.getenv("SITE_PASSWORD", "")
 VOYAGE_API_KEY  = os.getenv("VOYAGE_API_KEY")
 CHUNK_SIZE      = int(os.getenv("CHUNK_SIZE", 800))
 CHUNK_OVERLAP   = int(os.getenv("CHUNK_OVERLAP", 100))
-TOP_K           = int(os.getenv("TOP_K_RESULTS", 10))
+TOP_K           = int(os.getenv("TOP_K_RESULTS", 5))
 
 PDF_DIR         = Path("pdfs")
 EXTRA_DIR       = Path("extra_docs")
@@ -202,7 +203,16 @@ def ask():
 
     def generate():
         try:
-            docs = retriever.invoke(question)
+            t0 = time.perf_counter()
+
+            # ① Voyage AI：將問題向量化
+            query_vec = embeddings.embed_query(question)
+            t_voyage = time.perf_counter()
+
+            # ② FAISS：向量搜尋
+            docs = vectorstore.similarity_search_by_vector(query_vec, k=TOP_K)
+            t_faiss = time.perf_counter()
+
             context = "\n\n".join(doc.page_content for doc in docs)
             prompt_value = RAG_PROMPT.invoke({"context": context, "question": question})
 
@@ -218,7 +228,10 @@ def ask():
 
             yield f"data: {json.dumps({'type': 'sources', 'sources': sources}, ensure_ascii=False)}\n\n"
 
+            # ③ Gemini：串流生成
             answer_chars = 0
+            t_first_chunk = None
+            t_gemini_start = time.perf_counter()
             for chunk in llm.stream(prompt_value):
                 content = chunk.content
                 if isinstance(content, list):
@@ -227,14 +240,35 @@ def ask():
                         for block in content
                     )
                 if content:
+                    if t_first_chunk is None:
+                        t_first_chunk = time.perf_counter()
                     answer_chars += len(content)
                     yield f"data: {json.dumps({'type': 'chunk', 'text': content}, ensure_ascii=False)}\n\n"
+
+            t_end = time.perf_counter()
+            if t_first_chunk is None:
+                t_first_chunk = t_end
 
             prompt_chars = len(prompt_value.to_string())
             total_chars = prompt_chars + answer_chars
             print(f"[TOKEN] 輸入={prompt_chars}字元(~{prompt_chars//2}tokens) 輸出={answer_chars}字元(~{answer_chars//2}tokens) 合計~{total_chars//2}tokens")
 
-            yield f"data: {json.dumps({'type': 'done'})}\n\n"
+            timing = {
+                "voyage_ms":      round((t_voyage - t0) * 1000),
+                "faiss_ms":       round((t_faiss - t_voyage) * 1000),
+                "gemini_first_ms": round((t_first_chunk - t_faiss) * 1000),
+                "gemini_total_ms": round((t_end - t_faiss) * 1000),
+                "total_ms":        round((t_end - t0) * 1000),
+            }
+            print(
+                f"[TIMING] Voyage={timing['voyage_ms']}ms"
+                f" | FAISS={timing['faiss_ms']}ms"
+                f" | Gemini首字={timing['gemini_first_ms']}ms"
+                f" | Gemini完成={timing['gemini_total_ms']}ms"
+                f" | 總計={timing['total_ms']}ms"
+            )
+
+            yield f"data: {json.dumps({'type': 'done', 'timing': timing})}\n\n"
 
         except Exception as e:
             import traceback
