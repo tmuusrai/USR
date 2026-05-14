@@ -330,7 +330,14 @@ def react_agent_stream(question: str, max_steps: int = 6):
 
     for step in range(max_steps):
         response = llm.invoke(messages)
-        text = response.content
+        content = response.content
+        if isinstance(content, list):
+            text = "".join(
+                block.get("text", "") if isinstance(block, dict) else str(block)
+                for block in content
+            )
+        else:
+            text = content
 
         if "Final Answer:" in text:
             final = text.split("Final Answer:")[-1].strip()
