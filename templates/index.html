@@ -68,6 +68,14 @@ body{font-family:"Segoe UI","Noto Sans TC",sans-serif;background:#f5f7fa;height:
 #ask-btn{padding:11px 24px;background:linear-gradient(135deg,#1d4ed8,#3b82f6);color:#fff;border:none;border-radius:10px;font-size:.9rem;font-weight:600;cursor:pointer;transition:opacity .2s,transform .1s;white-space:nowrap}
 #ask-btn:hover:not(:disabled){transform:translateY(-1px)}
 #ask-btn:disabled{opacity:.45;cursor:not-allowed}
+#mode-toggle{display:flex;align-items:center;gap:8px;padding:6px 0;flex-shrink:0}
+#mode-toggle input[type=checkbox]{width:36px;height:20px;appearance:none;background:#cbd5e1;border-radius:999px;cursor:pointer;position:relative;transition:background .2s;flex-shrink:0}
+#mode-toggle input[type=checkbox]:checked{background:#7c3aed}
+#mode-toggle input[type=checkbox]::after{content:"";position:absolute;top:3px;left:3px;width:14px;height:14px;background:#fff;border-radius:50%;transition:left .2s}
+#mode-toggle input[type=checkbox]:checked::after{left:19px}
+#mode-toggle label{font-size:.8rem;color:#64748b;cursor:pointer;user-select:none;white-space:nowrap}
+#mode-toggle label.agent-on{color:#7c3aed;font-weight:600}
+.msg.step{background:#f5f3ff;border:1px solid #ddd6fe;color:#6d28d9;align-self:flex-start;font-size:.78rem;font-style:italic}
 
 /* RAG PANEL */
 #rag-panel{width:260px;background:#fff;border-left:1px solid #e2e8f0;display:flex;flex-direction:column;flex-shrink:0}
@@ -311,6 +319,10 @@ body{font-family:"Segoe UI","Noto Sans TC",sans-serif;background:#f5f7fa;height:
   <div id="chat-wrap">
     <div id="resize-handle" title="拖曳調整大小"></div>
     <div id="messages"></div>
+    <div id="mode-toggle">
+      <input type="checkbox" id="agent-checkbox" onchange="toggleAgentMode(this)"/>
+      <label id="mode-label" for="agent-checkbox">一般模式</label>
+    </div>
     <div id="input-row">
       <textarea id="question" placeholder="請輸入問題，例如：有哪些計畫關注高齡照護？"
         oninput="autoResize(this)"
@@ -376,6 +388,19 @@ async function checkStatus() {
   } catch {}
 }
 
+function toggleAgentMode(cb) {
+  const label = document.getElementById("mode-label");
+  if (cb.checked) {
+    label.textContent = "🤖 Agent 模式（多步推理）";
+    label.classList.add("agent-on");
+    document.getElementById("question").placeholder = "請輸入複雜問題，例如：比較各校高齡照護計畫的特色與差異？";
+  } else {
+    label.textContent = "一般模式";
+    label.classList.remove("agent-on");
+    document.getElementById("question").placeholder = "請輸入問題，例如：有哪些計畫關注高齡照護？";
+  }
+}
+
 function submitQ(q) {
   closePanels();
   document.getElementById("question").value = q;
@@ -390,8 +415,11 @@ async function askQuestion() {
   qEl.value = ""; qEl.style.height = "44px";
   document.getElementById("ask-btn").disabled = true;
 
+  const isAgent = document.getElementById("agent-checkbox").checked;
+  const endpoint = isAgent ? "/agent" : "/ask";
+
   const box = document.getElementById("messages");
-  const botEl = appendMsg("🤔 AI 分析中，請稍候…", "loading");
+  const botEl = appendMsg(isAgent ? "🤖 Agent 分析中，正在多步推理…" : "🤔 AI 分析中，請稍候…", "loading");
   let started = false;
   let answerText = "";
 
@@ -399,7 +427,7 @@ async function askQuestion() {
   let t_sources = null, t_first_chunk = null, t_done = null;
 
   try {
-    const res = await fetch("/ask", {method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({question})});
+    const res = await fetch(endpoint, {method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({question})});
 
     if (!res.ok) {
       const data = await res.json();
@@ -417,7 +445,12 @@ async function askQuestion() {
       let evt;
       try { evt = JSON.parse(line.slice(6)); } catch { return; }
 
-      if (evt.type === "chunk") {
+      if (evt.type === "status") {
+        botEl.className = "msg loading";
+        botEl.textContent = evt.text;
+      } else if (evt.type === "step") {
+        appendMsg(`推理步驟 ${evt.step}：${evt.preview}`, "step");
+      } else if (evt.type === "chunk") {
         if (!started) {
           started = true;
           t_first_chunk = performance.now();

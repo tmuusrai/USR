@@ -283,6 +283,114 @@ def ask():
     )
 
 
+# ── ReAct Agent ───────────────────────────────────────
+REACT_SYSTEM_PROMPT = """你是 USR 計畫書自主研究助理，專門處理複雜的跨校比較與趨勢分析。
+
+你可以使用以下工具：
+- search_rag(query, k): 搜尋 USR 計畫書資料庫，k 為回傳筆數（預設5）
+
+請嚴格依照以下格式逐步推理：
+
+Thought: 分析問題，決定需要搜尋什麼
+Action: search_rag
+Action Input: {"query": "具體搜尋詞", "k": 5}
+
+收到 Observation 後繼續推理，直到資料足夠時：
+Thought: 我已有足夠資訊
+Final Answer: [完整、有條理的分析回答]
+
+規則：
+- 複雜的跨校比較或趨勢分析問題，至少搜尋 2-3 次再給答案
+- 每次只能執行一個 Action
+- Final Answer 必須整合所有 Observation 的資訊，用繁體中文回答
+"""
+
+
+def tool_search_rag(query: str, k: int = 5) -> str:
+    vec = embeddings.embed_query(query)
+    docs = vectorstore.similarity_search_by_vector(vec, k=k)
+    if not docs:
+        return "查無相關資料"
+    results = []
+    for i, doc in enumerate(docs):
+        src = Path(doc.metadata.get("source", "")).name
+        page = doc.metadata.get("page", 0) + 1
+        results.append(f"[{i+1}] {src} 第{page}頁\n{doc.page_content[:400]}")
+    return "\n\n---\n\n".join(results)
+
+
+def react_agent(question: str, max_steps: int = 6):
+    from langchain_core.messages import HumanMessage, AIMessage, SystemMessage
+
+    messages = [
+        SystemMessage(content=REACT_SYSTEM_PROMPT),
+        HumanMessage(content=question),
+    ]
+    steps_log = []
+
+    for step in range(max_steps):
+        response = llm.invoke(messages)
+        text = response.content
+        steps_log.append({"step": step + 1, "agent": text})
+
+        if "Final Answer:" in text:
+            final = text.split("Final Answer:")[-1].strip()
+            return final, steps_log
+
+        if "Action: search_rag" in text and "Action Input:" in text:
+            try:
+                raw = text.split("Action Input:")[-1].strip().split("\n")[0]
+                params = json.loads(raw)
+                query = params.get("query", question)
+                k = int(params.get("k", 5))
+                observation = tool_search_rag(query, k)
+            except Exception as e:
+                observation = f"工具執行失敗：{e}"
+            steps_log[-1]["observation"] = observation[:200]
+            messages.append(AIMessage(content=text))
+            messages.append(HumanMessage(content=f"Observation:\n{observation}"))
+        else:
+            return text, steps_log
+
+    return "已達最大推理步驟，無法完成分析", steps_log
+
+
+@app.route("/agent", methods=["POST"])
+def agent_ask():
+    if SITE_PASSWORD and not session.get("authenticated"):
+        return jsonify({"error": "請先登入。"}), 401
+
+    if vectorstore is None:
+        return jsonify({"error": "索引尚未建立。"}), 503
+
+    data = request.get_json(silent=True) or {}
+    question = (data.get("question") or "").strip()
+    if not question:
+        return jsonify({"error": "請輸入問題。"}), 400
+    if len(question) > 500:
+        return jsonify({"error": "問題不得超過 500 字。"}), 400
+
+    def generate():
+        try:
+            yield f"data: {json.dumps({'type': 'status', 'text': '🤖 Agent 模式啟動，開始多步推理...'}, ensure_ascii=False)}\n\n"
+            answer, steps = react_agent(question)
+            for s in steps:
+                preview = s["agent"][:120].replace("\n", " ")
+                yield f"data: {json.dumps({'type': 'step', 'step': s['step'], 'preview': preview}, ensure_ascii=False)}\n\n"
+            yield f"data: {json.dumps({'type': 'chunk', 'text': answer}, ensure_ascii=False)}\n\n"
+            yield f"data: {json.dumps({'type': 'done', 'timing': {}, 'steps': len(steps)})}\n\n"
+        except Exception as e:
+            import traceback
+            print(f"[ERROR] /agent：{e}\n{traceback.format_exc()}")
+            yield f"data: {json.dumps({'type': 'error', 'error': '分析時發生錯誤，請稍後再試。'}, ensure_ascii=False)}\n\n"
+
+    return Response(
+        stream_with_context(generate()),
+        mimetype="text/event-stream",
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+    )
+
+
 @app.route("/rebuild-index", methods=["POST"])
 def rebuild_index():
     """重新建立索引（上傳新 PDF 後呼叫）。"""
