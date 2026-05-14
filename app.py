@@ -361,8 +361,14 @@ def react_agent_stream(question: str, max_steps: int = 5):
     searched = False
 
     for step in range(max_steps):
-        response = llm.invoke(messages)
-        text = _normalize_content(response.content)
+        try:
+            response = llm.invoke(messages)
+            text = _normalize_content(response.content)
+        except Exception as e:
+            print(f"[AGENT] llm.invoke 失敗 step={step}：{e}")
+            yield "sources", all_sources
+            yield "answer", f"推理過程發生錯誤，請重新提問。（{e}）"
+            return
 
         if "Final Answer:" in text:
             yield "sources", all_sources
@@ -390,22 +396,32 @@ def react_agent_stream(question: str, max_steps: int = 5):
                         seen_sources.add(key)
                         all_sources.append(s)
             except Exception as e:
-                observation = f"工具執行失敗：{e}"
+                print(f"[AGENT] tool_search_rag 失敗：{e}")
+                observation = f"搜尋失敗：{e}"
             messages.append(AIMessage(content=text))
             messages.append(HumanMessage(content=f"Observation:\n{observation}"))
         else:
-            # Gemini 沒照格式，若已有搜尋結果就強制取最終答案
             if searched:
+                try:
+                    final = _force_final_answer(messages)
+                except Exception as e:
+                    print(f"[AGENT] _force_final_answer 失敗：{e}")
+                    final = "分析過程發生問題，請重新提問。"
                 yield "sources", all_sources
-                yield "answer", _force_final_answer(messages)
+                yield "answer", final
             else:
                 yield "sources", all_sources
-                yield "answer", text
+                yield "answer", text if text.strip() else "無法取得回答，請重新提問。"
             return
 
     # 達到最大步驟，強制總結
+    try:
+        final = _force_final_answer(messages)
+    except Exception as e:
+        print(f"[AGENT] 最終總結失敗：{e}")
+        final = "已達最大推理步驟，請換個方式提問。"
     yield "sources", all_sources
-    yield "answer", _force_final_answer(messages)
+    yield "answer", final
 
 
 @app.route("/agent", methods=["POST"])

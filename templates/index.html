@@ -475,6 +475,7 @@ async function askQuestion() {
         }
         bar.style.display = "block";
       } else if (evt.type === "error") {
+        started = true;
         botEl.className = "msg bot";
         botEl.textContent = "⚠️ " + evt.error;
       }
