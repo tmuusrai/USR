@@ -54,6 +54,9 @@ class _CachedEmbeddings(Embeddings):
     def embed_documents(self, texts: list) -> list:
         return self._base.embed_documents(texts)
 
+    def __getattr__(self, name):
+        return getattr(self._base, name)
+
 _base_embeddings = VoyageAIEmbeddings(
     voyage_api_key=VOYAGE_API_KEY,
     model="voyage-3",
@@ -298,8 +301,11 @@ AGENT_ANSWER_PROMPT = """你是 USR 計畫書研究助理，請根據以下資�
 
 def tool_search_rag(query: str, k: int = 5):
     """回傳 (觀察文字, sources列表)"""
+    print(f"[TOOL] 搜尋：{query[:60]}  vectorstore={'OK' if vectorstore else 'None'}")
     vec = embeddings.embed_query(query)
+    print(f"[TOOL] embed 完成，vec長度={len(vec)}")
     docs = vectorstore.similarity_search_by_vector(vec, k=k)
+    print(f"[TOOL] FAISS 找到 {len(docs)} 筆")
     if not docs:
         return "查無相關資料", []
     results = []
