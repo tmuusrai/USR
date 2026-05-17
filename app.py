@@ -59,7 +59,7 @@ class _CachedEmbeddings(Embeddings):
 
 _base_embeddings = VoyageAIEmbeddings(
     voyage_api_key=VOYAGE_API_KEY,
-    model="voyage-3",
+    model="voyage-4-large",
 )
 embeddings = _CachedEmbeddings(_base_embeddings)
 
