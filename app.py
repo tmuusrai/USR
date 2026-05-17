@@ -15,7 +15,7 @@ from langchain_community.document_loaders import PyPDFLoader, TextLoader
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_community.vectorstores import FAISS
 from langchain_voyageai import VoyageAIEmbeddings
-from langchain_google_genai import ChatGoogleGenerativeAI
+from langchain_openai import ChatOpenAI
 from langchain_core.prompts import PromptTemplate
 from langchain_core.runnables import RunnableLambda  # noqa: F401 (kept for rebuild compatibility)
 from langchain_core.embeddings import Embeddings
@@ -27,7 +27,7 @@ CORS(app)
 app.secret_key = os.getenv("SECRET_KEY", os.urandom(32))
 
 # ── 設定 ──────────────────────────────────────────────
-GOOGLE_API_KEY  = os.getenv("GOOGLE_API_KEY")
+OPENAI_API_KEY  = os.getenv("OPENAI_API_KEY")
 SITE_USERNAME   = os.getenv("SITE_USERNAME", "")
 SITE_PASSWORD   = os.getenv("SITE_PASSWORD", "")
 VOYAGE_API_KEY  = os.getenv("VOYAGE_API_KEY")
@@ -140,9 +140,9 @@ def load_or_build_index() -> FAISS:
 
 
 # ── 啟動時初始化 ──────────────────────────────────────
-llm = ChatGoogleGenerativeAI(
-    model="gemini-3-flash-preview",
-    google_api_key=GOOGLE_API_KEY,
+llm = ChatOpenAI(
+    model=os.getenv("LLM_MODEL", "gpt-4.1"),
+    api_key=OPENAI_API_KEY,
     temperature=0.2,
 )
 
@@ -226,7 +226,7 @@ def ask():
 
             yield f"data: {json.dumps({'type': 'sources', 'sources': sources}, ensure_ascii=False)}\n\n"
 
-            # ③ Gemini：串流生成
+            # ③ LLM：串流生成
             answer_chars = 0
             t_first_chunk = None
             t_gemini_start = time.perf_counter()
@@ -254,15 +254,15 @@ def ask():
             timing = {
                 "voyage_ms":      round((t_voyage - t0) * 1000),
                 "faiss_ms":       round((t_faiss - t_voyage) * 1000),
-                "gemini_first_ms": round((t_first_chunk - t_faiss) * 1000),
-                "gemini_total_ms": round((t_end - t_faiss) * 1000),
-                "total_ms":        round((t_end - t0) * 1000),
+                "llm_first_ms":   round((t_first_chunk - t_faiss) * 1000),
+                "llm_total_ms":   round((t_end - t_faiss) * 1000),
+                "total_ms":       round((t_end - t0) * 1000),
             }
             print(
                 f"[TIMING] Voyage={timing['voyage_ms']}ms"
                 f" | FAISS={timing['faiss_ms']}ms"
-                f" | Gemini首字={timing['gemini_first_ms']}ms"
-                f" | Gemini完成={timing['gemini_total_ms']}ms"
+                f" | LLM首字={timing['llm_first_ms']}ms"
+                f" | LLM完成={timing['llm_total_ms']}ms"
                 f" | 總計={timing['total_ms']}ms"
             )
 
