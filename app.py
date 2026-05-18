@@ -37,6 +37,7 @@ TOP_K           = int(os.getenv("TOP_K_RESULTS", 5))
 
 PDF_DIR         = Path("pdfs")
 EXTRA_DIR       = Path("extra_docs")
+TXT_DIR         = Path("114txt")
 INDEX_DIR       = Path("faiss_index")
 
 # ── Embedding 模型（全域共用，避免重複初始化）──────────
@@ -112,6 +113,17 @@ def load_or_build_index() -> FAISS:
             print(f"  讀取補充文件：{txt_path.name}")
             loader = TextLoader(str(txt_path), encoding="utf-8")
             docs.extend(loader.load())
+
+    if TXT_DIR.exists():
+        txt_files = list(TXT_DIR.rglob("*.txt"))
+        print(f"  114txt/ 資料夾：找到 {len(txt_files)} 個 TXT 檔")
+        for txt_path in txt_files:
+            print(f"  讀取：{txt_path.name}")
+            try:
+                loader = TextLoader(str(txt_path), encoding="utf-8")
+                docs.extend(loader.load())
+            except Exception as e:
+                print(f"  [WARN] 跳過 {txt_path.name}：{e}")
 
     splitter = RecursiveCharacterTextSplitter(
         chunk_size=CHUNK_SIZE,
