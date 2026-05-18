@@ -15,7 +15,7 @@ from langchain_community.document_loaders import PyPDFLoader, TextLoader
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_community.vectorstores import FAISS
 from langchain_voyageai import VoyageAIEmbeddings
-from langchain_openai import ChatOpenAI
+from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_core.prompts import PromptTemplate
 from langchain_core.runnables import RunnableLambda  # noqa: F401 (kept for rebuild compatibility)
 from langchain_core.embeddings import Embeddings
@@ -27,7 +27,7 @@ CORS(app)
 app.secret_key = os.getenv("SECRET_KEY", os.urandom(32))
 
 # ── 設定 ──────────────────────────────────────────────
-OPENAI_API_KEY  = os.getenv("OPENAI_API_KEY")
+GOOGLE_API_KEY  = os.getenv("GOOGLE_API_KEY")
 SITE_USERNAME   = os.getenv("SITE_USERNAME", "")
 SITE_PASSWORD   = os.getenv("SITE_PASSWORD", "")
 VOYAGE_API_KEY  = os.getenv("VOYAGE_API_KEY")
@@ -140,9 +140,9 @@ def load_or_build_index() -> FAISS:
 
 
 # ── 啟動時初始化 ──────────────────────────────────────
-llm = ChatOpenAI(
-    model=os.getenv("LLM_MODEL", "gpt-4.1"),
-    api_key=OPENAI_API_KEY,
+llm = ChatGoogleGenerativeAI(
+    model=os.getenv("LLM_MODEL", "gemini-2.5-pro-preview"),
+    google_api_key=GOOGLE_API_KEY,
     temperature=0.2,
 )
 

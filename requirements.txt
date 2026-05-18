@@ -6,7 +6,7 @@ flask-cors==6.0.2
 langchain
 langchain-core
 langchain-community
-langchain-openai
+langchain-google-genai
 langchain-text-splitters
 langchain-voyageai
 
