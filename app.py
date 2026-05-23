@@ -468,6 +468,104 @@ def rebuild_index():
         return jsonify({"error": "索引重建失敗。"}), 500
 
 
+# ── Knowledge Map ─────────────────────────────────────
+_km_cache = None
+
+def _build_km_data():
+    import re
+    SDG_NAMES = {
+        1:"消除貧窮",2:"零飢餓",3:"良好健康與福祉",4:"優質教育",
+        5:"性別平等",6:"乾淨用水及衛生",7:"可負擔及乾淨能源",
+        8:"合宜工作與經濟成長",9:"產業創新與基礎設施",10:"減少不平等",
+        11:"永續城市及社區",12:"負責任的消費及生產",13:"氣候行動",
+        14:"水下生物",15:"陸地生物",16:"和平正義與強大機構",17:"全球夥伴關係",
+    }
+    TOPICS = ["在地關懷","環境永續","產業鏈結與經濟永續","健康促進與食品安全","文化永續","其他社會實踐"]
+    CATEGORIES = ["大學特色類萌芽型","大學特色類深耕型","永續發展類國際合作型","永續發展類特色永續型"]
+
+    nodes = {}
+    links = []
+
+    for num, name in SDG_NAMES.items():
+        nid = f"sdg_{num}"
+        nodes[nid] = {"id": nid, "type": "sdg", "sdg_num": num, "label": f"SDG{num}", "name": name, "count": 0}
+    for t in TOPICS:
+        nid = f"topic_{t}"
+        nodes[nid] = {"id": nid, "type": "topic", "label": t, "count": 0}
+
+    if not TXT_DIR.exists():
+        return {"nodes": list(nodes.values()), "links": []}
+
+    for filepath in sorted(TXT_DIR.glob("*.txt")):
+        stem = filepath.stem.strip()
+        if "計劃總覽" in stem:
+            continue
+        if "_" in stem:
+            uni, rest = stem.split("_", 1)
+            plan = re.sub(r'\s*\([\w\-]+\)\s*', ' ', rest).strip()
+            plan = re.sub(r'\s*\(\d+\)\s*$', '', plan).strip()
+        else:
+            uni, plan = stem, stem
+
+        text = filepath.read_text(encoding="utf-8-sig", errors="ignore")
+
+        sdg_nums = set()
+        topics = set()
+        category = ""
+        for line in text.split("\n"):
+            if "SDG" in line and "關聯" in line:
+                for m in re.finditer(r'(?<!\d)(\d{1,2})(?!\d)', line):
+                    n = int(m.group(1))
+                    if 1 <= n <= 17:
+                        sdg_nums.add(n)
+            if "計畫議題" in line:
+                for t in TOPICS:
+                    if t in line:
+                        topics.add(t)
+            if "計畫類別" in line and not category:
+                for c in CATEGORIES:
+                    if c in line:
+                        category = c
+                        break
+
+        if not sdg_nums and not topics:
+            continue
+
+        safe_stem = re.sub(r'[^\w]', '_', stem)
+        pid = f"plan_{safe_stem}"
+        nodes[pid] = {
+            "id": pid, "type": "university",
+            "label": uni, "plan": plan,
+            "category": category,
+            "sdgs": sorted(sdg_nums),
+            "topics": list(topics),
+        }
+        for n in sdg_nums:
+            links.append({"source": pid, "target": f"sdg_{n}"})
+            nodes[f"sdg_{n}"]["count"] += 1
+        for t in topics:
+            links.append({"source": pid, "target": f"topic_{t}"})
+            nodes[f"topic_{t}"]["count"] += 1
+
+    return {"nodes": list(nodes.values()), "links": links}
+
+
+@app.route("/knowledge-map")
+def knowledge_map():
+    authenticated = not SITE_PASSWORD or session.get("authenticated", False)
+    if SITE_PASSWORD and not authenticated:
+        return redirect(url_for("index"))
+    return render_template("knowledge_map.html")
+
+
+@app.route("/api/knowledge-map-data")
+def knowledge_map_data():
+    global _km_cache
+    if _km_cache is None:
+        _km_cache = _build_km_data()
+    return jsonify(_km_cache)
+
+
 @app.route("/warmup")
 def warmup():
     """預熱 Voyage AI 連線，減少第一次問答的延遲。"""
