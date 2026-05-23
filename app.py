@@ -506,20 +506,27 @@ def subagent_ask():
             t_search_ms = round((time.perf_counter() - t_search_start) * 1000)
             yield f"data: {json.dumps({'type': 'sources', 'sources': all_sources}, ensure_ascii=False)}\n\n"
             yield f"data: {json.dumps({'type': 'status', 'text': '🧠 整合所有 subagent 結果，生成回答...'}, ensure_ascii=False)}\n\n"
+            yield ": keepalive\n\n"  # 防止 LLM 串流前 timeout
 
-            # ── 步驟 3：整合回答 ──
+            # ── 步驟 3：串流整合回答（避免 invoke 靜默等待造成 timeout）──
+            context = "\n\n".join(all_context)
+            prompt_msg = HumanMessage(content=AGENT_ANSWER_PROMPT.format(
+                question=question, context=context or "查無相關資料"
+            ))
+            answer_started = False
             try:
-                context = "\n\n".join(all_context)
-                final_res = llm.invoke([HumanMessage(content=AGENT_ANSWER_PROMPT.format(
-                    question=question, context=context or "查無相關資料"
-                ))])
-                final = _normalize_content(final_res.content).strip() or "抱歉，無法完成分析，請重新提問。"
+                for chunk in llm.stream([prompt_msg]):
+                    content = _normalize_content(chunk.content)
+                    if content:
+                        answer_started = True
+                        yield f"data: {json.dumps({'type': 'chunk', 'text': content}, ensure_ascii=False)}\n\n"
+                if not answer_started:
+                    yield f"data: {json.dumps({'type': 'chunk', 'text': '抱歉，無法完成分析，請重新提問。'}, ensure_ascii=False)}\n\n"
             except Exception as e:
-                print(f"[SUBAGENT] 整合失敗：{e}")
-                final = "分析過程發生錯誤，請重新提問。"
+                print(f"[SUBAGENT] 串流失敗：{e}")
+                yield f"data: {json.dumps({'type': 'chunk', 'text': '分析過程發生錯誤，請重新提問。'}, ensure_ascii=False)}\n\n"
 
             total_ms = round((time.perf_counter() - t_start) * 1000)
-            yield f"data: {json.dumps({'type': 'chunk', 'text': final}, ensure_ascii=False)}\n\n"
             yield f"data: {json.dumps({'type': 'done', 'timing': {'total_ms': total_ms, 'search_ms': t_search_ms, 'subagent_count': n}, 'mode': 'subagent'})}\n\n"
 
         except Exception as e:
