@@ -566,6 +566,96 @@ def knowledge_map_data():
     return jsonify(_km_cache)
 
 
+_kw_cache = None
+
+KEYWORD_GROUPS = [
+    ("高齡長照",   ["高齡", "長照", "失智", "銀髮"]),
+    ("兒童青少年", ["青少年", "兒童", "青年", "學童"]),
+    ("原住民族",   ["原住民", "部落", "原鄉"]),
+    ("食農農業",   ["食農", "農業", "農村", "農產"]),
+    ("生態環境",   ["生態", "生物多樣", "自然保育"]),
+    ("海洋水資源", ["海洋", "海岸", "漁業", "濕地", "水資源"]),
+    ("數位科技",   ["數位", "智慧", "VR", "AR", "資訊科技"]),
+    ("文化傳承",   ["文化資產", "傳統技藝", "工藝", "文化保存"]),
+    ("社區營造",   ["社區營造", "地方創生", "社造"]),
+    ("偏鄉教育",   ["偏鄉", "偏遠地區", "教育資源"]),
+    ("健康醫療",   ["健康促進", "醫療", "預防醫學"]),
+    ("淨零減碳",   ["淨零", "減碳", "碳中和", "節能", "再生能源"]),
+    ("產業創業",   ["產業輔導", "創業", "就業", "職能"]),
+    ("新住民移工", ["新住民", "移工", "外籍"]),
+    ("身障融合",   ["身障", "障礙", "融合"]),
+    ("藝術人文",   ["藝術", "表演藝術", "藝文"]),
+    ("防災韌性",   ["防災", "韌性城市", "災害"]),
+    ("國際交流",   ["國際合作", "跨國", "海外"]),
+]
+KW_COLORS = [
+    "#f97316","#06b6d4","#8b5cf6","#84cc16","#10b981","#0ea5e9",
+    "#6366f1","#f59e0b","#ec4899","#14b8a6","#ef4444","#22c55e",
+    "#a855f7","#f43f5e","#475569","#d946ef","#fb923c","#2dd4bf",
+]
+
+
+def _build_kw_data():
+    import re
+    nodes = {}
+    links = []
+
+    for i, (kw_name, _) in enumerate(KEYWORD_GROUPS):
+        nid = f"kw_{kw_name}"
+        nodes[nid] = {
+            "id": nid, "type": "keyword",
+            "label": kw_name,
+            "color": KW_COLORS[i % len(KW_COLORS)],
+            "count": 0,
+        }
+
+    if not TXT_DIR.exists():
+        return {"nodes": list(nodes.values()), "links": []}
+
+    for filepath in sorted(TXT_DIR.glob("*.txt")):
+        stem = filepath.stem.strip()
+        if "計劃總覽" in stem:
+            continue
+        if "_" in stem:
+            uni, rest = stem.split("_", 1)
+            plan = re.sub(r'\s*\([\w\-]+\)\s*', ' ', rest).strip()
+            plan = re.sub(r'\s*\(\d+\)\s*$', '', plan).strip()
+        else:
+            uni, plan = stem, stem
+
+        text = filepath.read_text(encoding="utf-8-sig", errors="ignore")
+
+        matched = []
+        for kw_name, keywords in KEYWORD_GROUPS:
+            if any(kw in text for kw in keywords):
+                matched.append(kw_name)
+
+        if not matched:
+            continue
+
+        safe_stem = re.sub(r'[^\w]', '_', stem)
+        pid = f"plan_{safe_stem}"
+        nodes[pid] = {
+            "id": pid, "type": "university",
+            "label": uni, "plan": plan,
+            "keywords": matched,
+        }
+        for kw_name in matched:
+            nid = f"kw_{kw_name}"
+            links.append({"source": pid, "target": nid})
+            nodes[nid]["count"] += 1
+
+    return {"nodes": list(nodes.values()), "links": links}
+
+
+@app.route("/api/keyword-map-data")
+def keyword_map_data():
+    global _kw_cache
+    if _kw_cache is None:
+        _kw_cache = _build_kw_data()
+    return jsonify(_kw_cache)
+
+
 @app.route("/warmup")
 def warmup():
     """預熱 Voyage AI 連線，減少第一次問答的延遲。"""
