@@ -460,72 +460,89 @@ def subagent_ask():
         return jsonify({"error": "問題不得超過 500 字。"}), 400
 
     def generate():
-        from concurrent.futures import ThreadPoolExecutor, as_completed
+        import threading
         import re
+        from concurrent.futures import ThreadPoolExecutor, as_completed
         from langchain_core.messages import HumanMessage
 
-        t_start = time.perf_counter()
-        yield f"data: {json.dumps({'type': 'status', 'text': '🔍 分析問題，規劃平行搜尋策略...'}, ensure_ascii=False)}\n\n"
+        # FAISS / Voyage AI 在多執行緒下需要 lock 保護
+        _search_lock = threading.Lock()
 
-        # ── 步驟 1：規劃搜尋詞（與 Agent 相同）──
-        try:
-            plan_res = llm.invoke([HumanMessage(content=AGENT_PLAN_PROMPT.format(question=question))])
-            plan_text = _normalize_content(plan_res.content).strip()
-            match = re.search(r'\[.*?\]', plan_text, re.DOTALL)
-            queries = json.loads(match.group()) if match else [question]
-            if not isinstance(queries, list) or not queries:
-                queries = [question]
-            queries = [str(q) for q in queries[:4]]
-        except Exception as e:
-            print(f"[SUBAGENT] 規劃失敗：{e}")
-            queries = [question]
-
-        n = len(queries)
-        yield f"data: {json.dumps({'type': 'status', 'text': f'⚡ 派出 {n} 個 subagent 平行搜尋...'}, ensure_ascii=False)}\n\n"
-
-        # ── 步驟 2：平行搜尋 ──
-        all_context = [None] * n
-        all_sources = []
-        seen_sources = set()
-        t_search_start = time.perf_counter()
-
-        def run_subagent(idx, query):
-            obs, srcs = tool_search_rag(query, k=5)
+        def safe_search(idx, query):
+            with _search_lock:
+                obs, srcs = tool_search_rag(query, k=5)
             return idx, query, obs, srcs
 
-        with ThreadPoolExecutor(max_workers=n) as executor:
-            futures = {executor.submit(run_subagent, i, q): i for i, q in enumerate(queries)}
-            for future in as_completed(futures):
-                try:
-                    idx, query, obs, srcs = future.result()
-                    all_context[idx] = f"【Subagent {idx+1}：{query}】\n{obs}"
-                    for s in srcs:
-                        key = (s["source"], s["page"])
-                        if key not in seen_sources:
-                            seen_sources.add(key)
-                            all_sources.append(s)
-                    yield f"data: {json.dumps({'type': 'step', 'step': idx+1, 'preview': query[:70]}, ensure_ascii=False)}\n\n"
-                except Exception as e:
-                    print(f"[SUBAGENT] subagent {futures[future]} 失敗：{e}")
-
-        t_search_ms = round((time.perf_counter() - t_search_start) * 1000)
-        yield f"data: {json.dumps({'type': 'sources', 'sources': all_sources}, ensure_ascii=False)}\n\n"
-        yield f"data: {json.dumps({'type': 'status', 'text': '🧠 整合所有 subagent 結果，生成回答...'}, ensure_ascii=False)}\n\n"
-
-        # ── 步驟 3：整合回答 ──
         try:
-            context = "\n\n".join(c for c in all_context if c)
-            final_res = llm.invoke([HumanMessage(content=AGENT_ANSWER_PROMPT.format(
-                question=question, context=context or "查無相關資料"
-            ))])
-            final = _normalize_content(final_res.content).strip() or "抱歉，無法完成分析，請重新提問。"
-        except Exception as e:
-            print(f"[SUBAGENT] 整合失敗：{e}")
-            final = f"分析過程發生錯誤，請重新提問。"
+            t_start = time.perf_counter()
+            yield f"data: {json.dumps({'type': 'status', 'text': '🔍 分析問題，規劃平行搜尋策略...'}, ensure_ascii=False)}\n\n"
 
-        total_ms = round((time.perf_counter() - t_start) * 1000)
-        yield f"data: {json.dumps({'type': 'chunk', 'text': final}, ensure_ascii=False)}\n\n"
-        yield f"data: {json.dumps({'type': 'done', 'timing': {'total_ms': total_ms, 'search_ms': t_search_ms, 'subagent_count': n}, 'mode': 'subagent'})}\n\n"
+            # ── 步驟 1：規劃搜尋詞 ──
+            try:
+                plan_res = llm.invoke([HumanMessage(content=AGENT_PLAN_PROMPT.format(question=question))])
+                plan_text = _normalize_content(plan_res.content).strip()
+                m = re.search(r'\[.*?\]', plan_text, re.DOTALL)
+                queries = json.loads(m.group()) if m else [question]
+                if not isinstance(queries, list) or not queries:
+                    queries = [question]
+                queries = [str(q) for q in queries[:4]]
+            except Exception as e:
+                print(f"[SUBAGENT] 規劃失敗：{e}")
+                queries = [question]
+
+            n = len(queries)
+            yield f"data: {json.dumps({'type': 'status', 'text': f'⚡ 派出 {n} 個 subagent 平行搜尋...'}, ensure_ascii=False)}\n\n"
+
+            # ── 步驟 2：平行搜尋（先全部完成，再一起 yield）──
+            all_context = [None] * n
+            step_events = []
+            all_sources = []
+            seen_sources = set()
+            t_search_start = time.perf_counter()
+
+            with ThreadPoolExecutor(max_workers=n) as executor:
+                futures = {executor.submit(safe_search, i, q): i for i, q in enumerate(queries)}
+                for future in as_completed(futures):
+                    try:
+                        idx, query, obs, srcs = future.result()
+                        all_context[idx] = f"【Subagent {idx+1}：{query}】\n{obs}"
+                        step_events.append((idx+1, query[:70]))
+                        for s in srcs:
+                            key = (s["source"], s["page"])
+                            if key not in seen_sources:
+                                seen_sources.add(key)
+                                all_sources.append(s)
+                    except Exception as e:
+                        print(f"[SUBAGENT] subagent 失敗：{e}")
+
+            t_search_ms = round((time.perf_counter() - t_search_start) * 1000)
+
+            # 搜尋全部完成後再 yield step 事件（避免在 with 內 yield 造成問題）
+            for step_num, preview in sorted(step_events):
+                yield f"data: {json.dumps({'type': 'step', 'step': step_num, 'preview': preview}, ensure_ascii=False)}\n\n"
+
+            yield f"data: {json.dumps({'type': 'sources', 'sources': all_sources}, ensure_ascii=False)}\n\n"
+            yield f"data: {json.dumps({'type': 'status', 'text': '🧠 整合所有 subagent 結果，生成回答...'}, ensure_ascii=False)}\n\n"
+
+            # ── 步驟 3：整合回答 ──
+            try:
+                context = "\n\n".join(c for c in all_context if c)
+                final_res = llm.invoke([HumanMessage(content=AGENT_ANSWER_PROMPT.format(
+                    question=question, context=context or "查無相關資料"
+                ))])
+                final = _normalize_content(final_res.content).strip() or "抱歉，無法完成分析，請重新提問。"
+            except Exception as e:
+                print(f"[SUBAGENT] 整合失敗：{e}")
+                final = "分析過程發生錯誤，請重新提問。"
+
+            total_ms = round((time.perf_counter() - t_start) * 1000)
+            yield f"data: {json.dumps({'type': 'chunk', 'text': final}, ensure_ascii=False)}\n\n"
+            yield f"data: {json.dumps({'type': 'done', 'timing': {'total_ms': total_ms, 'search_ms': t_search_ms, 'subagent_count': n}, 'mode': 'subagent'})}\n\n"
+
+        except Exception as e:
+            import traceback
+            print(f"[ERROR] /subagent stream：{e}\n{traceback.format_exc()}")
+            yield f"data: {json.dumps({'type': 'error', 'error': '查詢時發生錯誤，請稍後再試。'}, ensure_ascii=False)}\n\n"
 
     return Response(
         stream_with_context(generate()),
