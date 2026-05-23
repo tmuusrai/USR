@@ -6,84 +6,122 @@
 <title>USR 知識地圖</title>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
-body{font-family:"Segoe UI","Noto Sans TC",sans-serif;background:#0f172a;color:#e2e8f0;height:100vh;display:flex;flex-direction:column;overflow:hidden}
-#topbar{height:52px;background:linear-gradient(120deg,#1e3a8a 0%,#1e40af 50%,#2563eb 100%);display:flex;align-items:center;padding:0 20px;gap:14px;flex-shrink:0;box-shadow:0 2px 8px rgba(30,64,175,.4)}
-#topbar .logo{color:#fff;font-weight:800;font-size:1.1rem}
-#topbar .logo span{color:rgba(255,255,255,.7);font-weight:500;font-size:.9rem}
-#topbar .back{color:rgba(255,255,255,.8);font-size:.84rem;text-decoration:none;margin-left:auto;padding:6px 14px;border:1px solid rgba(255,255,255,.3);border-radius:6px;transition:background .15s}
-#topbar .back:hover{background:rgba(255,255,255,.15)}
-#topbar .reset-btn{color:rgba(255,255,255,.8);font-size:.84rem;background:none;border:1px solid rgba(255,255,255,.25);border-radius:6px;padding:6px 14px;cursor:pointer;transition:background .15s}
-#topbar .reset-btn:hover{background:rgba(255,255,255,.15)}
+body{font-family:"Segoe UI","Noto Sans TC",sans-serif;background:#eef2f7;height:100vh;display:flex;flex-direction:column;overflow:hidden;color:#1e293b}
 
+/* TOPBAR */
+#topbar{height:54px;background:linear-gradient(120deg,#1e3a8a 0%,#1e40af 55%,#2563eb 100%);display:flex;align-items:center;padding:0 22px;gap:14px;flex-shrink:0;box-shadow:0 2px 12px rgba(30,64,175,.35)}
+.tbar-logo{color:#fff;font-weight:800;font-size:1.1rem;letter-spacing:-.01em}
+.tbar-logo span{color:rgba(255,255,255,.65);font-weight:400;font-size:.88rem;margin-left:6px}
+.tbar-btn{color:rgba(255,255,255,.88);font-size:.82rem;background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.25);border-radius:7px;padding:6px 14px;cursor:pointer;transition:background .15s;text-decoration:none;display:inline-flex;align-items:center;gap:5px}
+.tbar-btn:hover{background:rgba(255,255,255,.22)}
+.ml-auto{margin-left:auto}
+
+/* LAYOUT */
 #app{display:flex;flex:1;overflow:hidden}
 
 /* SIDEBAR */
-#sidebar{width:272px;background:#1e293b;border-right:1px solid #334155;display:flex;flex-direction:column;flex-shrink:0;overflow:hidden}
-#search-wrap{padding:14px 14px 10px;border-bottom:1px solid #334155}
-#search-wrap input{width:100%;padding:8px 12px;background:#0f172a;border:1px solid #475569;border-radius:7px;color:#e2e8f0;font-size:.85rem;outline:none}
-#search-wrap input:focus{border-color:#3b82f6}
-#search-wrap input::placeholder{color:#64748b}
-#legend{padding:12px 14px;border-bottom:1px solid #334155}
-#legend h4{font-size:.72rem;color:#64748b;text-transform:uppercase;letter-spacing:.1em;margin-bottom:9px}
-.leg{display:flex;align-items:center;gap:9px;margin-bottom:7px;font-size:.82rem;color:#94a3b8}
-.leg-dot{border-radius:50%;flex-shrink:0}
-#filter-row{padding:10px 14px;border-bottom:1px solid #334155;display:flex;gap:6px;flex-wrap:wrap}
-.filter-btn{font-size:.75rem;padding:4px 10px;border-radius:20px;border:1px solid #475569;background:none;color:#94a3b8;cursor:pointer;transition:all .15s}
-.filter-btn:hover{border-color:#3b82f6;color:#93c5fd}
-.filter-btn.active{background:#1d4ed8;border-color:#3b82f6;color:#fff}
-#info-panel{flex:1;overflow-y:auto;padding:14px 14px 20px}
+#sidebar{width:280px;background:#fff;box-shadow:2px 0 16px rgba(0,0,0,.08);display:flex;flex-direction:column;flex-shrink:0;overflow:hidden;z-index:10}
+
+.sb-search{padding:14px 16px 12px;border-bottom:1px solid #f1f5f9}
+.sb-search label{display:block;font-size:.7rem;font-weight:600;color:#94a3b8;text-transform:uppercase;letter-spacing:.1em;margin-bottom:6px}
+.sb-search input{width:100%;padding:8px 12px 8px 34px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:.85rem;color:#334155;outline:none;background:#f8fafc url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2'%3E%3Ccircle cx='11' cy='11' r='8'/%3E%3Cpath d='m21 21-4.35-4.35'/%3E%3C/svg%3E") no-repeat 10px center;transition:border-color .15s,box-shadow .15s}
+.sb-search input:focus{border-color:#3b82f6;box-shadow:0 0 0 3px rgba(59,130,246,.12);background-color:#fff}
+.sb-search input::placeholder{color:#94a3b8}
+
+.sb-legend{padding:12px 16px;border-bottom:1px solid #f1f5f9}
+.sb-legend h4{font-size:.68rem;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:.1em;margin-bottom:10px}
+.leg{display:flex;align-items:center;gap:10px;margin-bottom:8px;font-size:.82rem;color:#475569}
+.leg-dot{border-radius:50%;flex-shrink:0;box-shadow:0 1px 4px rgba(0,0,0,.15)}
+
+.sb-filter{padding:10px 16px;border-bottom:1px solid #f1f5f9;display:flex;gap:6px}
+.filter-btn{font-size:.76rem;padding:5px 12px;border-radius:20px;border:1.5px solid #e2e8f0;background:#fff;color:#64748b;cursor:pointer;font-weight:500;transition:all .15s}
+.filter-btn:hover{border-color:#3b82f6;color:#2563eb;background:#eff6ff}
+.filter-btn.active{background:#2563eb;border-color:#2563eb;color:#fff;box-shadow:0 2px 6px rgba(37,99,235,.3)}
+
+#info-panel{flex:1;overflow-y:auto;padding:16px 16px 24px}
 #info-panel::-webkit-scrollbar{width:4px}
-#info-panel::-webkit-scrollbar-thumb{background:#334155;border-radius:4px}
-#info-title{font-size:1rem;font-weight:700;color:#f1f5f9;line-height:1.4;margin-bottom:3px}
-#info-sub{font-size:.78rem;color:#64748b;margin-bottom:14px}
+#info-panel::-webkit-scrollbar-thumb{background:#e2e8f0;border-radius:4px}
+.info-empty{text-align:center;padding:32px 10px;color:#94a3b8}
+.info-empty .icon{font-size:2.2rem;margin-bottom:10px}
+.info-empty p{font-size:.82rem;line-height:1.6}
+#info-title{font-size:1rem;font-weight:700;color:#0f172a;line-height:1.4;margin-bottom:2px}
+#info-sub{font-size:.78rem;color:#64748b;margin-bottom:14px;display:flex;align-items:center;gap:6px}
+.count-badge{background:#dbeafe;color:#1d4ed8;font-size:.7rem;font-weight:700;padding:1px 8px;border-radius:10px}
 #info-list{list-style:none}
-#info-list li{padding:9px 11px;background:#0f172a;border-radius:7px;margin-bottom:6px;font-size:.8rem;color:#cbd5e1;cursor:pointer;border:1px solid transparent;line-height:1.5;transition:border-color .15s}
-#info-list li:hover{border-color:#3b82f6;color:#93c5fd}
-#info-list li .plan-name{color:#64748b;font-size:.74rem;display:block;margin-top:2px}
-#info-list li .tags{margin-top:4px;display:flex;gap:4px;flex-wrap:wrap}
-.tag{font-size:.68rem;padding:1px 6px;border-radius:10px;background:#1e3a8a;color:#93c5fd}
+#info-list li{padding:10px 12px;background:#f8fafc;border-radius:9px;margin-bottom:7px;font-size:.82rem;color:#334155;cursor:pointer;border:1.5px solid #f1f5f9;line-height:1.5;transition:all .15s}
+#info-list li:hover{border-color:#3b82f6;background:#eff6ff;color:#1d4ed8;transform:translateX(2px)}
+#info-list li .plan-name{color:#94a3b8;font-size:.74rem;display:block;margin-top:3px}
+#info-list li .tags{margin-top:6px;display:flex;gap:4px;flex-wrap:wrap}
+.tag{font-size:.67rem;padding:2px 7px;border-radius:10px;font-weight:600}
+.tag-sdg{color:#fff}
+.tag-topic{background:#dcfce7;color:#15803d}
+li.detail-row{cursor:default !important}
+li.detail-row:hover{border-color:#f1f5f9 !important;background:#f8fafc !important;color:#334155 !important;transform:none !important}
+.detail-label{font-size:.7rem;font-weight:600;color:#94a3b8;text-transform:uppercase;letter-spacing:.08em;margin-bottom:6px}
 
 /* GRAPH */
-#graph-wrap{flex:1;position:relative;overflow:hidden}
+#graph-wrap{flex:1;position:relative;overflow:hidden;background:#f0f6ff}
 #graph{width:100%;height:100%}
-.hint-bar{position:absolute;bottom:14px;left:50%;transform:translateX(-50%);background:rgba(15,23,42,.85);border:1px solid #334155;padding:7px 18px;border-radius:20px;font-size:.76rem;color:#64748b;pointer-events:none;white-space:nowrap}
-#loading{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:#0f172a;font-size:.95rem;color:#64748b}
+.hint-bar{position:absolute;bottom:16px;left:50%;transform:translateX(-50%);background:rgba(255,255,255,.9);backdrop-filter:blur(8px);border:1px solid #e2e8f0;box-shadow:0 2px 12px rgba(0,0,0,.08);padding:7px 20px;border-radius:20px;font-size:.76rem;color:#94a3b8;pointer-events:none;white-space:nowrap}
+#loading{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;background:#f0f6ff;gap:12px;font-size:.9rem;color:#64748b}
+.spinner{width:36px;height:36px;border:3px solid #e2e8f0;border-top-color:#3b82f6;border-radius:50%;animation:spin .8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* Tooltip */
+#tooltip{position:fixed;background:#1e293b;color:#f1f5f9;padding:6px 12px;border-radius:8px;font-size:.78rem;pointer-events:none;display:none;z-index:999;box-shadow:0 4px 12px rgba(0,0,0,.3);max-width:200px;line-height:1.5}
 </style>
 </head>
 <body>
 <div id="topbar">
-  <div class="logo">USR 知識地圖 <span>114年度</span></div>
-  <button class="reset-btn" onclick="resetSelection()">重置</button>
-  <a class="back" href="/">← 返回查詢</a>
+  <div class="tbar-logo">USR 知識地圖 <span>114 年度</span></div>
+  <button class="tbar-btn" onclick="resetSelection()">↺ 重置</button>
+  <a class="tbar-btn ml-auto" href="/">← 返回查詢</a>
 </div>
+
 <div id="app">
+  <!-- SIDEBAR -->
   <div id="sidebar">
-    <div id="search-wrap">
-      <input id="search-box" type="text" placeholder="搜尋學校或計畫名稱…">
+    <div class="sb-search">
+      <label>搜尋</label>
+      <input id="search-box" type="text" placeholder="學校名稱或計畫關鍵字…">
     </div>
-    <div id="legend">
+
+    <div class="sb-legend">
       <h4>圖例</h4>
-      <div class="leg"><div class="leg-dot" style="width:22px;height:22px;background:#fbbf24"></div><span>SDG 目標（17個）</span></div>
-      <div class="leg"><div class="leg-dot" style="width:15px;height:15px;background:#10b981"></div><span>計畫議題（6類）</span></div>
-      <div class="leg"><div class="leg-dot" style="width:8px;height:8px;background:#475569"></div><span>大學計畫</span></div>
+      <div class="leg"><div class="leg-dot" style="width:24px;height:24px;background:#f59e0b"></div><span>SDG 目標（17 個）</span></div>
+      <div class="leg"><div class="leg-dot" style="width:17px;height:17px;background:#22c55e"></div><span>計畫議題（6 類）</span></div>
+      <div class="leg"><div class="leg-dot" style="width:9px;height:9px;background:#94a3b8"></div><span>大學計畫（257 件）</span></div>
     </div>
-    <div id="filter-row">
-      <button class="filter-btn active" data-filter="all" onclick="setFilter('all',this)">全部</button>
-      <button class="filter-btn" data-filter="sdg" onclick="setFilter('sdg',this)">SDG</button>
-      <button class="filter-btn" data-filter="topic" onclick="setFilter('topic',this)">議題</button>
+
+    <div class="sb-filter">
+      <button class="filter-btn active" onclick="setFilter('all',this)">全部</button>
+      <button class="filter-btn" onclick="setFilter('sdg',this)">SDG</button>
+      <button class="filter-btn" onclick="setFilter('topic',this)">議題</button>
     </div>
+
     <div id="info-panel">
-      <div id="info-title">點擊節點探索</div>
-      <div id="info-sub">點擊 SDG 或議題節點，查看相關大學計畫</div>
+      <div class="info-empty">
+        <div class="icon">🗺️</div>
+        <p>點擊 <strong>SDG</strong> 或<strong>議題</strong>節點<br>查看相關大學計畫</p>
+      </div>
+      <div id="info-title" style="display:none"></div>
+      <div id="info-sub" style="display:none"></div>
       <ul id="info-list"></ul>
     </div>
   </div>
+
+  <!-- GRAPH -->
   <div id="graph-wrap">
-    <div id="loading">載入資料中…</div>
+    <div id="loading">
+      <div class="spinner"></div>
+      載入資料中…
+    </div>
     <svg id="graph"></svg>
     <div class="hint-bar">滾輪縮放・拖曳平移・點擊節點展開</div>
   </div>
 </div>
+
+<div id="tooltip"></div>
 
 <script src="https://d3js.org/d3.v7.min.js"></script>
 <script>
@@ -93,316 +131,344 @@ const SDG_COLORS = {
   11:"#fd9d24",12:"#bf8b2e",13:"#3f7e44",14:"#0a97d9",15:"#56c02b",
   16:"#00689d",17:"#19486a"
 };
-const TOPIC_COLORS = [
-  "#10b981","#059669","#0d9488","#0891b2","#7c3aed","#6366f1"
-];
-const TOPIC_LIST = ["在地關懷","環境永續","產業鏈結與經濟永續","健康促進與食品安全","文化永續","其他社會實踐"];
+const TOPIC_COLORS=["#16a34a","#0d9488","#0284c7","#7c3aed","#db2777","#ea580c"];
+const TOPIC_LIST=["在地關懷","環境永續","產業鏈結與經濟永續","健康促進與食品安全","文化永續","其他社會實踐"];
 
-let allNodes, allLinks, simulation, svgSel, gSel, linkSel, nodeSel, adjMap;
-let currentFilter = "all";
-let selectedHubId = null;
+let allNodes,allLinks,simulation,svgSel,gSel,linkSel,nodeSel,adjMap;
+let currentFilter="all", selectedHubId=null;
+const tooltip=document.getElementById("tooltip");
 
-function nodeRadius(d) {
-  if (d.type === "sdg")   return 26 + Math.sqrt(d.count || 0) * 1.4;
-  if (d.type === "topic") return 18 + Math.sqrt(d.count || 0) * 1.1;
+function nodeRadius(d){
+  if(d.type==="sdg")   return 28+Math.sqrt(d.count||0)*1.5;
+  if(d.type==="topic") return 20+Math.sqrt(d.count||0)*1.2;
   return 5;
 }
-function nodeColor(d) {
-  if (d.type === "sdg") return SDG_COLORS[d.sdg_num] || "#888";
-  if (d.type === "topic") {
-    const i = TOPIC_LIST.indexOf(d.label);
-    return TOPIC_COLORS[i >= 0 ? i : 0];
-  }
-  return "#475569";
+function nodeColor(d){
+  if(d.type==="sdg") return SDG_COLORS[d.sdg_num]||"#888";
+  if(d.type==="topic"){const i=TOPIC_LIST.indexOf(d.label);return TOPIC_COLORS[i>=0?i:0];}
+  return "#94a3b8";
+}
+function lighten(hex,amt=0.35){
+  const r=parseInt(hex.slice(1,3),16),g=parseInt(hex.slice(3,5),16),b=parseInt(hex.slice(5,7),16);
+  const lr=Math.round(r+(255-r)*amt),lg=Math.round(g+(255-g)*amt),lb=Math.round(b+(255-b)*amt);
+  return `rgb(${lr},${lg},${lb})`;
 }
 
-async function main() {
-  const data = await fetch("/api/knowledge-map-data").then(r => r.json());
-  document.getElementById("loading").style.display = "none";
+async function main(){
+  const data=await fetch("/api/knowledge-map-data").then(r=>r.json());
+  document.getElementById("loading").style.display="none";
+  allNodes=data.nodes; allLinks=data.links;
 
-  allNodes = data.nodes;
-  allLinks = data.links;
-
-  // Build adjacency with string IDs
-  adjMap = new Map();
-  allLinks.forEach(l => {
-    const s = l.source, t = l.target;
-    if (!adjMap.has(s)) adjMap.set(s, new Set());
-    if (!adjMap.has(t)) adjMap.set(t, new Set());
-    adjMap.get(s).add(t);
-    adjMap.get(t).add(s);
+  adjMap=new Map();
+  allLinks.forEach(l=>{
+    const s=l.source,t=l.target;
+    if(!adjMap.has(s))adjMap.set(s,new Set());
+    if(!adjMap.has(t))adjMap.set(t,new Set());
+    adjMap.get(s).add(t); adjMap.get(t).add(s);
   });
 
-  const wrap = document.getElementById("graph-wrap");
-  const W = wrap.clientWidth, H = wrap.clientHeight;
+  const wrap=document.getElementById("graph-wrap");
+  const W=wrap.clientWidth, H=wrap.clientHeight;
 
-  svgSel = d3.select("#graph").attr("width", W).attr("height", H);
+  svgSel=d3.select("#graph").attr("width",W).attr("height",H);
 
-  // Defs: glow
-  const defs = svgSel.append("defs");
-  const glow = defs.append("filter").attr("id","glow").attr("x","-50%").attr("y","-50%").attr("width","200%").attr("height","200%");
-  glow.append("feGaussianBlur").attr("stdDeviation","5").attr("result","blur");
-  const fm = glow.append("feMerge");
+  // Background dot-grid pattern
+  const defs=svgSel.append("defs");
+  const pat=defs.append("pattern").attr("id","dotgrid").attr("width",28).attr("height",28).attr("patternUnits","userSpaceOnUse");
+  pat.append("circle").attr("cx",14).attr("cy",14).attr("r",1).attr("fill","#d1daf0");
+
+  svgSel.append("rect").attr("width","100%").attr("height","100%").attr("fill","url(#dotgrid)");
+
+  // Drop shadow filter
+  const shadow=defs.append("filter").attr("id","shadow").attr("x","-20%").attr("y","-20%").attr("width","140%").attr("height","140%");
+  shadow.append("feDropShadow").attr("dx",0).attr("dy",2).attr("stdDeviation",4).attr("flood-color","rgba(0,0,0,.18)");
+
+  // Glow filter for selected
+  const glow=defs.append("filter").attr("id","glow").attr("x","-40%").attr("y","-40%").attr("width","180%").attr("height","180%");
+  const blur=glow.append("feGaussianBlur").attr("in","SourceGraphic").attr("stdDeviation","6").attr("result","blur");
+  const fm=glow.append("feMerge");
   fm.append("feMergeNode").attr("in","blur");
   fm.append("feMergeNode").attr("in","SourceGraphic");
 
-  // Background click
-  svgSel.on("click", () => resetSelection());
+  svgSel.on("click",()=>resetSelection());
+  gSel=svgSel.append("g");
 
-  gSel = svgSel.append("g");
+  svgSel.call(d3.zoom().scaleExtent([0.06,5]).on("zoom",e=>gSel.attr("transform",e.transform)));
 
-  // Zoom
-  svgSel.call(
-    d3.zoom().scaleExtent([0.08, 5])
-      .on("zoom", e => gSel.attr("transform", e.transform))
-  );
-
-  simulation = d3.forceSimulation(allNodes)
-    .force("link", d3.forceLink(allLinks).id(d => d.id)
-      .distance(l => {
-        const st = [l.source.type||"", l.target.type||""];
-        if (st.includes("sdg")) return 140;
-        if (st.includes("topic")) return 100;
+  simulation=d3.forceSimulation(allNodes)
+    .force("link",d3.forceLink(allLinks).id(d=>d.id)
+      .distance(l=>{
+        const st=[l.source.type||"",l.target.type||""];
+        if(st.includes("sdg")) return 150;
+        if(st.includes("topic")) return 110;
         return 60;
-      })
-      .strength(0.25))
-    .force("charge", d3.forceManyBody().strength(d => {
-      if (d.type === "sdg")   return -1400;
-      if (d.type === "topic") return -700;
-      return -25;
+      }).strength(0.2))
+    .force("charge",d3.forceManyBody().strength(d=>{
+      if(d.type==="sdg")   return -1500;
+      if(d.type==="topic") return -800;
+      return -20;
     }))
-    .force("center", d3.forceCenter(W / 2, H / 2))
-    .force("collision", d3.forceCollide().radius(d => nodeRadius(d) + 4));
+    .force("center",d3.forceCenter(W/2,H/2))
+    .force("collision",d3.forceCollide().radius(d=>nodeRadius(d)+5));
 
   // Links
-  linkSel = gSel.append("g").attr("class","links").selectAll("line")
+  linkSel=gSel.append("g").attr("class","links").selectAll("line")
     .data(allLinks).join("line")
-    .attr("stroke","#334155")
-    .attr("stroke-width", 0.8)
-    .attr("opacity", 0.35);
+    .attr("stroke","#c7d7ee")
+    .attr("stroke-width",0.9)
+    .attr("opacity",0.5);
 
   // Node groups
-  nodeSel = gSel.append("g").attr("class","nodes").selectAll("g")
+  nodeSel=gSel.append("g").attr("class","nodes").selectAll("g")
     .data(allNodes).join("g")
     .attr("cursor","pointer")
     .call(d3.drag()
-      .on("start", (e,d) => { if(!e.active) simulation.alphaTarget(0.3).restart(); d.fx=d.x; d.fy=d.y; })
-      .on("drag",  (e,d) => { d.fx=e.x; d.fy=e.y; })
-      .on("end",   (e,d) => { if(!e.active) simulation.alphaTarget(0); d.fx=null; d.fy=null; })
+      .on("start",(e,d)=>{if(!e.active)simulation.alphaTarget(0.3).restart();d.fx=d.x;d.fy=d.y;})
+      .on("drag", (e,d)=>{d.fx=e.x;d.fy=e.y;})
+      .on("end",  (e,d)=>{if(!e.active)simulation.alphaTarget(0);d.fx=null;d.fy=null;})
     );
 
-  // Circle
-  nodeSel.append("circle")
-    .attr("r", nodeRadius)
-    .attr("fill", nodeColor)
-    .attr("stroke", d => d.type==="university" ? "none" : "rgba(255,255,255,.25)")
-    .attr("stroke-width", 2);
+  // Hub nodes: white backdrop circle for shadow
+  nodeSel.filter(d=>d.type!=="university")
+    .append("circle")
+    .attr("class","backdrop")
+    .attr("r",d=>nodeRadius(d)+2)
+    .attr("fill","#fff")
+    .attr("filter","url(#shadow)");
 
-  // SDG labels (two lines)
-  nodeSel.filter(d => d.type==="sdg")
+  nodeSel.append("circle")
+    .attr("class","main-circle")
+    .attr("r",nodeRadius)
+    .attr("fill",nodeColor)
+    .attr("stroke",d=>d.type==="university"?"none":"rgba(255,255,255,.5)")
+    .attr("stroke-width",2.5);
+
+  // SDG labels
+  nodeSel.filter(d=>d.type==="sdg")
     .append("text").attr("class","hub-label")
-    .attr("text-anchor","middle").attr("dy","-0.2em")
-    .attr("font-size","9px").attr("font-weight","700")
-    .attr("fill","rgba(255,255,255,.9)").attr("pointer-events","none")
+    .attr("text-anchor","middle").attr("dy","-0.15em")
+    .attr("font-size","8.5px").attr("font-weight","700")
+    .attr("fill","rgba(255,255,255,.85)").attr("pointer-events","none")
     .text("SDG");
-  nodeSel.filter(d => d.type==="sdg")
+  nodeSel.filter(d=>d.type==="sdg")
     .append("text").attr("class","hub-label")
     .attr("text-anchor","middle").attr("dy","1.1em")
-    .attr("font-size","13px").attr("font-weight","800")
+    .attr("font-size","14px").attr("font-weight","800")
     .attr("fill","#fff").attr("pointer-events","none")
-    .text(d => d.sdg_num);
+    .text(d=>d.sdg_num);
+  // SDG count badge
+  nodeSel.filter(d=>d.type==="sdg")
+    .append("text").attr("class","hub-label")
+    .attr("text-anchor","middle").attr("dy",d=>nodeRadius(d)+12+"px")
+    .attr("font-size","9px").attr("font-weight","600")
+    .attr("fill",d=>nodeColor(d)).attr("pointer-events","none")
+    .text(d=>d.name);
 
   // Topic labels
-  nodeSel.filter(d => d.type==="topic")
+  nodeSel.filter(d=>d.type==="topic")
     .append("text").attr("class","hub-label")
     .attr("text-anchor","middle").attr("dy","0.35em")
-    .attr("font-size","8.5px").attr("font-weight","700")
+    .attr("font-size","9px").attr("font-weight","700")
     .attr("fill","#fff").attr("pointer-events","none")
-    .text(d => d.label.length > 6 ? d.label.slice(0,5)+"…" : d.label);
+    .text(d=>d.label.length>6?d.label.slice(0,5)+"…":d.label);
 
-  // Click
-  nodeSel.on("click", (e, d) => {
+  // Click / hover
+  nodeSel.on("click",(e,d)=>{
     e.stopPropagation();
-    if (d.type === "sdg" || d.type === "topic") selectHub(d);
+    if(d.type==="sdg"||d.type==="topic") selectHub(d);
     else showUniDetail(d);
   });
 
-  // Tooltip on hover for university nodes
-  nodeSel.filter(d => d.type==="university")
-    .on("mouseover", (e, d) => {
-      d3.select(e.currentTarget).select("circle").attr("fill","#f97316").attr("r", 8);
+  // Tooltip
+  nodeSel
+    .on("mousemove",(e,d)=>{
+      let txt="";
+      if(d.type==="sdg") txt=`<strong>SDG${d.sdg_num}</strong> ${d.name}<br><span style="color:#94a3b8">${d.count} 件計畫</span>`;
+      else if(d.type==="topic") txt=`<strong>${d.label}</strong><br><span style="color:#94a3b8">${d.count} 件計畫</span>`;
+      else txt=`<strong>${d.label}</strong><br>${d.plan.slice(0,40)}…`;
+      tooltip.innerHTML=txt;
+      tooltip.style.display="block";
+      tooltip.style.left=(e.clientX+14)+"px";
+      tooltip.style.top=(e.clientY-10)+"px";
     })
-    .on("mouseout", (e, d) => {
-      if (!selectedHubId || !(adjMap.get(selectedHubId)||new Set()).has(d.id)) {
-        d3.select(e.currentTarget).select("circle").attr("fill", nodeColor(d)).attr("r", nodeRadius(d));
-      }
-    });
+    .on("mouseleave",()=>tooltip.style.display="none");
 
-  simulation.on("tick", () => {
+  simulation.on("tick",()=>{
     linkSel
-      .attr("x1", l => l.source.x).attr("y1", l => l.source.y)
-      .attr("x2", l => l.target.x).attr("y2", l => l.target.y);
-    nodeSel.attr("transform", d => `translate(${d.x},${d.y})`);
+      .attr("x1",l=>l.source.x).attr("y1",l=>l.source.y)
+      .attr("x2",l=>l.target.x).attr("y2",l=>l.target.y);
+    nodeSel.attr("transform",d=>`translate(${d.x},${d.y})`);
   });
 
-  // Search
-  document.getElementById("search-box").addEventListener("input", function() {
-    const q = this.value.trim();
-    if (!q) { resetSelection(); return; }
+  document.getElementById("search-box").addEventListener("input",function(){
+    const q=this.value.trim();
+    if(!q){resetSelection();return;}
     handleSearch(q);
   });
 
-  window.addEventListener("resize", () => {
-    const W2 = wrap.clientWidth, H2 = wrap.clientHeight;
-    svgSel.attr("width", W2).attr("height", H2);
-    simulation.force("center", d3.forceCenter(W2/2, H2/2)).alpha(0.2).restart();
+  window.addEventListener("resize",()=>{
+    const W2=wrap.clientWidth,H2=wrap.clientHeight;
+    svgSel.attr("width",W2).attr("height",H2);
+    simulation.force("center",d3.forceCenter(W2/2,H2/2)).alpha(0.2).restart();
   });
 }
 
-function selectHub(d) {
-  selectedHubId = d.id;
-  const connected = adjMap.get(d.id) || new Set();
-  const color = nodeColor(d);
+function selectHub(d){
+  selectedHubId=d.id;
+  const connected=adjMap.get(d.id)||new Set();
+  const hcolor=nodeColor(d);
+  const lcolor=lighten(hcolor,0.5);
 
-  // Remove old labels
   gSel.selectAll(".uni-label").remove();
 
-  nodeSel.select("circle")
-    .attr("opacity", n => {
-      if (n.id === d.id) return 1;
-      if (connected.has(n.id)) return 1;
-      if (n.type !== "university") return 0.2;
-      return 0.04;
+  nodeSel.select(".backdrop").attr("filter",n=>n.id===d.id?"url(#glow)":"url(#shadow)");
+
+  nodeSel.select(".main-circle")
+    .transition().duration(250)
+    .attr("opacity",n=>{
+      if(n.id===d.id) return 1;
+      if(connected.has(n.id)) return 1;
+      if(n.type!=="university") return 0.18;
+      return 0.06;
     })
-    .attr("r", n => {
-      if (connected.has(n.id) && n.type==="university") return 7;
-      return nodeRadius(n);
-    })
-    .attr("fill", n => {
-      if (connected.has(n.id) && n.type==="university") return "#f97316";
+    .attr("r",n=>connected.has(n.id)&&n.type==="university"?8:nodeRadius(n))
+    .attr("fill",n=>{
+      if(connected.has(n.id)&&n.type==="university") return lcolor;
       return nodeColor(n);
     })
-    .attr("filter", n => n.id===d.id ? "url(#glow)" : null);
+    .attr("stroke",n=>connected.has(n.id)&&n.type==="university"?hcolor:"rgba(255,255,255,.5)")
+    .attr("stroke-width",n=>connected.has(n.id)&&n.type==="university"?2:2.5);
 
-  linkSel
-    .attr("opacity", l => (l.source.id===d.id||l.target.id===d.id) ? 0.75 : 0.04)
-    .attr("stroke",  l => (l.source.id===d.id||l.target.id===d.id) ? color : "#334155")
-    .attr("stroke-width", l => (l.source.id===d.id||l.target.id===d.id) ? 1.8 : 0.8);
+  linkSel.transition().duration(200)
+    .attr("opacity",l=>(l.source.id===d.id||l.target.id===d.id)?0.8:0.04)
+    .attr("stroke",l=>(l.source.id===d.id||l.target.id===d.id)?hcolor:"#c7d7ee")
+    .attr("stroke-width",l=>(l.source.id===d.id||l.target.id===d.id)?1.8:0.9);
 
   // Labels for connected universities
-  nodeSel.filter(n => connected.has(n.id) && n.type==="university")
+  nodeSel.filter(n=>connected.has(n.id)&&n.type==="university")
     .append("text").attr("class","uni-label")
-    .attr("text-anchor","middle").attr("dy","-10px")
-    .attr("font-size","8px").attr("fill","#fde68a")
-    .attr("pointer-events","none")
-    .text(n => n.label);
+    .attr("text-anchor","middle").attr("dy","-12px")
+    .attr("font-size","8.5px").attr("font-weight","600")
+    .attr("fill","#334155").attr("pointer-events","none")
+    .attr("paint-order","stroke").attr("stroke","rgba(255,255,255,.8)").attr("stroke-width","3")
+    .text(n=>n.label);
 
-  // Info panel
-  const plans = allNodes.filter(n => connected.has(n.id) && n.type==="university");
-  const hubTitle = d.type==="sdg" ? `SDG${d.sdg_num} ${d.name}` : d.label;
-  document.getElementById("info-title").textContent = hubTitle;
-  document.getElementById("info-sub").textContent = `共 ${plans.length} 件相關計畫`;
+  const plans=allNodes.filter(n=>connected.has(n.id)&&n.type==="university")
+    .sort((a,b)=>a.label.localeCompare(b.label));
+  const hubTitle=d.type==="sdg"?`SDG${d.sdg_num} ${d.name}`:d.label;
 
-  document.getElementById("info-list").innerHTML = plans
-    .sort((a,b)=>a.label.localeCompare(b.label))
-    .map(p => `
-      <li onclick="showUniDetail(${JSON.stringify(p).replace(/"/g,'&quot;')})">
-        ${p.label}
-        <span class="plan-name">${p.plan}</span>
-        <div class="tags">
-          ${(p.sdgs||[]).map(n=>`<span class="tag">SDG${n}</span>`).join("")}
-          ${(p.topics||[]).map(t=>`<span class="tag" style="background:#064e3b">${t}</span>`).join("")}
-        </div>
-      </li>`).join("");
-}
-
-function showUniDetail(d) {
-  if (typeof d === "string") d = JSON.parse(d);
-  document.getElementById("info-title").textContent = d.label;
-  document.getElementById("info-sub").textContent = d.category || "";
-  document.getElementById("info-list").innerHTML = `
-    <li style="cursor:default">
-      <div style="color:#94a3b8;font-size:.75rem;margin-bottom:4px">計畫名稱</div>
-      ${d.plan}
-    </li>
-    <li style="cursor:default">
-      <div style="color:#94a3b8;font-size:.75rem;margin-bottom:6px">SDG 關聯</div>
-      <div class="tags">${(d.sdgs||[]).map(n=>`<span class="tag" style="background:${SDG_COLORS[n]||'#1e3a8a'}">${'SDG'+n}</span>`).join("") || "—"}</div>
-    </li>
-    <li style="cursor:default">
-      <div style="color:#94a3b8;font-size:.75rem;margin-bottom:6px">計畫議題</div>
-      <div class="tags">${(d.topics||[]).map(t=>`<span class="tag" style="background:#064e3b">${t}</span>`).join("") || "—"}</div>
-    </li>`;
-}
-
-function handleSearch(q) {
-  selectedHubId = null;
-  gSel.selectAll(".uni-label").remove();
-  const lq = q.toLowerCase();
-  const matched = new Set(allNodes
-    .filter(n => n.type==="university" && (n.label.toLowerCase().includes(lq)||n.plan.toLowerCase().includes(lq)))
-    .map(n => n.id));
-
-  nodeSel.select("circle")
-    .attr("opacity", n => matched.has(n.id) ? 1 : (n.type!=="university" ? 0.3 : 0.04))
-    .attr("r", n => matched.has(n.id) ? 9 : nodeRadius(n))
-    .attr("fill", n => matched.has(n.id) ? "#f97316" : nodeColor(n))
-    .attr("filter", null);
-  linkSel.attr("opacity", l => (matched.has(l.source.id)||matched.has(l.target.id)) ? 0.5 : 0.04)
-         .attr("stroke","#334155").attr("stroke-width",0.8);
-
-  nodeSel.filter(n => matched.has(n.id))
-    .append("text").attr("class","uni-label")
-    .attr("text-anchor","middle").attr("dy","-11px")
-    .attr("font-size","8px").attr("fill","#fde68a").attr("pointer-events","none")
-    .text(n => n.label);
-
-  const list = allNodes.filter(n => matched.has(n.id)).sort((a,b)=>a.label.localeCompare(b.label));
-  document.getElementById("info-title").textContent = `搜尋「${q}」`;
-  document.getElementById("info-sub").textContent = `找到 ${list.length} 件計畫`;
-  document.getElementById("info-list").innerHTML = list.map(p=>`
-    <li onclick="showUniDetail(${JSON.stringify(p).replace(/"/g,'&quot;')})">
-      ${p.label}<span class="plan-name">${p.plan}</span>
+  showInfoHeader(hubTitle,`共 ${plans.length} 件相關計畫`);
+  document.getElementById("info-list").innerHTML=plans.map(p=>`
+    <li onclick="showUniDetail(${JSON.stringify(p).replace(/"/g,"&quot;")})">
+      <strong>${p.label}</strong>
+      <span class="plan-name">${p.plan}</span>
+      <div class="tags">
+        ${(p.sdgs||[]).map(n=>`<span class="tag tag-sdg" style="background:${SDG_COLORS[n]||'#1e3a8a'}">SDG${n}</span>`).join("")}
+        ${(p.topics||[]).map(t=>`<span class="tag tag-topic">${t}</span>`).join("")}
+      </div>
     </li>`).join("");
 }
 
-function resetSelection() {
-  selectedHubId = null;
-  gSel.selectAll(".uni-label").remove();
-  document.getElementById("search-box").value = "";
-
-  nodeSel.select("circle")
-    .attr("opacity",1).attr("r", nodeRadius).attr("fill", nodeColor).attr("filter",null);
-  linkSel.attr("opacity",0.35).attr("stroke","#334155").attr("stroke-width",0.8);
-
-  document.getElementById("info-title").textContent = "點擊節點探索";
-  document.getElementById("info-sub").textContent = "點擊 SDG 或議題節點，查看相關大學計畫";
-  document.getElementById("info-list").innerHTML = "";
+function showUniDetail(d){
+  if(typeof d==="string")d=JSON.parse(d);
+  showInfoHeader(d.label,d.category||"大學計畫");
+  document.getElementById("info-list").innerHTML=`
+    <li class="detail-row">
+      <div class="detail-label">計畫名稱</div>
+      ${d.plan}
+    </li>
+    <li class="detail-row">
+      <div class="detail-label">SDG 關聯</div>
+      <div class="tags">${(d.sdgs||[]).map(n=>`<span class="tag tag-sdg" style="background:${SDG_COLORS[n]||'#1e3a8a'}">SDG${n}</span>`).join("")||"—"}</div>
+    </li>
+    <li class="detail-row">
+      <div class="detail-label">計畫議題</div>
+      <div class="tags">${(d.topics||[]).map(t=>`<span class="tag tag-topic">${t}</span>`).join("")||"—"}</div>
+    </li>`;
 }
 
-function setFilter(f, btn) {
-  currentFilter = f;
-  document.querySelectorAll(".filter-btn").forEach(b => b.classList.remove("active"));
+function handleSearch(q){
+  selectedHubId=null;
+  gSel.selectAll(".uni-label").remove();
+  const lq=q.toLowerCase();
+  const matched=new Set(allNodes
+    .filter(n=>n.type==="university"&&(n.label.toLowerCase().includes(lq)||n.plan.toLowerCase().includes(lq)))
+    .map(n=>n.id));
+
+  nodeSel.select(".main-circle").transition().duration(200)
+    .attr("opacity",n=>matched.has(n.id)?1:(n.type!=="university"?0.25:0.05))
+    .attr("r",n=>matched.has(n.id)?9:nodeRadius(n))
+    .attr("fill",n=>matched.has(n.id)?"#3b82f6":nodeColor(n))
+    .attr("stroke",n=>matched.has(n.id)?"#1d4ed8":"rgba(255,255,255,.5)")
+    .attr("stroke-width",n=>matched.has(n.id)?2:2.5);
+  nodeSel.select(".backdrop").attr("filter","url(#shadow)");
+  linkSel.transition().duration(200)
+    .attr("opacity",l=>(matched.has(l.source.id)||matched.has(l.target.id))?0.55:0.04)
+    .attr("stroke","#c7d7ee").attr("stroke-width",0.9);
+
+  nodeSel.filter(n=>matched.has(n.id))
+    .append("text").attr("class","uni-label")
+    .attr("text-anchor","middle").attr("dy","-12px")
+    .attr("font-size","8.5px").attr("font-weight","600")
+    .attr("fill","#1d4ed8").attr("pointer-events","none")
+    .attr("paint-order","stroke").attr("stroke","rgba(255,255,255,.85)").attr("stroke-width","3")
+    .text(n=>n.label);
+
+  const list=allNodes.filter(n=>matched.has(n.id)).sort((a,b)=>a.label.localeCompare(b.label));
+  showInfoHeader(`搜尋「${q}」`,`找到 ${list.length} 件計畫`);
+  document.getElementById("info-list").innerHTML=list.map(p=>`
+    <li onclick="showUniDetail(${JSON.stringify(p).replace(/"/g,"&quot;")})">
+      <strong>${p.label}</strong><span class="plan-name">${p.plan}</span>
+    </li>`).join("");
+}
+
+function showInfoHeader(title,sub){
+  document.querySelector(".info-empty").style.display="none";
+  const t=document.getElementById("info-title");
+  const s=document.getElementById("info-sub");
+  t.style.display="";s.style.display="";
+  t.textContent=title;
+  s.innerHTML=`<span class="count-badge">${sub}</span>`;
+}
+
+function resetSelection(){
+  selectedHubId=null;
+  gSel.selectAll(".uni-label").remove();
+  document.getElementById("search-box").value="";
+  tooltip.style.display="none";
+
+  nodeSel.select(".main-circle").transition().duration(200)
+    .attr("opacity",1).attr("r",nodeRadius).attr("fill",nodeColor)
+    .attr("stroke",d=>d.type==="university"?"none":"rgba(255,255,255,.5)")
+    .attr("stroke-width",2.5);
+  nodeSel.select(".backdrop").attr("filter","url(#shadow)");
+  linkSel.transition().duration(200)
+    .attr("opacity",0.5).attr("stroke","#c7d7ee").attr("stroke-width",0.9);
+
+  document.querySelector(".info-empty").style.display="";
+  document.getElementById("info-title").style.display="none";
+  document.getElementById("info-sub").style.display="none";
+  document.getElementById("info-list").innerHTML="";
+}
+
+function setFilter(f,btn){
+  currentFilter=f;
+  document.querySelectorAll(".filter-btn").forEach(b=>b.classList.remove("active"));
   btn.classList.add("active");
   resetSelection();
-
-  if (f === "all") {
-    nodeSel.style("display", null);
-    linkSel.style("display", null);
-  } else {
-    nodeSel.style("display", d => {
-      if (d.type === "university") return null;
-      if (f === "sdg" && d.type === "topic") return "none";
-      if (f === "topic" && d.type === "sdg") return "none";
-      return null;
-    });
-    linkSel.style("display", l => {
-      const types = [l.source.type||"", l.target.type||""];
-      if (f === "sdg" && (types.includes("topic") && !types.includes("sdg"))) return "none";
-      if (f === "topic" && (types.includes("sdg") && !types.includes("topic"))) return "none";
-      return null;
-    });
-  }
+  if(f==="all"){nodeSel.style("display",null);linkSel.style("display",null);return;}
+  nodeSel.style("display",d=>{
+    if(d.type==="university") return null;
+    if(f==="sdg"&&d.type==="topic") return "none";
+    if(f==="topic"&&d.type==="sdg") return "none";
+    return null;
+  });
+  linkSel.style("display",l=>{
+    const types=[l.source.type||"",l.target.type||""];
+    if(f==="sdg"&&types.includes("topic")&&!types.includes("sdg")) return "none";
+    if(f==="topic"&&types.includes("sdg")&&!types.includes("topic")) return "none";
+    return null;
+  });
 }
 
 main();
