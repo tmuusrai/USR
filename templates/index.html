@@ -68,13 +68,13 @@ body{font-family:"Segoe UI","Noto Sans TC",sans-serif;background:#f5f7fa;height:
 #ask-btn{padding:11px 24px;background:linear-gradient(135deg,#1d4ed8,#3b82f6);color:#fff;border:none;border-radius:10px;font-size:.9rem;font-weight:600;cursor:pointer;transition:opacity .2s,transform .1s;white-space:nowrap}
 #ask-btn:hover:not(:disabled){transform:translateY(-1px)}
 #ask-btn:disabled{opacity:.45;cursor:not-allowed}
-#mode-toggle{display:flex;align-items:center;gap:8px;padding:6px 0;flex-shrink:0}
-#mode-toggle input[type=checkbox]{width:36px;height:20px;appearance:none;background:#cbd5e1;border-radius:999px;cursor:pointer;position:relative;transition:background .2s;flex-shrink:0}
-#mode-toggle input[type=checkbox]:checked{background:#7c3aed}
-#mode-toggle input[type=checkbox]::after{content:"";position:absolute;top:3px;left:3px;width:14px;height:14px;background:#fff;border-radius:50%;transition:left .2s}
-#mode-toggle input[type=checkbox]:checked::after{left:19px}
-#mode-toggle label{font-size:.8rem;color:#64748b;cursor:pointer;user-select:none;white-space:nowrap}
-#mode-toggle label.agent-on{color:#7c3aed;font-weight:600}
+#mode-toggle{display:flex;align-items:center;padding:6px 0;flex-shrink:0}
+.mode-seg{display:flex;background:#f1f5f9;border-radius:9px;padding:3px;gap:2px}
+.seg-btn{padding:5px 13px;border-radius:7px;border:none;background:none;color:#64748b;font-size:.8rem;font-weight:500;cursor:pointer;transition:all .15s;white-space:nowrap}
+.seg-btn:hover{background:#e2e8f0;color:#334155}
+.seg-btn.active{background:#fff;color:#1d4ed8;box-shadow:0 1px 4px rgba(0,0,0,.1);font-weight:600}
+.seg-btn.active.agent{color:#7c3aed}
+.seg-btn.active.subagent{color:#0891b2}
 .msg.step{background:#f5f3ff;border:1px solid #ddd6fe;color:#6d28d9;align-self:flex-start;font-size:.78rem;font-style:italic}
 
 /* RAG PANEL */
@@ -321,8 +321,11 @@ body{font-family:"Segoe UI","Noto Sans TC",sans-serif;background:#f5f7fa;height:
     <div id="resize-handle" title="拖曳調整大小"></div>
     <div id="messages"></div>
     <div id="mode-toggle">
-      <input type="checkbox" id="agent-checkbox" onchange="toggleAgentMode(this)"/>
-      <label id="mode-label" for="agent-checkbox">一般模式</label>
+      <div class="mode-seg">
+        <button class="seg-btn active" onclick="setMode('rag',this)">一般</button>
+        <button class="seg-btn agent" onclick="setMode('agent',this)">🤖 Agent</button>
+        <button class="seg-btn subagent" onclick="setMode('subagent',this)">⚡ SubAgent</button>
+      </div>
     </div>
     <div id="input-row">
       <textarea id="question" placeholder="請輸入問題，例如：有哪些計畫關注高齡照護？"
@@ -389,18 +392,19 @@ async function checkStatus() {
   } catch {}
 }
 
-function toggleAgentMode(cb) {
-  const label = document.getElementById("mode-label");
-  if (cb.checked) {
-    label.textContent = "🤖 Agent 模式（多步推理）";
-    label.classList.add("agent-on");
-    document.getElementById("question").placeholder = "請輸入複雜問題，例如：比較各校高齡照護計畫的特色與差異？";
-  } else {
-    label.textContent = "一般模式";
-    label.classList.remove("agent-on");
-    document.getElementById("question").placeholder = "請輸入問題，例如：有哪些計畫關注高齡照護？";
-  }
+let currentMode = "rag";
+const PLACEHOLDERS = {
+  rag:      "請輸入問題，例如：有哪些計畫關注高齡照護？",
+  agent:    "請輸入複雜問題，例如：比較各校高齡照護計畫的特色與差異？",
+  subagent: "請輸入跨面向問題，例如：有哪些學校同時關注高齡照護和數位科技？",
+};
+function setMode(mode, btn) {
+  currentMode = mode;
+  document.querySelectorAll(".seg-btn").forEach(b => b.classList.remove("active"));
+  btn.classList.add("active");
+  document.getElementById("question").placeholder = PLACEHOLDERS[mode];
 }
+function toggleAgentMode(cb) {} // kept for compatibility
 
 function submitQ(q) {
   closePanels();
@@ -416,11 +420,11 @@ async function askQuestion() {
   qEl.value = ""; qEl.style.height = "44px";
   document.getElementById("ask-btn").disabled = true;
 
-  const isAgent = document.getElementById("agent-checkbox").checked;
-  const endpoint = isAgent ? "/agent" : "/ask";
+  const endpoint = currentMode === "agent" ? "/agent" : currentMode === "subagent" ? "/subagent" : "/ask";
+  const initMsg = {rag:"🤔 AI 分析中，請稍候…", agent:"🤖 Agent 分析中，正在多步推理…", subagent:"⚡ SubAgent 啟動，派出平行搜尋…"}[currentMode];
 
   const box = document.getElementById("messages");
-  const botEl = appendMsg(isAgent ? "🤖 Agent 分析中，正在多步推理…" : "🤔 AI 分析中，請稍候…", "loading");
+  const botEl = appendMsg(initMsg, "loading");
   let started = false;
   let answerText = "";
 
@@ -450,7 +454,8 @@ async function askQuestion() {
         botEl.className = "msg loading";
         botEl.textContent = evt.text;
       } else if (evt.type === "step") {
-        appendMsg(`推理步驟 ${evt.step}：${evt.preview}`, "step");
+        const stepLabel = currentMode === "subagent" ? `⚡ Subagent ${evt.step} 完成：${evt.preview}` : `推理步驟 ${evt.step}：${evt.preview}`;
+        appendMsg(stepLabel, "step");
       } else if (evt.type === "chunk") {
         if (!started) {
           started = true;
@@ -469,7 +474,9 @@ async function askQuestion() {
         const ct = evt.timing || {};
         const clientTotal = Math.round(t_done - t_send);
         const bar = document.getElementById("timing-bar");
-        if (ct.agent_steps !== undefined) {
+        if (ct.mode === "subagent") {
+          bar.textContent = `⚡ SubAgent 模式  │  Subagent 數：${ct.subagent_count}  │  平行搜尋：${ct.search_ms ?? "—"} ms  │  總計：${ct.total_ms ?? "—"} ms  │  Client：${clientTotal} ms`;
+        } else if (ct.agent_steps !== undefined) {
           bar.textContent = `🤖 Agent 模式  │  推理步驟：${ct.agent_steps} 步  │  伺服器總計：${ct.total_ms ?? "—"} ms  │  Client：${clientTotal} ms`;
         } else {
           bar.textContent = `⏱  Voyage AI：${ct.voyage_ms ?? "—"} ms  │  FAISS：${ct.faiss_ms ?? "—"} ms  │  Gemini 首字：${ct.gemini_first_ms ?? "—"} ms  │  Gemini 完成：${ct.gemini_total_ms ?? "—"} ms  │  總計：${ct.total_ms ?? "—"} ms  │  Client：${clientTotal} ms`;
