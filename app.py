@@ -33,7 +33,7 @@ SITE_PASSWORD   = os.getenv("SITE_PASSWORD", "")
 VOYAGE_API_KEY  = os.getenv("VOYAGE_API_KEY")
 CHUNK_SIZE      = int(os.getenv("CHUNK_SIZE", 800))
 CHUNK_OVERLAP   = int(os.getenv("CHUNK_OVERLAP", 100))
-TOP_K           = int(os.getenv("TOP_K_RESULTS", 5))
+TOP_K           = int(os.getenv("TOP_K_RESULTS", 10))
 
 PDF_DIR         = Path("pdfs")
 EXTRA_DIR       = Path("extra_docs")
