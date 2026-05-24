@@ -2,6 +2,8 @@ import os
 import sys
 import json
 import time
+import queue as _queue
+import threading
 from pathlib import Path
 
 sys.stdout.reconfigure(encoding="utf-8")
@@ -506,25 +508,48 @@ def subagent_ask():
             t_search_ms = round((time.perf_counter() - t_search_start) * 1000)
             yield f"data: {json.dumps({'type': 'sources', 'sources': all_sources}, ensure_ascii=False)}\n\n"
             yield f"data: {json.dumps({'type': 'status', 'text': '🧠 整合所有 subagent 結果，生成回答...'}, ensure_ascii=False)}\n\n"
-            yield ": keepalive\n\n"  # 防止 LLM 串流前 timeout
 
-            # ── 步驟 3：串流整合回答（避免 invoke 靜默等待造成 timeout）──
+            # ── 步驟 3：背景執行緒串流（每 5s 發 keepalive，應對 Gemini 思考階段）──
             context = "\n\n".join(all_context)
+            if len(context) > 10000:
+                context = context[:10000] + "\n\n...(資料已截斷)"
             prompt_msg = HumanMessage(content=AGENT_ANSWER_PROMPT.format(
                 question=question, context=context or "查無相關資料"
             ))
+
+            cq = _queue.Queue()
+
+            def _stream_worker():
+                try:
+                    for chunk in llm.stream([prompt_msg]):
+                        text = _normalize_content(chunk.content)
+                        if text:
+                            cq.put(('chunk', text))
+                    cq.put(('done', None))
+                except Exception as exc:
+                    cq.put(('error', str(exc)))
+
+            threading.Thread(target=_stream_worker, daemon=True).start()
+
             answer_started = False
-            try:
-                for chunk in llm.stream([prompt_msg]):
-                    content = _normalize_content(chunk.content)
-                    if content:
+            while True:
+                try:
+                    kind, payload = cq.get(timeout=5)
+                    if kind == 'chunk':
                         answer_started = True
-                        yield f"data: {json.dumps({'type': 'chunk', 'text': content}, ensure_ascii=False)}\n\n"
-                if not answer_started:
-                    yield f"data: {json.dumps({'type': 'chunk', 'text': '抱歉，無法完成分析，請重新提問。'}, ensure_ascii=False)}\n\n"
-            except Exception as e:
-                print(f"[SUBAGENT] 串流失敗：{e}")
-                yield f"data: {json.dumps({'type': 'chunk', 'text': '分析過程發生錯誤，請重新提問。'}, ensure_ascii=False)}\n\n"
+                        yield f"data: {json.dumps({'type': 'chunk', 'text': payload}, ensure_ascii=False)}\n\n"
+                    elif kind == 'done':
+                        break
+                    else:
+                        print(f"[SUBAGENT] 串流失敗：{payload}")
+                        if not answer_started:
+                            yield f"data: {json.dumps({'type': 'chunk', 'text': '分析過程發生錯誤，請重新提問。'}, ensure_ascii=False)}\n\n"
+                        break
+                except _queue.Empty:
+                    yield ": keepalive\n\n"  # Gemini 思考中，每 5s 保持連線
+
+            if not answer_started:
+                yield f"data: {json.dumps({'type': 'chunk', 'text': '抱歉，無法完成分析，請重新提問。'}, ensure_ascii=False)}\n\n"
 
             total_ms = round((time.perf_counter() - t_start) * 1000)
             yield f"data: {json.dumps({'type': 'done', 'timing': {'total_ms': total_ms, 'search_ms': t_search_ms, 'subagent_count': n}, 'mode': 'subagent'})}\n\n"
