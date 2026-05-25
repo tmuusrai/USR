@@ -11,7 +11,7 @@ langchain-text-splitters
 langchain-voyageai
 
 # Vector store
-faiss-cpu==1.13.2
+faiss-cpu
 
 # Embeddings
 voyageai==0.3.7
