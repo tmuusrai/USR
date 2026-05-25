@@ -49,12 +49,13 @@ body{font-family:"Segoe UI","Noto Sans TC",sans-serif;background:#f5f7fa;height:
 /* TIMING BAR */
 #timing-bar{display:none;background:#fefce8;border-top:2px solid #fde68a;padding:8px 20px;font-family:monospace;font-size:.78rem;color:#78350f;flex-shrink:0;white-space:pre;line-height:1.8}
 /* CHAT */
-#chat-wrap{flex-shrink:0;background:#fff;border-top:1px solid #e2e8f0;padding:14px 20px;min-height:120px}
+#chat-wrap{flex-shrink:0;background:#fff;border-top:1px solid #e2e8f0;padding:14px 20px;min-height:120px;display:flex;flex-direction:column;max-height:min(460px,55vh);overflow:hidden;position:relative}
 #resize-handle{position:absolute;top:0;left:0;right:0;height:6px;cursor:ns-resize;display:flex;align-items:center;justify-content:center;margin:-14px -20px 10px}
 #resize-handle::before{content:"";width:40px;height:3px;background:#cbd5e1;border-radius:999px;transition:background .15s}
 #resize-handle:hover::before{background:#94a3b8}
-#chat-wrap{position:relative}
-#messages{max-height:220px;overflow-y:auto;margin-bottom:12px;display:flex;flex-direction:column;gap:10px}
+#messages{flex:1;min-height:60px;overflow-y:auto;margin-bottom:12px;display:flex;flex-direction:column;gap:10px}
+#mode-toggle{flex-shrink:0}
+#input-row{flex-shrink:0}
 #messages::-webkit-scrollbar{width:4px}
 #messages::-webkit-scrollbar-thumb{background:#e2e8f0;border-radius:4px}
 .msg{padding:10px 14px;border-radius:10px;font-size:.87rem;line-height:1.75;max-width:88%}
@@ -136,8 +137,7 @@ body{font-family:"Segoe UI","Noto Sans TC",sans-serif;background:#f5f7fa;height:
   #main{width:100%}
   #hero{padding:14px 18px}
   #hero h2{font-size:1rem}
-  #chat-wrap{padding:10px 12px}
-  #messages{max-height:160px}
+  #chat-wrap{padding:10px 12px;max-height:min(380px,52vh)}
 }
 </style>
 </head>
