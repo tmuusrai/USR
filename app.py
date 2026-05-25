@@ -469,10 +469,28 @@ def subagent_ask():
             t_start = time.perf_counter()
             yield f"data: {json.dumps({'type': 'status', 'text': '🔍 分析問題，規劃 subagent 搜尋策略...'}, ensure_ascii=False)}\n\n"
 
-            # ── 步驟 1：規劃搜尋詞 ──
+            # ── 步驟 1：規劃搜尋詞（背景執行緒 + keepalive，應對 Gemini 思考階段）──
+            plan_q = _queue.Queue()
+            _plan_msg = HumanMessage(content=AGENT_PLAN_PROMPT.format(question=question))
+            def _plan_worker():
+                try:
+                    res = llm.invoke([_plan_msg])
+                    plan_q.put(('done', _normalize_content(res.content).strip()))
+                except Exception as exc:
+                    plan_q.put(('error', str(exc)))
+            threading.Thread(target=_plan_worker, daemon=True).start()
+
+            plan_text = ""
+            while True:
+                try:
+                    kind, payload = plan_q.get(timeout=5)
+                    if kind == 'done':
+                        plan_text = payload
+                    break
+                except _queue.Empty:
+                    yield f"data: {json.dumps({'type': 'keepalive'})}\n\n"
+
             try:
-                plan_res = llm.invoke([HumanMessage(content=AGENT_PLAN_PROMPT.format(question=question))])
-                plan_text = _normalize_content(plan_res.content).strip()
                 m = re.search(r'\[.*?\]', plan_text, re.DOTALL)
                 queries = json.loads(m.group()) if m else [question]
                 if not isinstance(queries, list) or not queries:
@@ -546,7 +564,7 @@ def subagent_ask():
                             yield f"data: {json.dumps({'type': 'chunk', 'text': '分析過程發生錯誤，請重新提問。'}, ensure_ascii=False)}\n\n"
                         break
                 except _queue.Empty:
-                    yield ": keepalive\n\n"  # Gemini 思考中，每 5s 保持連線
+                    yield f"data: {json.dumps({'type': 'keepalive'})}\n\n"  # Gemini 思考中，每 5s 保持連線
 
             if not answer_started:
                 yield f"data: {json.dumps({'type': 'chunk', 'text': '抱歉，無法完成分析，請重新提問。'}, ensure_ascii=False)}\n\n"
