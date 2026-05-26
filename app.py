@@ -646,7 +646,15 @@ def _build_km_data():
         else:
             uni, plan = stem, stem
 
-        text = filepath.read_text(encoding="utf-8-sig", errors="ignore")
+        text = None
+        for enc in ["utf-8-sig", "utf-8", "cp950", "big5"]:
+            try:
+                text = filepath.read_text(encoding=enc)
+                break
+            except Exception:
+                continue
+        if text is None:
+            text = filepath.read_text(encoding="utf-8-sig", errors="ignore")
 
         sdg_nums = set()
         topics = set()
@@ -762,7 +770,15 @@ def _build_kw_data():
         else:
             uni, plan = stem, stem
 
-        text = filepath.read_text(encoding="utf-8-sig", errors="ignore")
+        text = None
+        for enc in ["utf-8-sig", "utf-8", "cp950", "big5"]:
+            try:
+                text = filepath.read_text(encoding=enc)
+                break
+            except Exception:
+                continue
+        if text is None:
+            text = filepath.read_text(encoding="utf-8-sig", errors="ignore")
 
         matched = []
         for kw_name, keywords in KEYWORD_GROUPS:
