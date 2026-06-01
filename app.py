@@ -541,27 +541,42 @@ def subagent_ask():
                 queries = [question]
 
             n = len(queries)
-            yield f"data: {json.dumps({'type': 'status', 'text': f'⚡ 啟動 {n} 個 subagent，依序執行搜尋...'}, ensure_ascii=False)}\n\n"
+            yield f"data: {json.dumps({'type': 'status', 'text': f'⚡ 並行啟動 {n} 個 subagent 搜尋...'}, ensure_ascii=False)}\n\n"
 
-            # ── 步驟 2：依序執行各 subagent，每完成一個立刻回報 ──
+            # ── 步驟 2：並行執行各 subagent ──
+            from concurrent.futures import ThreadPoolExecutor, as_completed
+
+            results_map = {}   # index -> (obs, srcs)
+            t_search_start = time.perf_counter()
+
+            def _run_subagent(idx_query):
+                idx, query = idx_query
+                try:
+                    obs, srcs = tool_search_rag(query, k=5)
+                    return idx, query, obs, srcs
+                except Exception as e:
+                    print(f"[SUBAGENT] subagent {idx+1} 失敗：{e}")
+                    return idx, query, "查無結果", []
+
+            with ThreadPoolExecutor(max_workers=n) as executor:
+                futures = {executor.submit(_run_subagent, (i, q)): i for i, q in enumerate(queries)}
+                for future in as_completed(futures):
+                    idx, query, obs, srcs = future.result()
+                    results_map[idx] = (query, obs, srcs)
+                    yield f"data: {json.dumps({'type': 'step', 'step': idx+1, 'preview': query[:70]}, ensure_ascii=False)}\n\n"
+
+            # 依原始順序合併結果
             all_context = []
             all_sources = []
             seen_sources = set()
-            t_search_start = time.perf_counter()
-
-            for i, query in enumerate(queries):
-                try:
-                    obs, srcs = tool_search_rag(query, k=5)
-                    all_context.append(f"【Subagent {i+1}：{query}】\n{obs}")
-                    for s in srcs:
-                        key = (s["source"], s["page"])
-                        if key not in seen_sources:
-                            seen_sources.add(key)
-                            all_sources.append(s)
-                except Exception as e:
-                    print(f"[SUBAGENT] subagent {i+1} 失敗：{e}")
-                    all_context.append(f"【Subagent {i+1}：{query}】\n查無結果")
-                yield f"data: {json.dumps({'type': 'step', 'step': i+1, 'preview': query[:70]}, ensure_ascii=False)}\n\n"
+            for idx in sorted(results_map):
+                query, obs, srcs = results_map[idx]
+                all_context.append(f"【Subagent {idx+1}：{query}】\n{obs}")
+                for s in srcs:
+                    key = (s["source"], s["page"])
+                    if key not in seen_sources:
+                        seen_sources.add(key)
+                        all_sources.append(s)
 
             t_search_ms = round((time.perf_counter() - t_search_start) * 1000)
             yield f"data: {json.dumps({'type': 'sources', 'sources': all_sources}, ensure_ascii=False)}\n\n"
