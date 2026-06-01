@@ -653,10 +653,9 @@ _wiki_building = False
 def _build_wiki_background():
     global _wiki_building
     try:
-        from wiki_map_builder import build_relations, build_graph
+        from wiki_map_builder import build_wiki_graph
         from wiki_map_render import render_wiki_map
-        relations = build_relations()
-        G = build_graph(relations)
+        G = build_wiki_graph()
         out = Path("static/wiki_map.html")
         out.parent.mkdir(exist_ok=True)
         render_wiki_map(G, output=out)
