@@ -840,12 +840,28 @@ def wiki_map_page():
     authenticated = not SITE_PASSWORD or session.get("authenticated", False)
     if SITE_PASSWORD and not authenticated:
         return redirect(url_for("index"))
-    return render_template("wiki_map.html")
+
+    cache_file = Path("wiki_graph_cache.json")
+    html_file  = Path("static/wiki_map.html")
+
+    # 若快取和 HTML 都存在，直接回傳
+    if html_file.exists() and cache_file.exists():
+        return html_file.read_text(encoding="utf-8")
+
+    # 還沒建立，回傳等待頁面
+    return """<!DOCTYPE html><html lang="zh-Hant"><head><meta charset="UTF-8">
+<title>Wiki Map 建置中</title>
+<meta http-equiv="refresh" content="5;url=/wiki-map">
+<style>body{font-family:sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;margin:0;background:#1a1a2e;color:#e0e0e0;flex-direction:column;gap:16px}
+.spinner{width:48px;height:48px;border:5px solid #334;border-top-color:#4f86c6;border-radius:50%;animation:spin 1s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}</style></head>
+<body><div class="spinner"></div><p>知識地圖建置中，請稍候（首次約需 2-5 分鐘）...</p>
+<p style="font-size:.8rem;color:#666">頁面將自動重新整理</p></body></html>"""
 
 
 @app.route("/api/wiki-map-build", methods=["POST"])
 def wiki_map_build():
-    """觸發 Wiki Map 建立（LLM 提取 + Pyvis 渲染）。第一次需要時間。"""
+    """觸發 Wiki Map 建立（LLM 提取 + Pyvis 渲染）。"""
     if SITE_PASSWORD and not session.get("authenticated"):
         return jsonify({"error": "請先登入。"}), 401
     try:
@@ -853,7 +869,8 @@ def wiki_map_build():
         from wiki_map_render import render_wiki_map
         relations = build_relations(max_files=50)
         G = build_graph(relations)
-        render_wiki_map(G)
+        out = Path("static/wiki_map.html")
+        render_wiki_map(G, output=out)
         return jsonify({"ok": True, "nodes": G.number_of_nodes(), "edges": G.number_of_edges()})
     except Exception as e:
         import traceback
