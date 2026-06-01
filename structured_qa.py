@@ -234,13 +234,15 @@ def _parse_sdg(text: str) -> None:
                 _SDG_INDEX[current_sdg] = []
             continue
 
-        if current_sdg is not None and stripped.startswith("- "):
-            content = stripped[2:].strip()
-            if " — " in content:
-                uni, plan = content.split(" — ", 1)
-                plan = plan.strip()
+        # support both "- 學校 — 計畫" and "1. 學校 — 計畫" formats
+        _item_m = re.match(r'^(?:-|\d+\.)\s+(.+)', stripped) if current_sdg is not None else None
+        if _item_m:
+            content = _item_m.group(1).strip()
+            m = re.split(r'\s*—\s*', content, maxsplit=1)
+            if len(m) == 2:
+                uni, plan = m[0].strip(), m[1].strip()
                 if plan:
-                    _SDG_INDEX[current_sdg].append({"uni": uni.strip(), "plan": plan})
+                    _SDG_INDEX[current_sdg].append({"uni": uni, "plan": plan})
             continue
 
         if "SDG 索引結束" in stripped:
