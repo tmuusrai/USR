@@ -27,20 +27,18 @@ _SUMMARY: dict = {}                       # 全局統計（總計畫數、總校
 _CUSTOM_QA: list[dict] = []              # [{"keywords": [...], "answer": str}]
 _READY = False
 
-# qa_custom.txt 預設與 structured_qa.py 同層目錄
-_QA_CUSTOM_PATH = Path(__file__).parent / "qa_custom.txt"
+# qa_data/ 資料夾預設與 structured_qa.py 同層
+_QA_DIR = Path(__file__).parent / "qa_data"
+_QA_CUSTOM_PATH = _QA_DIR / "qa_custom.txt"
+_QA_OVERVIEW_PATH = _QA_DIR / "計劃總覽.txt"
 
 
-def init_qa(txt_dir: Path) -> None:
-    """啟動時呼叫一次，解析 計劃總覽.txt 並載入 qa_custom.txt。"""
+def init_qa() -> None:
+    """啟動時呼叫一次，解析 qa_data/計劃總覽.txt 並載入 qa_data/qa_custom.txt。"""
     global _READY
-    overview = _find_overview(txt_dir)
-    if overview is None:
-        print("[QA] 找不到計劃總覽.txt，結構化 QA 停用。")
-        return
-    text = _read_text(overview)
+    text = _read_text(_QA_OVERVIEW_PATH)
     if not text:
-        print("[QA] 計劃總覽.txt 讀取失敗，結構化 QA 停用。")
+        print("[QA] 找不到或無法讀取 qa_data/計劃總覽.txt，結構化 QA 停用。")
         return
     _parse_sdg(text)
 
@@ -209,13 +207,6 @@ def _phrase_score(question: str, phrase: str) -> float:
 
 
 # ── SDG 索引解析 ──────────────────────────────────────────
-
-def _find_overview(txt_dir: Path) -> Path | None:
-    for p in txt_dir.glob("*.txt"):
-        if "計劃總覽" in p.stem or "計画総覧" in p.stem:
-            return p
-    return None
-
 
 def _read_text(path: Path) -> str | None:
     for enc in ["utf-8-sig", "utf-8", "cp950", "big5"]:

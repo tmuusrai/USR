@@ -41,7 +41,6 @@ TOP_K           = int(os.getenv("TOP_K_RESULTS", 10))
 
 PDF_DIR         = Path("pdfs")
 EXTRA_DIR       = Path("extra_docs")
-TXT_DIR         = Path("114txt")
 MD_DIR          = Path("114md")
 INDEX_DIR       = Path("faiss_index")
 
@@ -176,7 +175,7 @@ except FileNotFoundError as e:
     retriever   = None
     print(f"[APP] 警告：{e}")
 
-init_qa(TXT_DIR)
+init_qa()
 
 
 # ── 路由 ──────────────────────────────────────────────
