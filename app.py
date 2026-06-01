@@ -835,6 +835,32 @@ def keyword_map_data():
     return jsonify(_kw_cache)
 
 
+@app.route("/wiki-map")
+def wiki_map_page():
+    authenticated = not SITE_PASSWORD or session.get("authenticated", False)
+    if SITE_PASSWORD and not authenticated:
+        return redirect(url_for("index"))
+    return render_template("wiki_map.html")
+
+
+@app.route("/api/wiki-map-build", methods=["POST"])
+def wiki_map_build():
+    """觸發 Wiki Map 建立（LLM 提取 + Pyvis 渲染）。第一次需要時間。"""
+    if SITE_PASSWORD and not session.get("authenticated"):
+        return jsonify({"error": "請先登入。"}), 401
+    try:
+        from wiki_map_builder import build_relations, build_graph
+        from wiki_map_render import render_wiki_map
+        relations = build_relations(max_files=50)
+        G = build_graph(relations)
+        render_wiki_map(G)
+        return jsonify({"ok": True, "nodes": G.number_of_nodes(), "edges": G.number_of_edges()})
+    except Exception as e:
+        import traceback
+        print(traceback.format_exc())
+        return jsonify({"error": str(e)}), 500
+
+
 @app.route("/warmup")
 def warmup():
     """預熱 Voyage AI 連線，減少第一次問答的延遲。"""
