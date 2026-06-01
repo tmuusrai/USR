@@ -35,6 +35,9 @@ import time
 from datetime import datetime
 from pathlib import Path
 
+sys.stdout.reconfigure(encoding="utf-8")
+sys.stderr.reconfigure(encoding="utf-8")
+
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -75,7 +78,7 @@ WIKI_PROMPT = """\
 
 **輸出格式：**
 
-# {計畫名稱}
+# {{計畫名稱}}
 
 | 欄位 | 內容 |
 |------|------|
