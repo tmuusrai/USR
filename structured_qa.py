@@ -54,7 +54,11 @@ def _load_custom_qa(path: Path) -> None:
 
     def _flush():
         if current_keywords and current_answer_lines:
-            answer = "\n".join(current_answer_lines).strip()
+            # 去掉尾端空行，但保留中間空行（格式用）
+            lines = current_answer_lines[:]
+            while lines and not lines[-1].strip():
+                lines.pop()
+            answer = "\n".join(lines).strip()
             if answer:
                 _CUSTOM_QA.append({
                     "keywords": current_keywords[:],
@@ -85,13 +89,7 @@ def _load_custom_qa(path: Path) -> None:
                 current_answer_lines.append(content)
 
         elif in_answer:
-            if line.strip() == "":
-                _flush()
-                current_keywords = []
-                current_answer_lines = []
-                in_answer = False
-            else:
-                current_answer_lines.append(line)
+            current_answer_lines.append(line)
 
     _flush()
 
