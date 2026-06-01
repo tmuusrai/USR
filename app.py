@@ -42,6 +42,7 @@ TOP_K           = int(os.getenv("TOP_K_RESULTS", 10))
 PDF_DIR         = Path("pdfs")
 EXTRA_DIR       = Path("extra_docs")
 MD_DIR          = Path("114md")
+LLM_WIKI_DIR    = Path("llm_wiki_data")
 QA_DIR          = Path("qa_data")
 INDEX_DIR       = Path("faiss_index")
 
@@ -104,10 +105,16 @@ def load_or_build_index() -> FAISS:
 
     print("[INDEX] 未找到索引，開始建立...")
     pdf_files = list(PDF_DIR.rglob("*.pdf")) if PDF_DIR.exists() else []
-    md_files  = list(MD_DIR.rglob("*.md"))   if MD_DIR.exists()  else []
+    # 優先使用 LLM 編譯版（更乾淨、含 [[wikilinks]]），否則 fallback 到原始 MD
+    if LLM_WIKI_DIR.exists() and any(LLM_WIKI_DIR.rglob("*.md")):
+        md_files = list(LLM_WIKI_DIR.rglob("*.md"))
+        print(f"[INDEX] 使用 llm_wiki_data/ 編譯版（{len(md_files)} 份）")
+    else:
+        md_files = list(MD_DIR.rglob("*.md")) if MD_DIR.exists() else []
+        print(f"[INDEX] 使用 114md/ 原始版（{len(md_files)} 份）")
     overview  = QA_DIR / "計劃總覽.txt"
     if not pdf_files and not md_files and not overview.exists():
-        raise FileNotFoundError("pdfs/、114md/、qa_data/計劃總覽.txt 都找不到，請先放入計畫書。")
+        raise FileNotFoundError("pdfs/、llm_wiki_data/、114md/、qa_data/計劃總覽.txt 都找不到，請先放入計畫書。")
 
     docs = []
     for pdf_path in pdf_files:
@@ -132,9 +139,7 @@ def load_or_build_index() -> FAISS:
                 continue
 
     if md_files:
-        print(f"  114md/ 資料夾：找到 {len(md_files)} 個 MD 檔")
         for md_path in md_files:
-            print(f"  讀取：{md_path.name}")
             try:
                 loader = TextLoader(str(md_path), encoding="utf-8")
                 docs.extend(loader.load())
