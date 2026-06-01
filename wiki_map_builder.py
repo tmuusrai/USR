@@ -274,10 +274,16 @@ def build_wiki_graph() -> nx.DiGraph:
                 if d.get("type") in ("sdg", "topic") and d.get("count", 0) == 0]
     G.remove_nodes_from(isolates)
 
-    # 移除只有 1 間學校使用的 concept 節點（避免視覺雜訊）
+    # 只保留出現在 15 所以上學校的 concept 節點（避免視覺雜訊）
     rare_concepts = [n for n, d in G.nodes(data=True)
-                     if d.get("type") == "concept" and d.get("count", 0) < 2]
+                     if d.get("type") == "concept" and d.get("count", 0) < 15]
     G.remove_nodes_from(rare_concepts)
+
+    # 同時移除指向已被刪除 concept 節點的邊
+    nodes_set = set(G.nodes())
+    dead_edges = [(u, v) for u, v in list(G.edges())
+                  if u not in nodes_set or v not in nodes_set]
+    G.remove_edges_from(dead_edges)
 
     print(f"[WIKI] 圖譜：{G.number_of_nodes()} 個節點，{G.number_of_edges()} 條邊")
     return G
