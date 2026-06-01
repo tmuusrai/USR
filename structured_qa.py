@@ -113,7 +113,7 @@ def _match_custom_qa(question: str) -> str | None:
                 best_score = score
                 best_answer = entry["answer"]
 
-    if best_score >= 0.7:
+    if best_score >= 0.6:
         return best_answer
     return None
 
@@ -123,14 +123,37 @@ _STOP = {"是", "的", "了", "嗎", "呢", "啊", "有", "在", "和", "或", "
          "請問", "請", "問", "可以", "告訴我", "什麼", "怎麼", "如何", "哪些",
          "一下", "介紹", "說明"}
 
+# 單字停用詞：中文段落的切分點（例如「的」會把「對應的大學」分成「對應」+「大學」）
+_STOP_CHARS = frozenset(s for s in _STOP if len(s) == 1)
+
+
+def _tokenize(text: str) -> list[str]:
+    """切分 text 為有意義的詞：英數詞 + 中文內容詞（單字停用詞作切分點）。"""
+    tokens: list[str] = []
+    for seg in re.findall(r'[A-Za-z0-9]+|[一-鿿]+', text):
+        if seg[0].isascii():
+            if seg not in _STOP:
+                tokens.append(seg)
+        else:
+            cur = ""
+            for ch in seg:
+                if ch in _STOP_CHARS:
+                    if len(cur) >= 2 and cur not in _STOP:
+                        tokens.append(cur)
+                    cur = ""
+                else:
+                    cur += ch
+            if len(cur) >= 2 and cur not in _STOP:
+                tokens.append(cur)
+    return tokens
+
 
 def _phrase_score(question: str, phrase: str) -> float:
     """計算 phrase 的關鍵詞在 question 中的命中率（0.0 ~ 1.0）。"""
-    # 分別抓英數詞與中文詞，避免 ASCII+中文 黏成一個 token
-    tokens = [t for t in re.findall(r'[A-Za-z0-9]+|[一-鿿]{2,}', phrase) if t not in _STOP]
+    tokens = _tokenize(phrase)
     if not tokens:
         return 0.0
-    # 比對時去除空格，容忍「SDG2 對應的大學」vs「SDG2對應的大學」的差異
+    # 去除空格，容忍「SDG2 對應的大學」vs「SDG2對應的大學」
     q_norm = question.replace(" ", "").replace("　", "")
     hits = sum(1 for t in tokens if t in q_norm)
     return hits / len(tokens)

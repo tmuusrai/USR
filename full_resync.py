@@ -198,7 +198,8 @@ for num in range(1, 18):
         continue
     uni_set = {p[0] for p in plans}
     q_line  = (f"Q: SDG{num}有哪些計畫|SDG{num}對應的大學|SDG{num}的學校|"
-               f"SDG{num}計畫清單|SDG{num}有幾個計畫|SDG{num}幾個|SDG{num}共幾")
+               f"SDG{num}計畫清單|SDG{num}有幾個計畫|SDG{num}幾個|SDG{num}共幾|"
+               f"SDG{num}{name}|SDG{num} {name}")
     a_lines = [f"**SDG{num}「{name}」** 共有 {len(plans)} 個計畫，涉及 {len(uni_set)} 間學校：\n"]
     for i, (uni, plan) in enumerate(plans, 1):
         a_lines.append(f"{i}. **{uni}**　{plan}")
