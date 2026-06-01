@@ -2,9 +2,42 @@
 將 NetworkX 圖轉成 Pyvis 互動 HTML，注入點擊詳情面板。
 """
 import json
+import re
 from pathlib import Path
 import networkx as nx
 from pyvis.network import Network
+
+CONCEPTS_DIR = Path("llm_wiki_data/concepts")
+
+
+def _load_concept_page(concept: str) -> str | None:
+    """讀取 AI 合成的概念百科頁，轉成簡易 HTML 供面板顯示。"""
+    path = CONCEPTS_DIR / f"{concept}.md"
+    if not path.exists():
+        return None
+    try:
+        md = path.read_text(encoding="utf-8")
+    except Exception:
+        return None
+
+    # 簡易 Markdown → HTML
+    lines, html = md.split("\n"), []
+    for line in lines:
+        line = re.sub(r'\[\[([^\]]+)\]\]',
+                      r'<span class="wl">\1</span>', line)
+        if line.startswith("# "):
+            html.append(f'<h2 class="cp-h1">{line[2:].strip()}</h2>')
+        elif line.startswith("## "):
+            html.append(f'<h3 class="cp-h2">{line[3:].strip()}</h3>')
+        elif line.startswith("- ") or line.startswith("* "):
+            html.append(f'<li>{line[2:].strip()}</li>')
+        elif line.startswith("**") and line.endswith("**"):
+            html.append(f'<b>{line[2:-2]}</b>')
+        elif line.strip() == "":
+            html.append("<br>")
+        else:
+            html.append(f'<p>{line.strip()}</p>')
+    return "\n".join(html)
 
 OUTPUT_HTML = Path("static/wiki_map.html")
 
@@ -133,6 +166,19 @@ def render_wiki_map(G: nx.DiGraph, output: Path = OUTPUT_HTML) -> Path:
                 "unis": data.get("unis", [])[:30],
             }
 
+        elif ntype == "concept":
+            cnt  = data.get("count", 0)
+            size = base_size + min(cnt * 0.8, 16)
+            label = node
+            title = f"【概念】{node}｜{cnt} 所學校"
+            page_html = _load_concept_page(node)
+            node_meta[node] = {
+                "type": "concept", "name": node,
+                "count": cnt,
+                "unis": data.get("unis", [])[:20],
+                "page": page_html,
+            }
+
         else:
             size  = base_size
             label = node
@@ -247,6 +293,18 @@ function openPanel(nodeId) {{
       html += '<div style="padding:5px 0;border-bottom:1px solid #1a1a30;color:#bbb;font-size:.82rem">▪ ' + u + '</div>';
     }});
     html += '</div>';
+  }} else if (m.type === 'concept') {{
+    if (m.page) {{
+      html += '<style>.cp-h1{{color:#a8dadc;font-size:1rem;margin:8px 0 4px}}.cp-h2{{color:#7ecfd0;font-size:.88rem;margin:10px 0 4px;border-bottom:1px solid #2a2a4a;padding-bottom:3px}}.wl{{color:#4f86c6;font-weight:600}}li{{margin:3px 0 3px 12px;color:#bbb;font-size:.82rem}}p{{color:#ccc;font-size:.82rem;margin:3px 0;line-height:1.6}}</style>';
+      html += m.page;
+    }} else {{
+      html += '<p style="color:#888;margin-bottom:12px">出現在 <b style="color:#fff">' + m.count + '</b> 所學校的計畫</p>';
+      html += '<div style="border-top:1px solid #223;padding-top:10px">';
+      (m.unis||[]).forEach(function(u) {{
+        html += '<div style="padding:5px 0;border-bottom:1px solid #1a1a30;color:#bbb;font-size:.82rem">▪ ' + u + '</div>';
+      }});
+      html += '</div>';
+    }}
   }}
   body.innerHTML = html;
   document.getElementById('wm-panel').style.right = '0';
