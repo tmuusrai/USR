@@ -255,10 +255,36 @@ function openPanel(nodeId) {{
 // 等 vis.js network 初始化完成後掛上事件
 (function waitForNetwork() {{
   if (typeof network !== 'undefined') {{
-    // 穩定後關閉物理引擎，停止抖動
-    network.on('stabilizationIterationsDone', function() {{
+    var _freezeTimer = null;
+
+    function freeze() {{
       network.setOptions({{ physics: false }});
+    }}
+
+    // 初始穩定後凍結
+    network.on('stabilizationIterationsDone', function() {{
+      freeze();
     }});
+
+    // 拖動時短暫開啟物理，讓連結節點跟著微動
+    network.on('dragStart', function() {{
+      if (_freezeTimer) clearTimeout(_freezeTimer);
+      network.setOptions({{ physics: {{
+        enabled: true,
+        forceAtlas2Based: {{
+          gravitationalConstant: -40,
+          springLength: 160,
+          springConstant: 0.04,
+          damping: 0.9
+        }}
+      }} }});
+    }});
+
+    // 放開後 1 秒讓它靜止，再凍結
+    network.on('dragEnd', function() {{
+      _freezeTimer = setTimeout(freeze, 1000);
+    }});
+
     network.on('click', function(params) {{
       if (params.nodes.length > 0) {{
         openPanel(params.nodes[0]);

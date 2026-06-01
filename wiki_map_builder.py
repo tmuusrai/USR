@@ -124,18 +124,16 @@ def _parse_llm_wiki_md(text: str) -> dict:
                 if locs:
                     result["region"] = locs[0]
 
-    # 核心概念與連結 section — 提取所有 [[概念]] 標籤
-    core_m = re.search(r'##\s*核心概念與連結(.+?)(?:^##|\Z)',
-                       text, re.DOTALL | re.MULTILINE)
-    if core_m:
-        section = core_m.group(1)
-        all_tags = re.findall(r'\[\[([^\]]+)\]\]', section)
-        for tag in all_tags:
-            if (tag not in _SKIP_CONCEPTS
-                    and not _SDG_RE.match(tag)
-                    and tag not in TOPICS
-                    and tag not in result["concepts"]):
-                result["concepts"].append(tag)
+    # 全文掃描所有 [[wikilinks]]（包含敘述段落的 inline links）
+    already = set(result["concepts"]) | set(TOPICS) | _SKIP_CONCEPTS
+    already.add(result["uni"])
+    already.add(result["plan"])
+    for tag in re.findall(r'\[\[([^\]]+)\]\]', text):
+        if (tag not in already
+                and not _SDG_RE.match(tag)
+                and len(tag) >= 2):
+            result["concepts"].append(tag)
+            already.add(tag)
 
     return result
 
