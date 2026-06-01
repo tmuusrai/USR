@@ -24,6 +24,8 @@ from langchain_core.embeddings import Embeddings
 
 load_dotenv()
 
+from structured_qa import init_qa, try_structured_answer
+
 app = Flask(__name__)
 CORS(app)
 app.secret_key = os.getenv("SECRET_KEY", os.urandom(32))
@@ -99,10 +101,11 @@ def load_or_build_index() -> FAISS:
             allow_dangerous_deserialization=True,
         )
 
-    print("[INDEX] 未找到索引，開始從 PDF 建立...")
-    pdf_files = list(PDF_DIR.rglob("*.pdf"))
-    if not pdf_files:
-        raise FileNotFoundError(f"pdfs/ 資料夾中沒有 PDF 檔案，請先放入計畫書。")
+    print("[INDEX] 未找到索引，開始建立...")
+    pdf_files = list(PDF_DIR.rglob("*.pdf")) if PDF_DIR.exists() else []
+    txt_files_check = list(TXT_DIR.rglob("*.txt")) if TXT_DIR.exists() else []
+    if not pdf_files and not txt_files_check:
+        raise FileNotFoundError(f"pdfs/ 和 114txt/ 資料夾中都沒有檔案，請先放入計畫書。")
 
     docs = []
     for pdf_path in pdf_files:
@@ -172,6 +175,8 @@ except FileNotFoundError as e:
     retriever   = None
     print(f"[APP] 警告：{e}")
 
+init_qa(TXT_DIR)
+
 
 # ── 路由 ──────────────────────────────────────────────
 @app.route("/")
@@ -217,15 +222,22 @@ def ask():
         try:
             t0 = time.perf_counter()
 
-            # ① Voyage AI：將問題向量化
-            query_vec = embeddings.embed_query(question)
-            t_voyage = time.perf_counter()
+            # ① 結構化 QA 優先（列舉型問題不走 FAISS）
+            structured_ctx = try_structured_answer(question)
+            if structured_ctx:
+                t_voyage = t_faiss = time.perf_counter()
+                docs = []
+                context = structured_ctx
+            else:
+                # ① Voyage AI：將問題向量化
+                query_vec = embeddings.embed_query(question)
+                t_voyage = time.perf_counter()
 
-            # ② FAISS：向量搜尋
-            docs = vectorstore.similarity_search_by_vector(query_vec, k=TOP_K)
-            t_faiss = time.perf_counter()
+                # ② FAISS：向量搜尋
+                docs = vectorstore.similarity_search_by_vector(query_vec, k=TOP_K)
+                t_faiss = time.perf_counter()
 
-            context = "\n\n".join(doc.page_content for doc in docs)
+                context = "\n\n".join(doc.page_content for doc in docs)
             prompt_value = RAG_PROMPT.invoke({"context": context, "question": question})
 
             sources = []
@@ -349,6 +361,13 @@ def react_agent_stream(question: str, max_steps: int = 5):
     import re
     from langchain_core.messages import HumanMessage
 
+    # ── 結構化 QA 短路：列舉型問題直接回傳，不呼叫 FAISS ──
+    structured_ctx = try_structured_answer(question)
+    if structured_ctx:
+        yield "sources", []
+        yield "answer", structured_ctx
+        return
+
     all_sources = []
     seen_sources = set()
 
@@ -467,6 +486,16 @@ def subagent_ask():
 
         try:
             t_start = time.perf_counter()
+
+            # ── 結構化 QA 短路 ──
+            structured_ctx = try_structured_answer(question)
+            if structured_ctx:
+                yield f"data: {json.dumps({'type': 'sources', 'sources': []}, ensure_ascii=False)}\n\n"
+                yield f"data: {json.dumps({'type': 'chunk', 'text': structured_ctx}, ensure_ascii=False)}\n\n"
+                total_ms = round((time.perf_counter() - t_start) * 1000)
+                yield f"data: {json.dumps({'type': 'done', 'timing': {'total_ms': total_ms}, 'mode': 'structured'})}\n\n"
+                return
+
             yield f"data: {json.dumps({'type': 'status', 'text': '🔍 分析問題，規劃 subagent 搜尋策略...'}, ensure_ascii=False)}\n\n"
 
             # ── 步驟 1：規劃搜尋詞（背景執行緒 + keepalive，應對 Gemini 思考階段）──
