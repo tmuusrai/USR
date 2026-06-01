@@ -1,111 +1,65 @@
 """
 Wiki Map Builder
-讀取 114md/ 的計畫書 → LLM 提取實體與關係 → NetworkX 有向圖
-結果快取到 wiki_graph_cache.json，避免重複呼叫 LLM。
+直接解析 114md/ 的計畫書結構化欄位（學校、SDG、議題、場域）→ NetworkX 有向圖。
+不使用 LLM，速度快（< 10 秒），結果快取到 wiki_graph_cache.json。
 """
 import json
-import os
 import re
 from pathlib import Path
 
 import networkx as nx
-from dotenv import load_dotenv
-from langchain_core.messages import HumanMessage
-from langchain_google_genai import ChatGoogleGenerativeAI
-
-load_dotenv()
 
 MD_DIR     = Path("114md")
 CACHE_FILE = Path("wiki_graph_cache.json")
 
-# ── LLM ───────────────────────────────────────────────
-llm = ChatGoogleGenerativeAI(
-    model=os.getenv("LLM_MODEL", "gemini-2.5-pro-preview"),
-    google_api_key=os.getenv("GOOGLE_API_KEY"),
-    temperature=0.0,
-)
+TOPICS = [
+    "在地關懷", "環境永續", "產業鏈結與經濟永續",
+    "健康促進與食品安全", "文化永續", "其他社會實踐",
+]
 
-# ── Prompt ────────────────────────────────────────────
-EXTRACT_PROMPT = """你是知識圖譜專家。請閱讀以下 USR 計畫書，提取重要實體與關係。
-
-【實體類型】
-- university  學校名稱
-- plan        計畫名稱
-- sdg         SDG目標（如 SDG3、SDG8）
-- topic       計畫議題（如 高齡照護、地方創生、食農教育）
-- region      實踐場域地名（如 臺南、花蓮、屏東）
-- keyword     關鍵方法或技術（如 智慧農業、青銀共創、循環經濟）
-
-【關係類型】
-- executes       學校執行計畫
-- contributes_to 計畫對應SDG目標
-- focuses_on     計畫聚焦議題
-- located_in     計畫場域所在地
-- uses           計畫採用的方法/技術
-
-【輸出規則】
-- 只輸出 JSON 陣列，不要任何其他文字、解釋或 markdown 標記
-- 每筆格式：{"source":"A","source_type":"university","target":"B","target_type":"plan","relationship":"executes"}
-- source 和 target 都必須是具體名詞，不超過 15 個字
-- 最多輸出 30 筆關係
-
-【計畫書內容】
-{text}
-"""
+SDG_NAMES = {
+    1:"消除貧窮", 2:"零飢餓", 3:"良好健康與福祉", 4:"優質教育",
+    5:"性別平等", 6:"乾淨用水及衛生", 7:"可負擔及乾淨能源",
+    8:"合宜工作與經濟成長", 9:"產業創新與基礎設施", 10:"減少不平等",
+    11:"永續城市及社區", 12:"負責任的消費及生產", 13:"氣候行動",
+    14:"水下生物", 15:"陸地生物", 16:"和平正義與強大機構", 17:"全球夥伴關係",
+}
 
 
-# ── 單份文件提取 ──────────────────────────────────────
-def _extract_relations(text: str, filename: str) -> list[dict]:
-    """呼叫 LLM 從一份計畫書中提取實體關係，回傳 list of dicts。"""
-    # 只取前 3000 字元，避免 token 爆炸
-    snippet = text[:3000]
-    try:
-        res = llm.invoke([HumanMessage(content=EXTRACT_PROMPT.format(text=snippet))])
-        raw = res.content
-        if isinstance(raw, list):
-            raw = "".join(b.get("text", "") if isinstance(b, dict) else str(b) for b in raw)
-        # 取出 JSON 陣列部分
-        m = re.search(r'\[.*\]', raw, re.DOTALL)
-        if not m:
-            print(f"  [WARN] {filename}：LLM 未回傳 JSON")
-            return []
-        relations = json.loads(m.group())
-        return [r for r in relations if isinstance(r, dict)
-                and "source" in r and "target" in r and "relationship" in r]
-    except Exception as e:
-        print(f"  [WARN] {filename} 提取失敗：{e}")
-        return []
+def _parse_md(text: str) -> dict:
+    """從 MD 檔前 40 行解析結構化欄位。"""
+    result = {"uni": "", "plan": "", "sdgs": [], "topics": [], "region": ""}
+    lines = text.split("\n")[:40]
 
+    for line in lines:
+        # 學校名稱
+        if not result["uni"]:
+            m = re.match(r'(?:申請學校|學校名稱)[　\s:：]+(.+)', line)
+            if m:
+                result["uni"] = m.group(1).strip()
 
-# ── 批次處理所有 MD 檔 ────────────────────────────────
-def build_relations(max_files: int = 50) -> list[dict]:
-    """
-    讀取 114md/ 的 MD 檔，逐一呼叫 LLM 提取關係。
-    max_files：限制處理數量（節省 API 費用），設 0 表示全部。
-    結果快取到 wiki_graph_cache.json。
-    """
-    if CACHE_FILE.exists():
-        print(f"[WIKI] 載入快取 {CACHE_FILE}")
-        return json.loads(CACHE_FILE.read_text(encoding="utf-8"))
+        # 計畫名稱
+        if not result["plan"]:
+            m = re.match(r'計畫名稱[　\s:：]+(.+)', line)
+            if m:
+                result["plan"] = m.group(1).strip()[:40]
 
-    md_files = sorted(MD_DIR.rglob("*.md"))
-    if max_files:
-        md_files = md_files[:max_files]
-    print(f"[WIKI] 處理 {len(md_files)} 份文件...")
+        # SDG 號碼（從 SDGs關聯議題 行）
+        if not result["sdgs"] and "SDG" in line and ("關聯" in line or "sdg" in line.lower()):
+            nums = re.findall(r'(?<!\d)([1-9]|1[0-7])(?!\d)', line)
+            result["sdgs"] = sorted({int(n) for n in nums})
 
-    all_relations: list[dict] = []
-    for i, path in enumerate(md_files):
-        print(f"  [{i+1}/{len(md_files)}] {path.name}")
-        text = _safe_read(path)
-        if not text:
-            continue
-        relations = _extract_relations(text, path.name)
-        all_relations.extend(relations)
+        # 計畫議題
+        if not result["topics"] and "計畫議題" in line:
+            result["topics"] = [t for t in TOPICS if t in line]
 
-    CACHE_FILE.write_text(json.dumps(all_relations, ensure_ascii=False, indent=2),
-                          encoding="utf-8")
-    print(f"[WIKI] 完成，共 {len(all_relations)} 筆關係，已存入 {CACHE_FILE}")
-    return all_relations
+        # 實踐場域（縣市）
+        if not result["region"] and "實踐場域" in line:
+            m = re.search(r'縣市[：:]\s*([^\s，,。]+[縣市])', line)
+            if m:
+                result["region"] = m.group(1).strip()
+
+    return result
 
 
 def _safe_read(path: Path) -> str | None:
@@ -117,12 +71,88 @@ def _safe_read(path: Path) -> str | None:
     return None
 
 
-# ── 建立 NetworkX 有向圖 ──────────────────────────────
-def build_graph(relations: list[dict]) -> nx.DiGraph:
-    """將關係清單轉成 NetworkX 有向圖，節點帶 type 屬性。"""
-    G = nx.DiGraph()
+def build_relations(max_files: int = 0) -> list[dict]:
+    """
+    解析 114md/ 的 MD 檔，回傳關係清單。
+    max_files=0 表示全部處理。結果快取到 wiki_graph_cache.json。
+    """
+    if CACHE_FILE.exists():
+        print(f"[WIKI] 載入快取 {CACHE_FILE}")
+        return json.loads(CACHE_FILE.read_text(encoding="utf-8"))
 
-    # 節點顏色對應類型
+    md_files = sorted(MD_DIR.rglob("*.md"))
+    if max_files:
+        md_files = md_files[:max_files]
+    print(f"[WIKI] 解析 {len(md_files)} 份文件...")
+
+    all_relations: list[dict] = []
+
+    for path in md_files:
+        text = _safe_read(path)
+        if not text:
+            continue
+
+        d = _parse_md(text)
+        uni  = d["uni"]
+        plan = d["plan"]
+
+        # 嘗試從檔名補齊
+        if not uni or not plan:
+            stem = path.stem
+            if "_" in stem:
+                uni_f, plan_f = stem.split("_", 1)
+                plan_f = re.sub(r'\s*\([\w\-]+\)\s*', ' ', plan_f).strip()
+                plan_f = re.sub(r'\s*\(\d+\)\s*$', '', plan_f).strip()
+                if not uni:
+                    uni = uni_f
+                if not plan:
+                    plan = plan_f[:40]
+
+        if not uni or not plan:
+            continue
+
+        # 學校 → 計畫
+        all_relations.append({
+            "source": uni, "source_type": "university",
+            "target": plan, "target_type": "plan",
+            "relationship": "executes",
+        })
+
+        # 計畫 → SDG
+        for n in d["sdgs"]:
+            sdg_label = f"SDG{n}"
+            all_relations.append({
+                "source": plan, "source_type": "plan",
+                "target": sdg_label, "target_type": "sdg",
+                "relationship": "contributes_to",
+            })
+
+        # 計畫 → 議題
+        for topic in d["topics"]:
+            all_relations.append({
+                "source": plan, "source_type": "plan",
+                "target": topic, "target_type": "topic",
+                "relationship": "focuses_on",
+            })
+
+        # 計畫 → 場域
+        if d["region"]:
+            all_relations.append({
+                "source": plan, "source_type": "plan",
+                "target": d["region"], "target_type": "region",
+                "relationship": "located_in",
+            })
+
+    CACHE_FILE.write_text(
+        json.dumps(all_relations, ensure_ascii=False, indent=2),
+        encoding="utf-8",
+    )
+    print(f"[WIKI] 完成，共 {len(all_relations)} 筆關係，已存入 {CACHE_FILE}")
+    return all_relations
+
+
+def build_graph(relations: list[dict]) -> nx.DiGraph:
+    """將關係清單轉成 NetworkX 有向圖。"""
     TYPE_COLOR = {
         "university": "#4f86c6",
         "plan":       "#f4a261",
@@ -132,28 +162,25 @@ def build_graph(relations: list[dict]) -> nx.DiGraph:
         "keyword":    "#a8dadc",
     }
 
+    G = nx.DiGraph()
     for r in relations:
         src, tgt = r["source"].strip(), r["target"].strip()
         if not src or not tgt or src == tgt:
             continue
-
         src_type = r.get("source_type", "keyword")
         tgt_type = r.get("target_type", "keyword")
-
         if src not in G:
             G.add_node(src, type=src_type, color=TYPE_COLOR.get(src_type, "#ccc"))
         if tgt not in G:
             G.add_node(tgt, type=tgt_type, color=TYPE_COLOR.get(tgt_type, "#ccc"))
-
         G.add_edge(src, tgt, relationship=r.get("relationship", "related_to"))
 
     print(f"[WIKI] 圖譜：{G.number_of_nodes()} 個節點，{G.number_of_edges()} 條邊")
     return G
 
 
-# ── 主程式（獨立執行時使用）─────────────────────────
 if __name__ == "__main__":
-    relations = build_relations(max_files=30)
+    relations = build_relations()
     G = build_graph(relations)
     print("節點範例：", list(G.nodes(data=True))[:3])
     print("邊範例：",   list(G.edges(data=True))[:3])

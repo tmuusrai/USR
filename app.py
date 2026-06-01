@@ -647,47 +647,74 @@ def rebuild_index():
         return jsonify({"error": "索引重建失敗。"}), 500
 
 
+_wiki_building = False
+
+
+def _build_wiki_background():
+    global _wiki_building
+    try:
+        from wiki_map_builder import build_relations, build_graph
+        from wiki_map_render import render_wiki_map
+        relations = build_relations()
+        G = build_graph(relations)
+        out = Path("static/wiki_map.html")
+        out.parent.mkdir(exist_ok=True)
+        render_wiki_map(G, output=out)
+        print(f"[WIKI] 背景建立完成：{G.number_of_nodes()} 節點，{G.number_of_edges()} 邊")
+    except Exception as e:
+        import traceback
+        print(f"[WIKI] 背景建立失敗：{e}")
+        print(traceback.format_exc())
+    finally:
+        _wiki_building = False
+
+
 @app.route("/wiki-map")
 def wiki_map_page():
+    global _wiki_building
     authenticated = not SITE_PASSWORD or session.get("authenticated", False)
     if SITE_PASSWORD and not authenticated:
         return redirect(url_for("index"))
 
-    cache_file = Path("wiki_graph_cache.json")
-    html_file  = Path("static/wiki_map.html")
+    html_file = Path("static/wiki_map.html")
 
-    # 若快取和 HTML 都存在，直接回傳
-    if html_file.exists() and cache_file.exists():
+    if html_file.exists():
         return html_file.read_text(encoding="utf-8")
 
-    # 還沒建立，回傳等待頁面
+    # 自動在背景觸發建立（只啟動一次）
+    if not _wiki_building:
+        _wiki_building = True
+        t = threading.Thread(target=_build_wiki_background, daemon=True)
+        t.start()
+
     return """<!DOCTYPE html><html lang="zh-Hant"><head><meta charset="UTF-8">
 <title>Wiki Map 建置中</title>
-<meta http-equiv="refresh" content="5;url=/wiki-map">
+<meta http-equiv="refresh" content="4;url=/wiki-map">
 <style>body{font-family:sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;margin:0;background:#1a1a2e;color:#e0e0e0;flex-direction:column;gap:16px}
 .spinner{width:48px;height:48px;border:5px solid #334;border-top-color:#4f86c6;border-radius:50%;animation:spin 1s linear infinite}
 @keyframes spin{to{transform:rotate(360deg)}}</style></head>
-<body><div class="spinner"></div><p>知識地圖建置中，請稍候（首次約需 2-5 分鐘）...</p>
+<body><div class="spinner"></div><p>知識地圖建置中，請稍候（首次約需 20–30 秒）…</p>
 <p style="font-size:.8rem;color:#666">頁面將自動重新整理</p></body></html>"""
 
 
 @app.route("/api/wiki-map-build", methods=["POST"])
 def wiki_map_build():
-    """觸發 Wiki Map 建立（LLM 提取 + Pyvis 渲染）。"""
+    """手動觸發 Wiki Map 重建（會刪除快取後重新產生）。"""
     if SITE_PASSWORD and not session.get("authenticated"):
         return jsonify({"error": "請先登入。"}), 401
-    try:
-        from wiki_map_builder import build_relations, build_graph
-        from wiki_map_render import render_wiki_map
-        relations = build_relations(max_files=50)
-        G = build_graph(relations)
-        out = Path("static/wiki_map.html")
-        render_wiki_map(G, output=out)
-        return jsonify({"ok": True, "nodes": G.number_of_nodes(), "edges": G.number_of_edges()})
-    except Exception as e:
-        import traceback
-        print(traceback.format_exc())
-        return jsonify({"error": str(e)}), 500
+    # 刪除快取，強制重建
+    cache = Path("wiki_graph_cache.json")
+    if cache.exists():
+        cache.unlink()
+    html = Path("static/wiki_map.html")
+    if html.exists():
+        html.unlink()
+    global _wiki_building
+    if not _wiki_building:
+        _wiki_building = True
+        t = threading.Thread(target=_build_wiki_background, daemon=True)
+        t.start()
+    return jsonify({"ok": True, "message": "重建已啟動，請稍後重整 /wiki-map"})
 
 
 @app.route("/warmup")
