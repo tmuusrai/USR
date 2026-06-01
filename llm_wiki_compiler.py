@@ -46,7 +46,7 @@ LOG_PATH = Path("llm_wiki_compiler.log")
 
 # ── 模型（可用環境變數或 --model 覆蓋）──────────────────
 DEFAULT_MODEL = os.getenv("WIKI_COMPILER_MODEL",
-                           os.getenv("LLM_MODEL", "gemini-2.5-pro-preview"))
+                           os.getenv("LLM_MODEL", "gemini-2.5-flash"))
 GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
 
 # 每份計畫書取前 N 字元送給 LLM（節省 token）
