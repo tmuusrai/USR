@@ -25,6 +25,7 @@ from langchain_core.embeddings import Embeddings
 load_dotenv()
 
 from structured_qa import init_qa, try_structured_answer
+from wiki_retriever import WikiRetriever
 
 app = Flask(__name__)
 CORS(app)
@@ -73,22 +74,51 @@ embeddings = _CachedEmbeddings(_base_embeddings)
 # ── RAG Prompt ────────────────────────────────────────
 RAG_PROMPT = PromptTemplate(
     input_variables=["context", "question"],
-    template="""你是一位熟悉大學 USR（University Social Responsibility）社會責任計畫的專業助理。
-請根據以下從計畫書中擷取的內容來回答問題。
+    template="""你是一位熟悉台灣大學 USR（University Social Responsibility）社會責任計畫的專業助理。
+以下是從 USR 知識庫中找到的相關頁面（包含概念百科與計畫 Wiki）：
 
-【計畫書內容】
 {context}
 
 【問題】
 {question}
 
 【回答規則】
-- 只根據上方提供的計畫書內容回答，不要自行推測或補充計畫書未提及的內容。
-- 若計畫書內容不足以回答問題，請誠實說明「計畫書中未找到相關資訊」。
-- 回答請使用繁體中文，條理清晰。
+- 整合上方所有頁面的資訊來回答問題。
+- 若知識庫中沒有足夠資訊，請誠實說明。
+- 使用繁體中文，條理清晰。
 
 回答：""",
 )
+
+# ── Wiki Retriever（全域，懶初始化）──────────────────
+_wiki_retriever: WikiRetriever | None = None
+
+
+def _get_wiki_retriever() -> WikiRetriever:
+    global _wiki_retriever
+    if _wiki_retriever is None:
+        _wiki_retriever = WikiRetriever()
+    return _wiki_retriever
+
+
+def _wiki_context(pages: list[dict], char_limit: int = 1800) -> tuple[str, list]:
+    """把 wiki 頁面格式化成 LLM context 字串與 sources 列表。"""
+    parts, sources = [], []
+    for p in pages:
+        label = "概念百科" if p["type"] == "concept" else "計畫Wiki"
+        content = p["content"][:char_limit]
+        parts.append(f"【{label}：{p['title']}】\n{content}")
+        sources.append({"source": p["title"], "page": label})
+    return "\n\n---\n\n".join(parts), sources
+
+
+def tool_search_wiki(query: str, k: int = 5) -> tuple[str, list]:
+    """Wiki-native BM25 search；回傳 (觀察文字, sources列表)。"""
+    pages = _get_wiki_retriever().retrieve(query, top_k=k)
+    if not pages:
+        return "查無相關資料", []
+    context, sources = _wiki_context(pages, char_limit=600)
+    return context, sources
 
 
 def load_or_build_index() -> FAISS:
@@ -223,9 +253,6 @@ def ask():
     if SITE_PASSWORD and not session.get("authenticated"):
         return jsonify({"error": "請先登入。"}), 401
 
-    if retriever is None:
-        return jsonify({"error": "索引尚未建立，請先將 PDF 放入 pdfs/ 資料夾後重啟伺服器。"}), 503
-
     data = request.get_json(silent=True) or {}
     question = (data.get("question") or "").strip()
 
@@ -238,7 +265,7 @@ def ask():
         try:
             t0 = time.perf_counter()
 
-            # ① 結構化 QA 優先（列舉型問題直接回傳，不走 FAISS / LLM）
+            # ① 結構化 QA 優先（列舉型問題直接回傳，不走 Wiki / LLM）
             structured_ctx = try_structured_answer(question)
             if structured_ctx:
                 yield f"data: {json.dumps({'type': 'sources', 'sources': []}, ensure_ascii=False)}\n\n"
@@ -246,34 +273,22 @@ def ask():
                 total_ms = round((time.perf_counter() - t0) * 1000)
                 yield f"data: {json.dumps({'type': 'done', 'timing': {'total_ms': total_ms}, 'mode': 'structured'})}\n\n"
                 return
-            else:
-                # ① Voyage AI：將問題向量化
-                query_vec = embeddings.embed_query(question)
-                t_voyage = time.perf_counter()
 
-                # ② FAISS：向量搜尋
-                docs = vectorstore.similarity_search_by_vector(query_vec, k=TOP_K)
-                t_faiss = time.perf_counter()
+            # ② Wiki BM25 檢索
+            pages = _get_wiki_retriever().retrieve(question, top_k=6)
+            t_wiki = time.perf_counter()
 
-                context = "\n\n".join(doc.page_content for doc in docs)
+            context, sources = _wiki_context(pages, char_limit=1800)
+            if not context:
+                context = "查無相關資料"
+
             prompt_value = RAG_PROMPT.invoke({"context": context, "question": question})
-
-            sources = []
-            seen = set()
-            for doc in docs:
-                meta = doc.metadata
-                src  = Path(meta.get("source", "")).name
-                page = meta.get("page", 0) + 1
-                if (src, page) not in seen:
-                    seen.add((src, page))
-                    sources.append({"source": src, "page": page})
 
             yield f"data: {json.dumps({'type': 'sources', 'sources': sources}, ensure_ascii=False)}\n\n"
 
             # ③ LLM：串流生成
             answer_chars = 0
             t_first_chunk = None
-            t_gemini_start = time.perf_counter()
             for chunk in llm.stream(prompt_value):
                 content = chunk.content
                 if isinstance(content, list):
@@ -292,24 +307,19 @@ def ask():
                 t_first_chunk = t_end
 
             prompt_chars = len(prompt_value.to_string())
-            total_chars = prompt_chars + answer_chars
-            print(f"[TOKEN] 輸入={prompt_chars}字元(~{prompt_chars//2}tokens) 輸出={answer_chars}字元(~{answer_chars//2}tokens) 合計~{total_chars//2}tokens")
-
+            print(f"[TOKEN] 輸入={prompt_chars}字元(~{prompt_chars//2}tokens) 輸出={answer_chars}字元(~{answer_chars//2}tokens)")
             timing = {
-                "voyage_ms":      round((t_voyage - t0) * 1000),
-                "faiss_ms":       round((t_faiss - t_voyage) * 1000),
-                "llm_first_ms":   round((t_first_chunk - t_faiss) * 1000),
-                "llm_total_ms":   round((t_end - t_faiss) * 1000),
-                "total_ms":       round((t_end - t0) * 1000),
+                "wiki_ms":      round((t_wiki - t0) * 1000),
+                "llm_first_ms": round((t_first_chunk - t_wiki) * 1000),
+                "llm_total_ms": round((t_end - t_wiki) * 1000),
+                "total_ms":     round((t_end - t0) * 1000),
             }
             print(
-                f"[TIMING] Voyage={timing['voyage_ms']}ms"
-                f" | FAISS={timing['faiss_ms']}ms"
+                f"[TIMING] Wiki={timing['wiki_ms']}ms"
                 f" | LLM首字={timing['llm_first_ms']}ms"
                 f" | LLM完成={timing['llm_total_ms']}ms"
                 f" | 總計={timing['total_ms']}ms"
             )
-
             yield f"data: {json.dumps({'type': 'done', 'timing': timing})}\n\n"
 
         except Exception as e:
@@ -408,7 +418,7 @@ def react_agent_stream(question: str, max_steps: int = 5):
     for i, query in enumerate(queries[:3]):
         yield "step", {"step": i + 1, "preview": f"搜尋：{str(query)[:80]}"}
         try:
-            observation, sources = tool_search_rag(str(query), k=5)
+            observation, sources = tool_search_wiki(str(query), k=5)
             all_context.append(f"【搜尋 {i+1}：{query}】\n{observation}")
             for s in sources:
                 key = (s["source"], s["page"])
@@ -442,9 +452,6 @@ def react_agent_stream(question: str, max_steps: int = 5):
 def agent_ask():
     if SITE_PASSWORD and not session.get("authenticated"):
         return jsonify({"error": "請先登入。"}), 401
-
-    if vectorstore is None:
-        return jsonify({"error": "索引尚未建立。"}), 503
 
     data = request.get_json(silent=True) or {}
     question = (data.get("question") or "").strip()
@@ -488,9 +495,6 @@ def agent_ask():
 def subagent_ask():
     if SITE_PASSWORD and not session.get("authenticated"):
         return jsonify({"error": "請先登入。"}), 401
-    if vectorstore is None:
-        return jsonify({"error": "索引尚未建立。"}), 503
-
     data = request.get_json(silent=True) or {}
     question = (data.get("question") or "").strip()
     if not question:
@@ -559,7 +563,7 @@ def subagent_ask():
             def _run_subagent(idx_query):
                 idx, query = idx_query
                 try:
-                    obs, srcs = tool_search_rag(query, k=5)
+                    obs, srcs = tool_search_wiki(query, k=5)
                     return idx, query, obs, srcs
                 except Exception as e:
                     print(f"[SUBAGENT] subagent {idx+1} 失敗：{e}")
@@ -752,10 +756,12 @@ def warmup():
 def status():
     """健康檢查：確認系統是否就緒。"""
     pdf_count = len(list(PDF_DIR.rglob("*.pdf"))) if PDF_DIR.exists() else 0
+    wiki_count = len(list(LLM_WIKI_DIR.rglob("*.md"))) if LLM_WIKI_DIR.exists() else 0
     index_ready = (INDEX_DIR / "index.faiss").exists()
     return jsonify({
-        "ready":      retriever is not None,
+        "ready":      wiki_count > 0,
         "pdf_count":  pdf_count,
+        "wiki_count": wiki_count,
         "index_ready": index_ready,
     })
 
