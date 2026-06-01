@@ -66,7 +66,7 @@ def render_wiki_map(G: nx.DiGraph, output: Path = OUTPUT_HTML) -> Path:
           "damping": 0.6
         },
         "solver": "forceAtlas2Based",
-        "stabilization": { "iterations": 200, "updateInterval": 25 }
+        "stabilization": { "iterations": 300, "updateInterval": 50, "fit": true }
       },
       "interaction": {
         "hover": true,
@@ -252,9 +252,13 @@ function openPanel(nodeId) {{
   document.getElementById('wm-panel').style.right = '0';
 }}
 
-// 等 vis.js network 初始化完成後掛上 click 事件
+// 等 vis.js network 初始化完成後掛上事件
 (function waitForNetwork() {{
   if (typeof network !== 'undefined') {{
+    // 穩定後關閉物理引擎，停止抖動
+    network.on('stabilizationIterationsDone', function() {{
+      network.setOptions({{ physics: false }});
+    }});
     network.on('click', function(params) {{
       if (params.nodes.length > 0) {{
         openPanel(params.nodes[0]);
