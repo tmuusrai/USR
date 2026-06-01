@@ -42,6 +42,7 @@ TOP_K           = int(os.getenv("TOP_K_RESULTS", 10))
 PDF_DIR         = Path("pdfs")
 EXTRA_DIR       = Path("extra_docs")
 TXT_DIR         = Path("114txt")
+MD_DIR          = Path("114md")
 INDEX_DIR       = Path("faiss_index")
 
 # ── Embedding 模型（全域共用，避免重複初始化）──────────
@@ -103,9 +104,9 @@ def load_or_build_index() -> FAISS:
 
     print("[INDEX] 未找到索引，開始建立...")
     pdf_files = list(PDF_DIR.rglob("*.pdf")) if PDF_DIR.exists() else []
-    txt_files_check = list(TXT_DIR.rglob("*.txt")) if TXT_DIR.exists() else []
-    if not pdf_files and not txt_files_check:
-        raise FileNotFoundError(f"pdfs/ 和 114txt/ 資料夾中都沒有檔案，請先放入計畫書。")
+    md_files_check = list(MD_DIR.rglob("*.md")) if MD_DIR.exists() else []
+    if not pdf_files and not md_files_check:
+        raise FileNotFoundError(f"pdfs/ 和 114md/ 資料夾中都沒有檔案，請先放入計畫書。")
 
     docs = []
     for pdf_path in pdf_files:
@@ -119,16 +120,16 @@ def load_or_build_index() -> FAISS:
             loader = TextLoader(str(txt_path), encoding="utf-8")
             docs.extend(loader.load())
 
-    if TXT_DIR.exists():
-        txt_files = list(TXT_DIR.rglob("*.txt"))
-        print(f"  114txt/ 資料夾：找到 {len(txt_files)} 個 TXT 檔")
-        for txt_path in txt_files:
-            print(f"  讀取：{txt_path.name}")
+    if MD_DIR.exists():
+        md_files = list(MD_DIR.rglob("*.md"))
+        print(f"  114md/ 資料夾：找到 {len(md_files)} 個 MD 檔")
+        for md_path in md_files:
+            print(f"  讀取：{md_path.name}")
             try:
-                loader = TextLoader(str(txt_path), encoding="utf-8")
+                loader = TextLoader(str(md_path), encoding="utf-8")
                 docs.extend(loader.load())
             except Exception as e:
-                print(f"  [WARN] 跳過 {txt_path.name}：{e}")
+                print(f"  [WARN] 跳過 {md_path.name}：{e}")
 
     splitter = RecursiveCharacterTextSplitter(
         chunk_size=CHUNK_SIZE,
@@ -661,10 +662,10 @@ def _build_km_data():
         nid = f"topic_{t}"
         nodes[nid] = {"id": nid, "type": "topic", "label": t, "count": 0}
 
-    if not TXT_DIR.exists():
+    if not MD_DIR.exists():
         return {"nodes": list(nodes.values()), "links": []}
 
-    for filepath in sorted(TXT_DIR.glob("*.txt")):
+    for filepath in sorted(MD_DIR.glob("*.md")):
         stem = filepath.stem.strip()
         if "計劃總覽" in stem:
             continue
@@ -675,15 +676,7 @@ def _build_km_data():
         else:
             uni, plan = stem, stem
 
-        text = None
-        for enc in ["utf-8-sig", "utf-8", "cp950", "big5"]:
-            try:
-                text = filepath.read_text(encoding=enc)
-                break
-            except Exception:
-                continue
-        if text is None:
-            text = filepath.read_text(encoding="utf-8-sig", errors="ignore")
+        text = filepath.read_text(encoding="utf-8", errors="ignore")
 
         sdg_nums = set()
         topics = set()
@@ -785,10 +778,10 @@ def _build_kw_data():
             "count": 0,
         }
 
-    if not TXT_DIR.exists():
+    if not MD_DIR.exists():
         return {"nodes": list(nodes.values()), "links": []}
 
-    for filepath in sorted(TXT_DIR.glob("*.txt")):
+    for filepath in sorted(MD_DIR.glob("*.md")):
         stem = filepath.stem.strip()
         if "計劃總覽" in stem:
             continue
@@ -799,15 +792,7 @@ def _build_kw_data():
         else:
             uni, plan = stem, stem
 
-        text = None
-        for enc in ["utf-8-sig", "utf-8", "cp950", "big5"]:
-            try:
-                text = filepath.read_text(encoding=enc)
-                break
-            except Exception:
-                continue
-        if text is None:
-            text = filepath.read_text(encoding="utf-8-sig", errors="ignore")
+        text = filepath.read_text(encoding="utf-8", errors="ignore")
 
         matched = []
         for kw_name, keywords in KEYWORD_GROUPS:
