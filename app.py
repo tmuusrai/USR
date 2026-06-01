@@ -238,12 +238,14 @@ def ask():
         try:
             t0 = time.perf_counter()
 
-            # ① 結構化 QA 優先（列舉型問題不走 FAISS）
+            # ① 結構化 QA 優先（列舉型問題直接回傳，不走 FAISS / LLM）
             structured_ctx = try_structured_answer(question)
             if structured_ctx:
-                t_voyage = t_faiss = time.perf_counter()
-                docs = []
-                context = structured_ctx
+                yield f"data: {json.dumps({'type': 'sources', 'sources': []}, ensure_ascii=False)}\n\n"
+                yield f"data: {json.dumps({'type': 'chunk', 'text': structured_ctx}, ensure_ascii=False)}\n\n"
+                total_ms = round((time.perf_counter() - t0) * 1000)
+                yield f"data: {json.dumps({'type': 'done', 'timing': {'total_ms': total_ms}, 'mode': 'structured'})}\n\n"
+                return
             else:
                 # ① Voyage AI：將問題向量化
                 query_vec = embeddings.embed_query(question)
