@@ -41,15 +41,10 @@ body{font-family:"Segoe UI","Noto Sans TC",sans-serif;background:#f5f7fa;height:
 .tab.active{background:#dbeafe;color:#1d4ed8;font-weight:600}
 #search-box{margin-left:auto;padding:7px 13px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:.88rem;outline:none;width:200px;transition:border-color .2s}
 #search-box:focus{border-color:#3b82f6}
-#content{flex:1;overflow-y:auto;padding:0}
-#content::-webkit-scrollbar{width:5px}
-#content::-webkit-scrollbar-thumb{background:#cbd5e1;border-radius:4px}
 
 
-/* TIMING BAR */
-#timing-bar{display:none;background:#fefce8;border-top:2px solid #fde68a;padding:8px 20px;font-family:monospace;font-size:.78rem;color:#78350f;flex-shrink:0;white-space:pre;line-height:1.8}
 /* CHAT */
-#chat-wrap{flex-shrink:0;background:#fff;border-top:1px solid #e2e8f0;padding:14px 20px;min-height:120px;display:flex;flex-direction:column;max-height:min(460px,55vh);overflow:hidden;position:relative}
+#chat-wrap{flex:1;background:#fff;border-top:1px solid #e2e8f0;padding:14px 20px;display:flex;flex-direction:column;overflow:hidden;position:relative}
 #resize-handle{position:absolute;top:0;left:0;right:0;height:6px;cursor:ns-resize;display:flex;align-items:center;justify-content:center;margin:-14px -20px 10px}
 #resize-handle::before{content:"";width:40px;height:3px;background:#cbd5e1;border-radius:999px;transition:background .15s}
 #resize-handle:hover::before{background:#94a3b8}
@@ -62,7 +57,6 @@ body{font-family:"Segoe UI","Noto Sans TC",sans-serif;background:#f5f7fa;height:
 .msg.user{background:#dbeafe;color:#1e3a5f;align-self:flex-end;border-bottom-right-radius:2px}
 .msg.bot{background:#f8fafc;border:1px solid #e2e8f0;color:#1e293b;align-self:flex-start;border-bottom-left-radius:2px;white-space:pre-wrap}
 .msg.loading{color:#94a3b8;font-style:italic;background:#f8fafc;border:1px solid #e2e8f0;align-self:flex-start}
-.msg.timing{background:#fefce8;border:1px solid #fde68a;color:#78350f;align-self:flex-start;font-family:monospace;font-size:.78rem;white-space:pre;line-height:1.7}
 #input-row{display:flex;gap:10px;align-items:flex-end}
 #question{flex:1;padding:10px 14px;border:1.5px solid #cbd5e1;border-radius:10px;font-size:.9rem;resize:none;height:44px;outline:none;transition:border-color .2s;font-family:inherit;line-height:1.4;background:#f8fafc}
 #question:focus{border-color:#3b82f6;background:#fff}
@@ -137,7 +131,7 @@ body{font-family:"Segoe UI","Noto Sans TC",sans-serif;background:#f5f7fa;height:
   #main{width:100%}
   #hero{padding:14px 18px}
   #hero h2{font-size:1rem}
-  #chat-wrap{padding:10px 12px;max-height:min(380px,52vh)}
+  #chat-wrap{padding:10px 12px}
 }
 </style>
 </head>
@@ -310,13 +304,10 @@ body{font-family:"Segoe UI","Noto Sans TC",sans-serif;background:#f5f7fa;height:
 
 <!-- MAIN -->
 <div id="main">
-  <div id="content">
-    <div id="hero">
-      <h2>🎓 USR 智慧問答知識檢索中心</h2>
-      <p>整合全台 101 所大學・257 份社會責任計畫書・語意搜尋・即時 AI 解析</p>
-    </div>
+  <div id="hero">
+    <h2>🎓 USR 智慧問答知識檢索中心</h2>
+    <p>整合全台 101 所大學・257 份社會責任計畫書・語意搜尋・即時 AI 解析</p>
   </div>
-  <div id="timing-bar"></div>
   <div id="chat-wrap">
     <div id="resize-handle" title="拖曳調整大小"></div>
     <div id="messages"></div>
@@ -428,8 +419,6 @@ async function askQuestion() {
   let started = false;
   let answerText = "";
 
-  const t_send = performance.now();
-  let t_sources = null, t_first_chunk = null, t_done = null;
 
   try {
     const res = await fetch(endpoint, {method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({question})});
@@ -467,21 +456,9 @@ async function askQuestion() {
         botEl.textContent = answerText;
         box.scrollTop = box.scrollHeight;
       } else if (evt.type === "sources") {
-        t_sources = performance.now();
         renderRAG(evt.sources || []);
       } else if (evt.type === "done") {
-        t_done = performance.now();
-        const ct = evt.timing || {};
-        const clientTotal = Math.round(t_done - t_send);
-        const bar = document.getElementById("timing-bar");
-        if (ct.mode === "subagent") {
-          bar.textContent = `⚡ SubAgent 模式  │  Subagent 數：${ct.subagent_count}  │  平行搜尋：${ct.search_ms ?? "—"} ms  │  總計：${ct.total_ms ?? "—"} ms  │  Client：${clientTotal} ms`;
-        } else if (ct.agent_steps !== undefined) {
-          bar.textContent = `🤖 Agent 模式  │  推理步驟：${ct.agent_steps} 步  │  伺服器總計：${ct.total_ms ?? "—"} ms  │  Client：${clientTotal} ms`;
-        } else {
-          bar.textContent = `⏱  Voyage AI：${ct.voyage_ms ?? "—"} ms  │  FAISS：${ct.faiss_ms ?? "—"} ms  │  Gemini 首字：${ct.gemini_first_ms ?? "—"} ms  │  Gemini 完成：${ct.gemini_total_ms ?? "—"} ms  │  總計：${ct.total_ms ?? "—"} ms  │  Client：${clientTotal} ms`;
-        }
-        bar.style.display = "block";
+        // 計時資料不顯示
       } else if (evt.type === "error") {
         started = true;
         botEl.className = "msg bot";
