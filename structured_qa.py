@@ -126,10 +126,13 @@ _STOP = {"是", "的", "了", "嗎", "呢", "啊", "有", "在", "和", "或", "
 
 def _phrase_score(question: str, phrase: str) -> float:
     """計算 phrase 的關鍵詞在 question 中的命中率（0.0 ~ 1.0）。"""
-    tokens = [t for t in re.findall(r'[一-鿿\w]{2,}', phrase) if t not in _STOP]
+    # 分別抓英數詞與中文詞，避免 ASCII+中文 黏成一個 token
+    tokens = [t for t in re.findall(r'[A-Za-z0-9]+|[一-鿿]{2,}', phrase) if t not in _STOP]
     if not tokens:
         return 0.0
-    hits = sum(1 for t in tokens if t in question)
+    # 比對時去除空格，容忍「SDG2 對應的大學」vs「SDG2對應的大學」的差異
+    q_norm = question.replace(" ", "").replace("　", "")
+    hits = sum(1 for t in tokens if t in q_norm)
     return hits / len(tokens)
 
 
