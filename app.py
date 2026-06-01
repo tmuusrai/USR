@@ -41,8 +41,8 @@ TOP_K           = int(os.getenv("TOP_K_RESULTS", 10))
 
 PDF_DIR         = Path("pdfs")
 EXTRA_DIR       = Path("extra_docs")
-TXT_DIR         = Path("114txt")
 MD_DIR          = Path("114md")
+QA_DIR          = Path("qa_data")
 INDEX_DIR       = Path("faiss_index")
 
 # ── Embedding 模型（全域共用，避免重複初始化）──────────
@@ -103,11 +103,11 @@ def load_or_build_index() -> FAISS:
         )
 
     print("[INDEX] 未找到索引，開始建立...")
-    pdf_files  = list(PDF_DIR.rglob("*.pdf")) if PDF_DIR.exists() else []
-    txt_files  = list(TXT_DIR.rglob("*.txt")) if TXT_DIR.exists() else []
-    md_files   = list(MD_DIR.rglob("*.md"))   if MD_DIR.exists()  else []
-    if not pdf_files and not txt_files and not md_files:
-        raise FileNotFoundError("pdfs/、114txt/、114md/ 資料夾中都沒有檔案，請先放入計畫書。")
+    pdf_files = list(PDF_DIR.rglob("*.pdf")) if PDF_DIR.exists() else []
+    md_files  = list(MD_DIR.rglob("*.md"))   if MD_DIR.exists()  else []
+    overview  = QA_DIR / "計劃總覽.txt"
+    if not pdf_files and not md_files and not overview.exists():
+        raise FileNotFoundError("pdfs/、114md/、qa_data/計劃總覽.txt 都找不到，請先放入計畫書。")
 
     docs = []
     for pdf_path in pdf_files:
@@ -121,19 +121,15 @@ def load_or_build_index() -> FAISS:
             loader = TextLoader(str(txt_path), encoding="utf-8")
             docs.extend(loader.load())
 
-    if txt_files:
-        print(f"  114txt/ 資料夾：找到 {len(txt_files)} 個 TXT 檔")
-        for txt_path in txt_files:
-            print(f"  讀取：{txt_path.name}")
-            for enc in ["utf-8-sig", "utf-8", "cp950", "big5"]:
-                try:
-                    loader = TextLoader(str(txt_path), encoding=enc)
-                    docs.extend(loader.load())
-                    break
-                except Exception:
-                    continue
-            else:
-                print(f"  [WARN] 跳過 {txt_path.name}：無法解碼")
+    if overview.exists():
+        print(f"  讀取：{overview.name}")
+        for enc in ["utf-8-sig", "utf-8", "cp950", "big5"]:
+            try:
+                loader = TextLoader(str(overview), encoding=enc)
+                docs.extend(loader.load())
+                break
+            except Exception:
+                continue
 
     if md_files:
         print(f"  114md/ 資料夾：找到 {len(md_files)} 個 MD 檔")
