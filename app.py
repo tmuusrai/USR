@@ -404,7 +404,7 @@ def react_agent_stream(question: str, max_steps: int = 5):
     for i, query in enumerate(queries[:3]):
         yield "step", {"step": i + 1, "preview": f"搜尋：{str(query)[:80]}"}
         try:
-            observation, sources = tool_search_rag(str(query), k=5)
+            observation, sources = tool_search_rag(str(query), k=10)
             all_context.append(f"【搜尋 {i+1}：{query}】\n{observation}")
             for s in sources:
                 key = (s["source"], s["page"])
@@ -555,7 +555,7 @@ def subagent_ask():
             def _run_subagent(idx_query):
                 idx, query = idx_query
                 try:
-                    obs, srcs = tool_search_rag(query, k=5)
+                    obs, srcs = tool_search_rag(query, k=10)
                     return idx, query, obs, srcs
                 except Exception as e:
                     print(f"[SUBAGENT] subagent {idx+1} 失敗：{e}")
@@ -587,8 +587,8 @@ def subagent_ask():
 
             # ── 步驟 3：背景執行緒串流（每 5s 發 keepalive，應對 Gemini 思考階段）──
             context = "\n\n".join(all_context)
-            if len(context) > 10000:
-                context = context[:10000] + "\n\n...(資料已截斷)"
+            if len(context) > 20000:
+                context = context[:20000] + "\n\n...(資料已截斷)"
             prompt_msg = HumanMessage(content=AGENT_ANSWER_PROMPT.format(
                 question=question, context=context or "查無相關資料"
             ))
