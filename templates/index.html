@@ -584,7 +584,7 @@ checkStatus();
 fetch("/warmup").catch(() => {});
 
 function setFontSize(size, btn) {
-  const sizes = {small:'14px', medium:'16px', large:'19px'};
+  const sizes = {small:'16px', medium:'19px', large:'22px'};
   document.documentElement.style.fontSize = sizes[size];
   document.querySelectorAll('.font-btn').forEach(b => b.classList.remove('active'));
   btn.classList.add('active');
@@ -592,7 +592,7 @@ function setFontSize(size, btn) {
 }
 (function(){
   const saved = localStorage.getItem('fontSize') || 'medium';
-  const map = {small:'14px', medium:'16px', large:'19px'};
+  const map = {small:'16px', medium:'19px', large:'22px'};
   document.documentElement.style.fontSize = map[saved];
   const btn = document.querySelector(`.font-btn[onclick*="'${saved}'"]`);
   if(btn){ document.querySelectorAll('.font-btn').forEach(b=>b.classList.remove('active')); btn.classList.add('active'); }
