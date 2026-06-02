@@ -105,6 +105,10 @@ body{font-family:"Segoe UI","Noto Sans TC",sans-serif;background:#f5f7fa;height:
 /* ── RESPONSIVE ── */
 .menu-btn,.rag-btn{display:none;background:none;border:none;font-size:1.2rem;cursor:pointer;padding:4px 8px;border-radius:6px;line-height:1;color:rgba(255,255,255,.85)}
 .menu-btn:hover,.rag-btn:hover{background:rgba(255,255,255,.15)}
+.font-btns{display:flex;gap:3px;margin-left:auto}
+.font-btn{background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.25);color:rgba(255,255,255,.85);border-radius:6px;cursor:pointer;padding:3px 9px;font-weight:600;line-height:1.4;transition:background .15s}
+.font-btn:hover{background:rgba(255,255,255,.25)}
+.font-btn.active{background:rgba(255,255,255,.3);border-color:rgba(255,255,255,.6);color:#fff}
 .overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.38);z-index:90}
 .overlay.show{display:block}
 
@@ -158,6 +162,11 @@ body{font-family:"Segoe UI","Noto Sans TC",sans-serif;background:#f5f7fa;height:
   <button class="menu-btn" onclick="toggleSidebar()" title="功能導覽">☰</button>
   <div class="logo">📚 USR <span>計畫書智慧查詢系統</span></div>
   <a href="/wiki-map" style="color:rgba(255,255,255,.85);font-size:.82rem;text-decoration:none;padding:5px 12px;border:1px solid rgba(255,255,255,.3);border-radius:6px;transition:background .15s;white-space:nowrap" onmouseover="this.style.background='rgba(255,255,255,.15)'" onmouseout="this.style.background='none'">Wiki 地圖</a>
+  <div class="font-btns">
+    <button class="font-btn" onclick="setFontSize('small',this)">小</button>
+    <button class="font-btn active" onclick="setFontSize('medium',this)">中</button>
+    <button class="font-btn" onclick="setFontSize('large',this)">大</button>
+  </div>
   <button class="rag-btn" onclick="toggleRag()" title="RAG 側欄">📎</button>
 </div>
 <div class="overlay" id="overlay" onclick="closePanels()"></div>
@@ -573,6 +582,21 @@ async function doLogin() {
 
 checkStatus();
 fetch("/warmup").catch(() => {});
+
+function setFontSize(size, btn) {
+  const sizes = {small:'14px', medium:'16px', large:'19px'};
+  document.documentElement.style.fontSize = sizes[size];
+  document.querySelectorAll('.font-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  localStorage.setItem('fontSize', size);
+}
+(function(){
+  const saved = localStorage.getItem('fontSize') || 'medium';
+  const map = {small:'14px', medium:'16px', large:'19px'};
+  document.documentElement.style.fontSize = map[saved];
+  const btn = document.querySelector(`.font-btn[onclick*="'${saved}'"]`);
+  if(btn){ document.querySelectorAll('.font-btn').forEach(b=>b.classList.remove('active')); btn.classList.add('active'); }
+})();
 </script>
 </body>
 </html>
