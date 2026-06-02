@@ -105,16 +105,12 @@ def load_or_build_index() -> FAISS:
 
     print("[INDEX] 未找到索引，開始建立...")
     pdf_files = list(PDF_DIR.rglob("*.pdf")) if PDF_DIR.exists() else []
-    # 優先使用 LLM 編譯版（只取計畫頁，不含 concepts/ 知識地圖概念頁）
-    if LLM_WIKI_DIR.exists() and any(LLM_WIKI_DIR.glob("*.md")):
-        md_files = list(LLM_WIKI_DIR.glob("*.md"))
-        print(f"[INDEX] 使用 llm_wiki_data/ 編譯版（{len(md_files)} 份）")
-    else:
-        md_files = list(MD_DIR.rglob("*.md")) if MD_DIR.exists() else []
-        print(f"[INDEX] 使用 114md/ 原始版（{len(md_files)} 份）")
+    # 問答索引使用 114md/ 原始計畫書；llm_wiki_data/ 僅供知識地圖用
+    md_files = list(MD_DIR.glob("*.md")) if MD_DIR.exists() else []
+    print(f"[INDEX] 使用 114md/ 原始版（{len(md_files)} 份）")
     overview  = QA_DIR / "計劃總覽.txt"
     if not pdf_files and not md_files and not overview.exists():
-        raise FileNotFoundError("pdfs/、llm_wiki_data/、114md/、qa_data/計劃總覽.txt 都找不到，請先放入計畫書。")
+        raise FileNotFoundError("pdfs/、114md/、qa_data/計劃總覽.txt 都找不到，請先放入計畫書。")
 
     docs = []
     for pdf_path in pdf_files:

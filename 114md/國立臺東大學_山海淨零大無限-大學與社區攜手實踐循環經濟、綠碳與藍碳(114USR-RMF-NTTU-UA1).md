@@ -13,8 +13,8 @@ Seas Net Zero Infinity - University and Community Collaborate to Implement Circu
 學校名稱　國立臺東大學
 計畫名稱　山海淨零大無限-大學與社攜手實踐循環經濟綠碳與藍碳
 計畫類別　▓大學特色類萌芽型
-計畫議題
-SDGs 關聯議題
+計畫議題 ☑永續環境
+SDGs 關聯議題 ☑4.優質教育 ☑ 7.可負擔及乾淨能源；☑12.負責任的消費及生產；☑13.氣候行動；☑14.水下生物；
 
 計畫實踐場域
 1 固定實踐場域： 臺東縣，卑南鄉，東興村
