@@ -8,7 +8,13 @@
     answer = try_structured_answer("SDG8 有哪些學校？")  # str 或 None
 """
 import re
+import unicodedata
 from pathlib import Path
+
+
+def _half(s: str) -> str:
+    """全形英數 → 半形（NFKC normalization）"""
+    return unicodedata.normalize('NFKC', s)
 
 # ── 內部儲存 ──────────────────────────────────────────────
 _CUSTOM_QA: list[dict] = []              # [{"keywords": [...], "answer": str}]
@@ -100,13 +106,13 @@ def _match_custom_qa(question: str) -> str | None:
     - 問題中包含 Q 的任一同義句，視為命中
     - 同義句比對：問題包含該句的所有「實詞」（≥2字元，非助詞）
     """
-    q_lower = question.lower()
+    q_lower = _half(question).lower()
     best_score = 0
     best_answer = None
 
     for entry in _CUSTOM_QA:
         for kw_phrase in entry["keywords"]:
-            score = _phrase_score(q_lower, kw_phrase.lower())
+            score = _phrase_score(q_lower, _half(kw_phrase).lower())
             if score > best_score:
                 best_score = score
                 best_answer = entry["answer"]
