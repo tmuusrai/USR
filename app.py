@@ -388,7 +388,7 @@ def react_agent_stream(question: str, max_steps: int = 5):
     # ── 步驟 1：讓 Gemini 決定要搜尋什麼 ──
     yield "heartbeat", None
     try:
-        plan_res = llm.invoke([HumanMessage(content=AGENT_PLAN_PROMPT.format(question=question))])
+        plan_res = llm.bind(temperature=0).invoke([HumanMessage(content=AGENT_PLAN_PROMPT.format(question=question))])
         plan_text = _normalize_content(plan_res.content).strip()
         print(f"[AGENT] 搜尋計畫：{plan_text}")
         match = re.search(r'\[.*?\]', plan_text, re.DOTALL)
@@ -517,7 +517,7 @@ def subagent_ask():
             _plan_msg = HumanMessage(content=AGENT_PLAN_PROMPT.format(question=question))
             def _plan_worker():
                 try:
-                    res = llm.invoke([_plan_msg])
+                    res = llm.bind(temperature=0).invoke([_plan_msg])
                     plan_q.put(('done', _normalize_content(res.content).strip()))
                 except Exception as exc:
                     plan_q.put(('error', str(exc)))
