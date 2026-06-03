@@ -117,7 +117,7 @@ def _match_custom_qa(question: str) -> str | None:
                 best_score = score
                 best_answer = entry["answer"]
 
-    if best_score >= 0.6:
+    if best_score >= 0.8:
         return best_answer
     return None
 
