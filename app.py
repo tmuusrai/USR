@@ -247,8 +247,13 @@ def ask():
                 query_vec = embeddings.embed_query(question)
                 t_voyage = time.perf_counter()
 
-                # ② FAISS：向量搜尋
-                docs = vectorstore.similarity_search_by_vector(query_vec, k=TOP_K)
+                # ② FAISS：向量搜尋（若問題含學校名稱則過濾來源）
+                _school = _extract_school(question)
+                _fetch = TOP_K * 5 if _school else TOP_K
+                docs = vectorstore.similarity_search_by_vector(query_vec, k=_fetch)
+                if _school:
+                    docs = _school_filter_docs(docs, _school, TOP_K)
+                    print(f"[ASK] 學校過濾「{_school}」→ {len(docs)} 筆")
                 t_faiss = time.perf_counter()
 
                 context = "\n\n".join(doc.page_content for doc in docs)
@@ -339,12 +344,29 @@ AGENT_ANSWER_PROMPT = """你是 USR 計畫書研究助理，請根據以下資�
 請用繁體中文給出完整、有條理的分析回答，整合所有資料內容。"""
 
 
+def _extract_school(text: str) -> str | None:
+    """從問題中提取學校名稱片段（用於 FAISS 來源過濾）"""
+    m = re.search(r'([一-鿿]{2,10}(?:大學|學院|科大|科技大學|醫學大學|師範大學|教育大學|海洋大學|藝術大學|護理大學|管理學院|專科學校))', text)
+    return m.group(1) if m else None
+
+
+def _school_filter_docs(docs, school: str, k: int):
+    """過濾含學校名稱的 chunk，無結果則退回全部。"""
+    filtered = [d for d in docs if school in d.metadata.get("source", "")]
+    return filtered[:k] if filtered else docs[:k]
+
+
 def tool_search_rag(query: str, k: int = 5):
     """回傳 (觀察文字, sources列表)"""
     print(f"[TOOL] 搜尋：{query[:60]}  vectorstore={'OK' if vectorstore else 'None'}")
     vec = embeddings.embed_query(query)
     print(f"[TOOL] embed 完成，vec長度={len(vec)}")
-    docs = vectorstore.similarity_search_by_vector(vec, k=k)
+    school = _extract_school(query)
+    fetch_k = k * 5 if school else k
+    docs = vectorstore.similarity_search_by_vector(vec, k=fetch_k)
+    if school:
+        docs = _school_filter_docs(docs, school, k)
+        print(f"[TOOL] 學校過濾「{school}」→ {len(docs)} 筆")
     print(f"[TOOL] FAISS 找到 {len(docs)} 筆")
     if not docs:
         return "查無相關資料", []
