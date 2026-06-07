@@ -38,7 +38,7 @@ SITE_PASSWORD   = os.getenv("SITE_PASSWORD", "")
 VOYAGE_API_KEY  = os.getenv("VOYAGE_API_KEY")
 CHUNK_SIZE      = int(os.getenv("CHUNK_SIZE", 800))
 CHUNK_OVERLAP   = int(os.getenv("CHUNK_OVERLAP", 100))
-TOP_K           = int(os.getenv("TOP_K_RESULTS", 10))
+TOP_K           = int(os.getenv("TOP_K_RESULTS", 15))
 
 PDF_DIR         = Path("pdfs")
 EXTRA_DIR       = Path("extra_docs")
@@ -248,13 +248,30 @@ def ask():
                 query_vec = embeddings.embed_query(question)
                 t_voyage = time.perf_counter()
 
-                # ② FAISS：向量搜尋（若問題含學校名稱則過濾來源）
+                # ② FAISS：第一輪搜尋
                 _school = _extract_school(question)
-                _fetch = TOP_K * 5 if _school else TOP_K
-                docs = vectorstore.similarity_search_by_vector(query_vec, k=_fetch)
+                _list   = bool(_LIST_INTENT_RE.search(question)) and not _school
+                _fetch  = TOP_K * 5 if _school else (TOP_K * 3 if _list else TOP_K)
+                docs1 = vectorstore.similarity_search_by_vector(query_vec, k=_fetch)
+
+                # ③ FAISS：第二輪（關鍵詞搜尋，補充第一輪漏掉的 chunk）
+                _kw = _extract_keywords(question)
+                if _kw:
+                    kw_vec = embeddings.embed_query(_kw)
+                    docs2  = vectorstore.similarity_search_by_vector(kw_vec, k=TOP_K)
+                    docs_all = _merge_docs(docs1, docs2)
+                    print(f"[ASK] 第二輪關鍵詞「{_kw}」→ 合併後 {len(docs_all)} 筆")
+                else:
+                    docs_all = docs1
+
                 if _school:
-                    docs = _school_filter_docs(docs, _school, TOP_K)
+                    docs = _school_filter_docs(docs_all, _school, TOP_K)
                     print(f"[ASK] 學校過濾「{_school}」→ {len(docs)} 筆")
+                elif _list:
+                    docs = _dedup_by_school(docs_all, TOP_K)
+                    print(f"[ASK] 列舉去重 → {len(docs)} 間學校")
+                else:
+                    docs = docs_all[:TOP_K]
                 t_faiss = time.perf_counter()
 
                 context = "\n\n".join(doc.page_content for doc in docs)
@@ -345,6 +362,12 @@ AGENT_ANSWER_PROMPT = """你是 USR 計畫書研究助理，請根據以下資�
 請用繁體中文給出完整、有條理的分析回答，整合所有資料內容。"""
 
 
+_LIST_INTENT_RE  = re.compile(r'哪些|有哪|哪幾|列出|所有.{0,4}(?:學校|大學|院校)')
+_QUESTION_WORDS  = {"哪些", "有哪", "哪幾", "什麼", "怎麼", "如何", "是否", "有沒有",
+                    "請問", "告訴我", "介紹", "說明", "哪個", "哪裡", "為何", "為什麼",
+                    "幾個", "幾間", "多少", "列出", "有關", "相關", "跟", "和", "與"}
+
+
 def _extract_school(text: str) -> str | None:
     """從問題中提取學校名稱片段（用於 FAISS 來源過濾）"""
     m = re.search(r'([一-鿿]{2,10}(?:大學|學院|科大|科技大學|醫學大學|師範大學|教育大學|海洋大學|藝術大學|護理大學|管理學院|專科學校))', text)
@@ -357,17 +380,58 @@ def _school_filter_docs(docs, school: str, k: int):
     return filtered[:k] if filtered else docs[:k]
 
 
+def _extract_keywords(question: str) -> str | None:
+    """去除疑問詞，留下實詞作為第二輪搜尋 query；若與原問題差異不大則回傳 None。"""
+    q = question
+    for w in sorted(_QUESTION_WORDS, key=len, reverse=True):
+        q = q.replace(w, " ")
+    tokens = re.findall(r'[A-Za-z0-9]+|[一-鿿]{2,}', q)
+    kw = " ".join(t for t in tokens if len(t) >= 2)
+    return kw.strip() if kw.strip() and kw.strip() != question.strip() else None
+
+
+def _merge_docs(docs1: list, docs2: list) -> list:
+    """合併兩輪結果；docs1 優先，docs2 補充未出現的 chunk。"""
+    seen: set[tuple] = set()
+    result = []
+    for doc in docs1 + docs2:
+        key = (doc.metadata.get("source", ""), doc.metadata.get("page", 0))
+        if key not in seen:
+            seen.add(key)
+            result.append(doc)
+    return result
+
+
+def _dedup_by_school(docs, k: int):
+    """每間學校只保留最相關的一個 chunk，最多取 k 間學校。"""
+    seen: set[str] = set()
+    result = []
+    for doc in docs:
+        src = Path(doc.metadata.get("source", "")).name
+        school_key = src.split("_")[0]
+        if school_key not in seen:
+            seen.add(school_key)
+            result.append(doc)
+            if len(result) >= k:
+                break
+    return result
+
+
 def tool_search_rag(query: str, k: int = 5):
     """回傳 (觀察文字, sources列表)"""
     print(f"[TOOL] 搜尋：{query[:60]}  vectorstore={'OK' if vectorstore else 'None'}")
     vec = embeddings.embed_query(query)
     print(f"[TOOL] embed 完成，vec長度={len(vec)}")
     school = _extract_school(query)
-    fetch_k = k * 5 if school else k
+    _list  = bool(_LIST_INTENT_RE.search(query)) and not school
+    fetch_k = k * 5 if school else (k * 3 if _list else k)
     docs = vectorstore.similarity_search_by_vector(vec, k=fetch_k)
     if school:
         docs = _school_filter_docs(docs, school, k)
         print(f"[TOOL] 學校過濾「{school}」→ {len(docs)} 筆")
+    elif _list:
+        docs = _dedup_by_school(docs, k)
+        print(f"[TOOL] 列舉去重 → {len(docs)} 間學校")
     print(f"[TOOL] FAISS 找到 {len(docs)} 筆")
     if not docs:
         return "查無相關資料", []
