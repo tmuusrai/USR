@@ -92,6 +92,17 @@ RAG_PROMPT = PromptTemplate(
 )
 
 
+def _inject_school_label(content: str, school: str, project: str) -> str:
+    """在 Markdown heading（# 到 #######）後面插入（學校　計畫）標籤。"""
+    tag = f"（{school}　{project}）"
+    lines = []
+    for line in content.split("\n"):
+        if re.match(r"^#{1,7}\s", line) and tag not in line:
+            line = line.rstrip() + tag
+        lines.append(line)
+    return "\n".join(lines)
+
+
 def load_or_build_index() -> FAISS:
     """載入既有索引；若不存在則從 pdfs/ 重新建立。"""
     index_file = INDEX_DIR / "index.faiss"
@@ -139,7 +150,15 @@ def load_or_build_index() -> FAISS:
         for md_path in md_files:
             try:
                 loader = TextLoader(str(md_path), encoding="utf-8")
-                docs.extend(loader.load())
+                md_docs = loader.load()
+                # 從檔名提取學校與計畫名稱，注入至每個 heading 後
+                m_name = re.match(r'^(.+?)_(.+?)(?:\([^)]+\))*$', md_path.stem)
+                if m_name:
+                    school  = m_name.group(1).strip()
+                    project = m_name.group(2).strip()
+                    for doc in md_docs:
+                        doc.page_content = _inject_school_label(doc.page_content, school, project)
+                docs.extend(md_docs)
             except Exception as e:
                 print(f"  [WARN] 跳過 {md_path.name}：{e}")
 
@@ -149,6 +168,18 @@ def load_or_build_index() -> FAISS:
         separators=["\n\n", "\n", "。", "，", " ", ""],
     )
     chunks = splitter.split_documents(docs)
+
+    # 每個 chunk 開頭加學校＋計畫標籤（確保跨 heading 切割的 chunk 也有來源脈絡）
+    for chunk in chunks:
+        src = Path(chunk.metadata.get("source", ""))
+        if src.suffix.lower() == ".md":
+            m_name = re.match(r'^(.+?)_(.+?)(?:\([^)]+\))*$', src.stem)
+            if m_name:
+                school  = m_name.group(1).strip()
+                project = m_name.group(2).strip()
+                tag = f"【{school}　{project}】"
+                if tag not in chunk.page_content[:60]:
+                    chunk.page_content = f"{tag}\n{chunk.page_content}"
     total = len(chunks)
     print(f"[INDEX] 共切出 {total} 個段落，開始向量化...", flush=True)
 
