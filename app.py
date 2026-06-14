@@ -235,6 +235,14 @@ def ask():
         try:
             t0 = time.perf_counter()
 
+            # ✦ 主觀評量問題攔截：反問使用者定義判斷準則
+            if _is_evaluation_question(question):
+                yield f"data: {json.dumps({'type': 'sources', 'sources': []}, ensure_ascii=False)}\n\n"
+                yield f"data: {json.dumps({'type': 'chunk', 'text': _CLARIFY_MSG}, ensure_ascii=False)}\n\n"
+                total_ms = round((time.perf_counter() - t0) * 1000)
+                yield f"data: {json.dumps({'type': 'done', 'timing': {'total_ms': total_ms}, 'mode': 'clarify'})}\n\n"
+                return
+
             # ① 結構化 QA 優先（列舉型問題直接回傳，不走 FAISS / LLM）
             structured_ctx = try_structured_answer(question)
             if structured_ctx:
@@ -242,6 +250,9 @@ def ask():
                 yield f"data: {json.dumps({'type': 'chunk', 'text': structured_ctx}, ensure_ascii=False)}\n\n"
                 total_ms = round((time.perf_counter() - t0) * 1000)
                 yield f"data: {json.dumps({'type': 'done', 'timing': {'total_ms': total_ms}, 'mode': 'structured'})}\n\n"
+                suggestions = _generate_suggestions(question, structured_ctx)
+                if suggestions:
+                    yield f"data: {json.dumps({'type': 'suggested_questions', 'questions': suggestions}, ensure_ascii=False)}\n\n"
                 return
             else:
                 # ① Voyage AI：將問題向量化
@@ -291,6 +302,7 @@ def ask():
 
             # ③ LLM：串流生成
             answer_chars = 0
+            answer_parts = []
             t_first_chunk = None
             t_gemini_start = time.perf_counter()
             for chunk in llm.stream(prompt_value):
@@ -304,6 +316,7 @@ def ask():
                     if t_first_chunk is None:
                         t_first_chunk = time.perf_counter()
                     answer_chars += len(content)
+                    answer_parts.append(content)
                     yield f"data: {json.dumps({'type': 'chunk', 'text': content}, ensure_ascii=False)}\n\n"
 
             t_end = time.perf_counter()
@@ -330,6 +343,9 @@ def ask():
             )
 
             yield f"data: {json.dumps({'type': 'done', 'timing': timing})}\n\n"
+            suggestions = _generate_suggestions(question, "".join(answer_parts))
+            if suggestions:
+                yield f"data: {json.dumps({'type': 'suggested_questions', 'questions': suggestions}, ensure_ascii=False)}\n\n"
 
         except Exception as e:
             import traceback
@@ -361,11 +377,59 @@ AGENT_ANSWER_PROMPT = """你是 USR 計畫書研究助理，請根據以下資�
 
 請用繁體中文給出完整、有條理的分析回答，整合所有資料內容。"""
 
+SUGGEST_PROMPT = """根據以下 USR 計畫書問答，生成 3 個使用者可能想繼續追問的問題。
+要求：具體、繁體中文、每題 25 字以內，圍繞原始問題的延伸或深化方向。
+只輸出 JSON 陣列，不要任何其他文字。
+範例：["這些計畫的具體成效如何評估？", "有哪些相關學校也在推動類似主題？", "這個領域的未來發展趨勢為何？"]
+
+原始問題：{question}
+回答摘要：{answer}"""
+
+
+def _generate_suggestions(question: str, answer: str) -> list[str]:
+    try:
+        from langchain_core.messages import HumanMessage
+        prompt = SUGGEST_PROMPT.format(question=question, answer=answer[:600])
+        res = llm.bind(temperature=0.4).invoke([HumanMessage(content=prompt)])
+        text = _normalize_content(res.content).strip()
+        m = re.search(r'\[.*?\]', text, re.DOTALL)
+        if m:
+            items = json.loads(m.group())
+            return [s for s in items if isinstance(s, str)][:3]
+    except Exception as e:
+        print(f"[SUGGEST] 生成失敗：{e}")
+    return []
+
 
 _LIST_INTENT_RE  = re.compile(r'哪些|有哪|哪幾|列出|所有.{0,4}(?:學校|大學|院校)')
 _QUESTION_WORDS  = {"哪些", "有哪", "哪幾", "什麼", "怎麼", "如何", "是否", "有沒有",
                     "請問", "告訴我", "介紹", "說明", "哪個", "哪裡", "為何", "為什麼",
                     "幾個", "幾間", "多少", "列出", "有關", "相關", "跟", "和", "與"}
+
+_EVAL_RE = re.compile(
+    r'最(?:好|棒|佳|優|優秀|值得|推薦|有效|成功|傑出|具代表|有特色|突出|厲害|強大|重要|完整|全面)'
+    r'|哪(?:個|間|所|家|些).{0,8}(?:最|比較好|更好|較好|第一)'
+    r'|(?:最好|最佳|最優|最強)的.{0,6}(?:計畫|學校|大學|做法|方案|案例)'
+    r'|排名|排行|第一名|冠軍|名次|勝出|較優|更優'
+    r'|誰做得比較好|哪個比較好|哪個更好|哪個較好|哪間做得好'
+)
+
+_CLARIFY_MSG = """您的問題涉及主觀的優劣評斷，不同人對「最好」的定義可能大不相同，我需要先了解您的判斷標準，才能給出有意義的比較分析。
+
+請問您想依據哪些面向來評估？例如：
+
+• 計畫規模：總經費、執行年期、涵蓋地區
+• 社會影響力：直接受惠人數、社區問題改善程度
+• 在地連結：與社區的合作深度、長期夥伴關係
+• 創新程度：技術應用獨特性、跨域整合方式
+• 國際能見度：跨國合作夥伴、獲獎紀錄
+• 人才培育：學生實務時數、就業媒合成效
+
+請描述您在意的條件（可以是上面任一項，也可以自行定義），我就能針對您的標準為您做出分析！"""
+
+
+def _is_evaluation_question(question: str) -> bool:
+    return bool(_EVAL_RE.search(question))
 
 
 def _extract_school(text: str) -> str | None:
@@ -539,6 +603,15 @@ def agent_ask():
     def generate():
         try:
             t_agent_start = time.perf_counter()
+
+            # ✦ 主觀評量問題攔截
+            if _is_evaluation_question(question):
+                yield f"data: {json.dumps({'type': 'sources', 'sources': []}, ensure_ascii=False)}\n\n"
+                yield f"data: {json.dumps({'type': 'chunk', 'text': _CLARIFY_MSG}, ensure_ascii=False)}\n\n"
+                total_ms = round((time.perf_counter() - t_agent_start) * 1000)
+                yield f"data: {json.dumps({'type': 'done', 'timing': {'total_ms': total_ms}, 'mode': 'clarify'})}\n\n"
+                return
+
             yield f"data: {json.dumps({'type': 'status', 'text': '🤖 Agent 模式啟動，第一步：分析問題（約 5-10 秒）...'}, ensure_ascii=False)}\n\n"
             step_count = 0
             for event_type, data in react_agent_stream(question):
@@ -555,6 +628,9 @@ def agent_ask():
                     timing = {"total_ms": total_ms, "agent_steps": step_count}
                     yield f"data: {json.dumps({'type': 'chunk', 'text': data}, ensure_ascii=False)}\n\n"
                     yield f"data: {json.dumps({'type': 'done', 'timing': timing, 'steps': step_count})}\n\n"
+                    suggestions = _generate_suggestions(question, data)
+                    if suggestions:
+                        yield f"data: {json.dumps({'type': 'suggested_questions', 'questions': suggestions}, ensure_ascii=False)}\n\n"
         except Exception as e:
             import traceback
             print(f"[ERROR] /agent：{e}\n{traceback.format_exc()}")
@@ -587,6 +663,14 @@ def subagent_ask():
 
         try:
             t_start = time.perf_counter()
+
+            # ✦ 主觀評量問題攔截
+            if _is_evaluation_question(question):
+                yield f"data: {json.dumps({'type': 'sources', 'sources': []}, ensure_ascii=False)}\n\n"
+                yield f"data: {json.dumps({'type': 'chunk', 'text': _CLARIFY_MSG}, ensure_ascii=False)}\n\n"
+                total_ms = round((time.perf_counter() - t_start) * 1000)
+                yield f"data: {json.dumps({'type': 'done', 'timing': {'total_ms': total_ms}, 'mode': 'clarify'})}\n\n"
+                return
 
             # ── 結構化 QA 短路 ──
             structured_ctx = try_structured_answer(question)
@@ -695,11 +779,13 @@ def subagent_ask():
             threading.Thread(target=_stream_worker, daemon=True).start()
 
             answer_started = False
+            answer_parts_sa = []
             while True:
                 try:
                     kind, payload = cq.get(timeout=5)
                     if kind == 'chunk':
                         answer_started = True
+                        answer_parts_sa.append(payload)
                         yield f"data: {json.dumps({'type': 'chunk', 'text': payload}, ensure_ascii=False)}\n\n"
                     elif kind == 'done':
                         break
@@ -716,6 +802,10 @@ def subagent_ask():
 
             total_ms = round((time.perf_counter() - t_start) * 1000)
             yield f"data: {json.dumps({'type': 'done', 'timing': {'total_ms': total_ms, 'search_ms': t_search_ms, 'subagent_count': n}, 'mode': 'subagent'})}\n\n"
+            if answer_parts_sa:
+                suggestions = _generate_suggestions(question, "".join(answer_parts_sa))
+                if suggestions:
+                    yield f"data: {json.dumps({'type': 'suggested_questions', 'questions': suggestions}, ensure_ascii=False)}\n\n"
 
         except Exception as e:
             import traceback

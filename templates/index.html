@@ -71,6 +71,9 @@ body{font-family:"Segoe UI","Noto Sans TC",sans-serif;background:#f5f7fa;height:
 .seg-btn.active.agent{color:#7c3aed}
 .seg-btn.active.subagent{color:#0891b2}
 .msg.step{background:#f5f3ff;border:1px solid #ddd6fe;color:#6d28d9;align-self:flex-start;font-size:.78rem;font-style:italic}
+.suggest-row{display:flex;flex-wrap:wrap;gap:6px;margin-top:4px;align-self:flex-start;max-width:88%}
+.suggest-btn{background:#eff6ff;border:1px solid #bfdbfe;color:#1d4ed8;border-radius:14px;padding:5px 13px;font-size:.77rem;cursor:pointer;transition:all .15s;font-family:inherit;line-height:1.4}
+.suggest-btn:hover{background:#dbeafe;border-color:#93c5fd}
 
 /* RAG PANEL */
 #rag-panel{width:260px;background:#fff;border-left:1px solid #e2e8f0;display:flex;flex-direction:column;flex-shrink:0}
@@ -468,6 +471,8 @@ async function askQuestion() {
         renderRAG(evt.sources || []);
       } else if (evt.type === "done") {
         // 計時資料不顯示
+      } else if (evt.type === "suggested_questions") {
+        renderSuggestions(evt.questions, botEl);
       } else if (evt.type === "error") {
         started = true;
         botEl.className = "msg bot";
@@ -499,6 +504,21 @@ async function askQuestion() {
   } finally {
     document.getElementById("ask-btn").disabled = false;
   }
+}
+
+function renderSuggestions(questions, afterEl) {
+  if (!questions || !questions.length) return;
+  const row = document.createElement("div");
+  row.className = "suggest-row";
+  questions.forEach(q => {
+    const btn = document.createElement("button");
+    btn.className = "suggest-btn";
+    btn.textContent = "💬 " + q;
+    btn.onclick = () => submitQ(q);
+    row.appendChild(btn);
+  });
+  afterEl.insertAdjacentElement("afterend", row);
+  document.getElementById("messages").scrollTop = document.getElementById("messages").scrollHeight;
 }
 
 function appendMsg(text, type) {
