@@ -257,6 +257,10 @@ def ask():
 
     data = request.get_json(silent=True) or {}
     question = (data.get("question") or "").strip()
+    original_question = (data.get("original_question") or "").strip()
+    skip_eval = bool(original_question)
+    if original_question:
+        question = f"{original_question}（請依以下標準評估：{question}）"
 
     if not question:
         return jsonify({"error": "請輸入問題。"}), 400
@@ -268,11 +272,11 @@ def ask():
             t0 = time.perf_counter()
 
             # ✦ 主觀評量問題攔截：反問使用者定義判斷準則
-            if _is_evaluation_question(question):
+            if not skip_eval and _is_evaluation_question(question):
                 yield f"data: {json.dumps({'type': 'sources', 'sources': []}, ensure_ascii=False)}\n\n"
                 yield f"data: {json.dumps({'type': 'chunk', 'text': _CLARIFY_MSG}, ensure_ascii=False)}\n\n"
                 total_ms = round((time.perf_counter() - t0) * 1000)
-                yield f"data: {json.dumps({'type': 'done', 'timing': {'total_ms': total_ms}, 'mode': 'clarify'})}\n\n"
+                yield f"data: {json.dumps({'type': 'done', 'timing': {'total_ms': total_ms}, 'mode': 'clarify', 'original_question': question}, ensure_ascii=False)}\n\n"
                 return
 
             # ① 結構化 QA 優先（列舉型問題直接回傳，不走 FAISS / LLM）
@@ -636,6 +640,10 @@ def agent_ask():
 
     data = request.get_json(silent=True) or {}
     question = (data.get("question") or "").strip()
+    original_question = (data.get("original_question") or "").strip()
+    skip_eval = bool(original_question)
+    if original_question:
+        question = f"{original_question}（請依以下標準評估：{question}）"
     if not question:
         return jsonify({"error": "請輸入問題。"}), 400
     if len(question) > 500:
@@ -646,11 +654,11 @@ def agent_ask():
             t_agent_start = time.perf_counter()
 
             # ✦ 主觀評量問題攔截
-            if _is_evaluation_question(question):
+            if not skip_eval and _is_evaluation_question(question):
                 yield f"data: {json.dumps({'type': 'sources', 'sources': []}, ensure_ascii=False)}\n\n"
                 yield f"data: {json.dumps({'type': 'chunk', 'text': _CLARIFY_MSG}, ensure_ascii=False)}\n\n"
                 total_ms = round((time.perf_counter() - t_agent_start) * 1000)
-                yield f"data: {json.dumps({'type': 'done', 'timing': {'total_ms': total_ms}, 'mode': 'clarify'})}\n\n"
+                yield f"data: {json.dumps({'type': 'done', 'timing': {'total_ms': total_ms}, 'mode': 'clarify', 'original_question': question}, ensure_ascii=False)}\n\n"
                 return
 
             yield f"data: {json.dumps({'type': 'status', 'text': '🤖 Agent 模式啟動，第一步：分析問題（約 5-10 秒）...'}, ensure_ascii=False)}\n\n"
@@ -693,6 +701,10 @@ def subagent_ask():
 
     data = request.get_json(silent=True) or {}
     question = (data.get("question") or "").strip()
+    original_question = (data.get("original_question") or "").strip()
+    skip_eval = bool(original_question)
+    if original_question:
+        question = f"{original_question}（請依以下標準評估：{question}）"
     if not question:
         return jsonify({"error": "請輸入問題。"}), 400
     if len(question) > 500:
@@ -706,11 +718,11 @@ def subagent_ask():
             t_start = time.perf_counter()
 
             # ✦ 主觀評量問題攔截
-            if _is_evaluation_question(question):
+            if not skip_eval and _is_evaluation_question(question):
                 yield f"data: {json.dumps({'type': 'sources', 'sources': []}, ensure_ascii=False)}\n\n"
                 yield f"data: {json.dumps({'type': 'chunk', 'text': _CLARIFY_MSG}, ensure_ascii=False)}\n\n"
                 total_ms = round((time.perf_counter() - t_start) * 1000)
-                yield f"data: {json.dumps({'type': 'done', 'timing': {'total_ms': total_ms}, 'mode': 'clarify'})}\n\n"
+                yield f"data: {json.dumps({'type': 'done', 'timing': {'total_ms': total_ms}, 'mode': 'clarify', 'original_question': question}, ensure_ascii=False)}\n\n"
                 return
 
             # ── 結構化 QA 短路 ──

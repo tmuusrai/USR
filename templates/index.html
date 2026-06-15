@@ -396,6 +396,7 @@ async function checkStatus() {
 }
 
 let currentMode = "rag";
+let pendingQuestion = null;  // stores original eval question waiting for user criteria
 const PLACEHOLDERS = {
   rag:      "請輸入問題，例如：有哪些計畫關注高齡照護？",
   agent:    "請輸入複雜問題，例如：比較各校高齡照護計畫的特色與差異？",
@@ -433,7 +434,12 @@ async function askQuestion() {
 
 
   try {
-    const res = await fetch(endpoint, {method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({question})});
+    const body = { question };
+    if (pendingQuestion) {
+      body.original_question = pendingQuestion;
+      pendingQuestion = null;
+    }
+    const res = await fetch(endpoint, {method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)});
 
     if (!res.ok) {
       const data = await res.json();
@@ -470,7 +476,9 @@ async function askQuestion() {
       } else if (evt.type === "sources") {
         renderRAG(evt.sources || []);
       } else if (evt.type === "done") {
-        // 計時資料不顯示
+        if (evt.mode === "clarify" && evt.original_question) {
+          pendingQuestion = evt.original_question;
+        }
       } else if (evt.type === "suggested_questions") {
         renderSuggestions(evt.questions, botEl);
       } else if (evt.type === "error") {
