@@ -93,6 +93,17 @@ RAG_PROMPT = PromptTemplate(
 )
 
 
+_PLAN_TYPE_RE = re.compile(
+    r'(大學特色類(?:萌芽型|深耕型)|永續發展類(?:國際合作型|特色永續型))'
+)
+
+
+def _extract_plan_type(content: str) -> str:
+    """從 md 內容前 600 字提取計畫類型（萌芽型/深耕型/國際合作型/特色永續型）。"""
+    m = _PLAN_TYPE_RE.search(content[:600])
+    return m.group(1) if m else ""
+
+
 def _inject_school_label(content: str, school: str, project: str) -> str:
     """在 Markdown heading（# 到 #######）後面插入（學校　計畫）標籤。"""
     tag = f"（{school}　{project}）"
@@ -147,11 +158,16 @@ def load_or_build_index() -> FAISS:
             except Exception:
                 continue
 
+    md_plan_types: dict[str, str] = {}  # md_path str -> 計畫類型
+
     if md_files:
         for md_path in md_files:
             try:
                 loader = TextLoader(str(md_path), encoding="utf-8")
                 md_docs = loader.load()
+                # 從首段內容提取計畫類型
+                plan_type = _extract_plan_type(md_docs[0].page_content) if md_docs else ""
+                md_plan_types[str(md_path)] = plan_type
                 # 從檔名提取學校與計畫名稱，注入至每個 heading 後
                 m_name = re.match(r'^(.+?)_(.+?)(?:\([^)]+\))*$', md_path.stem)
                 if m_name:
@@ -170,16 +186,18 @@ def load_or_build_index() -> FAISS:
     )
     chunks = splitter.split_documents(docs)
 
-    # 每個 chunk 開頭加學校＋計畫標籤（確保跨 heading 切割的 chunk 也有來源脈絡）
+    # 每個 chunk 開頭加學校＋計畫＋計畫類型標籤（確保跨 heading 切割的 chunk 也有來源脈絡）
     for chunk in chunks:
         src = Path(chunk.metadata.get("source", ""))
         if src.suffix.lower() == ".md":
             m_name = re.match(r'^(.+?)_(.+?)(?:\([^)]+\))*$', src.stem)
             if m_name:
-                school  = m_name.group(1).strip()
-                project = m_name.group(2).strip()
-                tag = f"【{school}　{project}】"
-                if tag not in chunk.page_content[:60]:
+                school     = m_name.group(1).strip()
+                project    = m_name.group(2).strip()
+                plan_type  = md_plan_types.get(str(src), "")
+                type_str   = f"（{plan_type}）" if plan_type else ""
+                tag        = f"【{school}　{project}{type_str}】"
+                if f"【{school}" not in chunk.page_content[:80]:
                     chunk.page_content = f"{tag}\n{chunk.page_content}"
     total = len(chunks)
     print(f"[INDEX] 共切出 {total} 個段落，開始向量化...", flush=True)
