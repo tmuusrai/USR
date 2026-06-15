@@ -43,12 +43,26 @@ OUTPUT_HTML = Path("static/wiki_map.html")
 
 REL_LABEL = {
     "executes":       "執行",
-    "contributes_to": "對應",
-    "focuses_on":     "聚焦",
+    "contributes_to": "對應 SDG",
+    "focuses_on":     "聚焦議題",
     "located_in":     "場域",
     "uses":           "採用",
-    "related_to":     "相關",
+    "involves":       "涉及概念",
+    "related_to":     "概念相關",
 }
+
+# 每種關係類型的邊顏色（預設狀態）
+EDGE_COLOR = {
+    "contributes_to": "#2ec4b6",   # teal   — 對應 SDG
+    "focuses_on":     "#e76f51",   # orange — 聚焦議題
+    "involves":       "#a78bfa",   # violet — 涉及概念
+    "related_to":     "#6b7fd4",   # blue   — 概念相關
+    "executes":       "#f4a261",
+    "located_in":     "#8ecae6",
+    "uses":           "#ffd166",
+}
+
+EDGE_COLOR_DEFAULT = "#334466"   # 沒有對應類型時的 fallback
 
 TYPE_COLOR = {
     "university": "#4f86c6",
@@ -110,7 +124,7 @@ def render_wiki_map(G: nx.DiGraph, output: Path = OUTPUT_HTML) -> Path:
       },
       "edges": {
         "arrows": { "to": { "enabled": true, "scaleFactor": 0.5 } },
-        "color": { "inherit": false, "color": "#334466", "opacity": 0.7 },
+        "color": { "inherit": false },
         "smooth": { "type": "continuous" },
         "width": 1.2
       },
@@ -194,36 +208,54 @@ def render_wiki_map(G: nx.DiGraph, output: Path = OUTPUT_HTML) -> Path:
             font={"size": 11, "color": "#ffffff"},
         )
 
-    for src, tgt, data in G.edges(data=True):
-        rel = data.get("relationship", "related_to")
+    # ── 邊：按關係類型上色，並記錄 edge_meta 供 JS 用 ──
+    edge_meta = {}   # edge_id → { color, rel, label }
+    for idx, (src, tgt, data) in enumerate(G.edges(data=True)):
+        rel   = data.get("relationship", "related_to")
+        color = EDGE_COLOR.get(rel, EDGE_COLOR_DEFAULT)
+        eid   = f"e{idx}"
+        edge_meta[eid] = {
+            "color": color,
+            "rel":   rel,
+            "label": REL_LABEL.get(rel, rel),
+        }
         net.add_edge(
             src, tgt,
+            id=eid,
             title=REL_LABEL.get(rel, rel),
-            color={"color": "#334466", "opacity": 0.6},
+            color={"color": color, "opacity": 0.65},
+            width=1.2,
         )
 
     output.parent.mkdir(exist_ok=True)
     net.save_graph(str(output))
 
-    _inject_ui(output, node_meta)
+    _inject_ui(output, node_meta, edge_meta)
 
     print(f"[WIKI] 地圖已輸出：{output}")
     return output
 
 
-def _inject_ui(html_path: Path, node_meta: dict) -> None:
-    """注入圖例、詳情面板與 click 事件。"""
+def _inject_ui(html_path: Path, node_meta: dict, edge_meta: dict) -> None:
+    """注入圖例、詳情面板與 click 事件（含邊高亮）。"""
 
-    meta_json = json.dumps(node_meta, ensure_ascii=False)
+    meta_json      = json.dumps(node_meta, ensure_ascii=False)
+    edge_meta_json = json.dumps(edge_meta, ensure_ascii=False)
 
     legend_html = """
 <div id="wm-legend" style="position:fixed;top:12px;left:12px;z-index:999;
   background:rgba(10,10,28,.9);border:1px solid #334;border-radius:10px;
-  padding:12px 16px;font-size:12px;color:#ccc;line-height:1.8">
+  padding:12px 16px;font-size:12px;color:#ccc;line-height:1.9">
   <b style="font-size:13px;color:#fff">節點類型</b><br>
   <span style="color:#4f86c6">■</span> 學校 &nbsp;
   <span style="color:#2ec4b6">■</span> SDG &nbsp;
   <span style="color:#e76f51">■</span> 議題
+  <hr style="border-color:#334;margin:6px 0">
+  <b style="font-size:12px;color:#fff">線條關係</b><br>
+  <span style="color:#2ec4b6">─</span> 對應 SDG &nbsp;
+  <span style="color:#e76f51">─</span> 聚焦議題<br>
+  <span style="color:#a78bfa">─</span> 涉及概念 &nbsp;
+  <span style="color:#6b7fd4">─</span> 概念相關
   <br><span style="font-size:.75rem;color:#666;margin-top:4px;display:block">點擊節點查看詳情</span>
 </div>
 """
@@ -249,10 +281,35 @@ def _inject_ui(html_path: Path, node_meta: dict) -> None:
 
     inject_js = f"""
 <script>
-var _meta = {meta_json};
+var _meta     = {meta_json};
+var _edgeMeta = {edge_meta_json};
 
+// ── 邊高亮 ──────────────────────────────────────────────
+function highlightEdges(nodeId) {{
+  var connected = new Set(network.getConnectedEdges(nodeId));
+  var updates = network.body.data.edges.getIds().map(function(eid) {{
+    var em = _edgeMeta[eid];
+    if (connected.has(eid)) {{
+      return {{ id: eid, color: {{ color: em ? em.color : '#aaa', opacity: 1.0 }}, width: 2.8 }};
+    }} else {{
+      return {{ id: eid, color: {{ color: '#1a1a3a', opacity: 0.2 }}, width: 0.8 }};
+    }}
+  }});
+  network.body.data.edges.update(updates);
+}}
+
+function resetEdges() {{
+  var updates = network.body.data.edges.getIds().map(function(eid) {{
+    var em = _edgeMeta[eid];
+    return {{ id: eid, color: {{ color: em ? em.color : '#334466', opacity: 0.65 }}, width: 1.2 }};
+  }});
+  network.body.data.edges.update(updates);
+}}
+
+// ── 詳情面板 ────────────────────────────────────────────
 function closePanel() {{
   document.getElementById('wm-panel').style.right = '-340px';
+  resetEdges();
 }}
 
 function openPanel(nodeId) {{
@@ -261,8 +318,8 @@ function openPanel(nodeId) {{
   var badge = document.getElementById('wm-panel-badge');
   var title = document.getElementById('wm-panel-title');
   var body  = document.getElementById('wm-panel-body');
-  var typeLabel = {{university:'學校', sdg:'SDG', topic:'議題', region:'場域'}};
-  var typeColor = {{university:'#4f86c6', sdg:'#2ec4b6', topic:'#e76f51', region:'#8ecae6'}};
+  var typeLabel = {{university:'學校', sdg:'SDG', topic:'議題', region:'場域', concept:'概念'}};
+  var typeColor = {{university:'#4f86c6', sdg:'#2ec4b6', topic:'#e76f51', region:'#8ecae6', concept:'#a78bfa'}};
   badge.textContent = typeLabel[m.type] || m.type;
   badge.style.background = typeColor[m.type] || '#334';
   badge.style.color = '#fff';
@@ -310,7 +367,7 @@ function openPanel(nodeId) {{
   document.getElementById('wm-panel').style.right = '0';
 }}
 
-// 等 vis.js network 初始化完成後掛上事件
+// ── vis.js 事件 ──────────────────────────────────────────
 (function waitForNetwork() {{
   if (typeof network !== 'undefined') {{
     var _freezeTimer = null;
@@ -319,12 +376,10 @@ function openPanel(nodeId) {{
       network.setOptions({{ physics: false }});
     }}
 
-    // 初始穩定後凍結
     network.on('stabilizationIterationsDone', function() {{
       freeze();
     }});
 
-    // 拖動時短暫開啟物理，讓連結節點跟著微動
     network.on('dragStart', function() {{
       if (_freezeTimer) clearTimeout(_freezeTimer);
       network.setOptions({{ physics: {{
@@ -338,7 +393,6 @@ function openPanel(nodeId) {{
       }} }});
     }});
 
-    // 放開後 1 秒讓它靜止，再凍結
     network.on('dragEnd', function() {{
       _freezeTimer = setTimeout(freeze, 1000);
     }});
@@ -346,6 +400,9 @@ function openPanel(nodeId) {{
     network.on('click', function(params) {{
       if (params.nodes.length > 0) {{
         openPanel(params.nodes[0]);
+        highlightEdges(params.nodes[0]);
+      }} else {{
+        closePanel();
       }}
     }});
   }} else {{
