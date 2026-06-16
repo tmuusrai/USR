@@ -555,31 +555,34 @@ const _SCHOOLS = [
 ];
 const _SCHOOL_RE = new RegExp(_SCHOOLS.map(n => n.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')).join('|'),'g');
 
-// Match plan name only when immediately preceded by a blue school span
-// Supported separators: ：/ :  /  —  / 「」
-const _SCHOOL_SPAN = `(<span style="color:#1d4ed8">[^<]*<\\/span>)`;
-const _PLAN_RED = plan => `<span style="color:#8b0000">${plan}</span>`;
-
 function renderAnswer(raw) {
   // 1. HTML escape
   let s = raw.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
   // 2. Strip ALL **...** markers (keep content); then strip lone *
   s = s.replace(/\*\*([^]*?)\*\*/g, '$1');
   s = s.replace(/\*/g, '');
-  // 3. School names → blue (must run BEFORE plan-name rules)
+  // 3. School names → blue
   s = s.replace(_SCHOOL_RE, m => `<span style="color:#1d4ed8">${m}</span>`);
-  // 4a. school：「計畫名」 → dark red inside brackets
-  s = s.replace(new RegExp(_SCHOOL_SPAN + '[：:]\\s*「([^」\\n]{2,100})」','g'),
-    (_, sc, plan) => `${sc}：「${_PLAN_RED(plan)}」`);
-  // 4b. school：計畫名 (no brackets) → dark red until newline / HTML tag / 「
-  s = s.replace(new RegExp(_SCHOOL_SPAN + '[：:]\\s*([^\\n<「]{4,100})','g'),
-    (_, sc, plan) => `${sc}：${_PLAN_RED(plan.trimEnd())}`);
-  // 4c. school「計畫名」(colon already consumed above; remaining bracket-only cases)
-  s = s.replace(new RegExp(_SCHOOL_SPAN + '「([^」\\n]{2,100})」','g'),
-    (_, sc, plan) => `${sc}「${_PLAN_RED(plan)}」`);
-  // 4d. school — 計畫名
-  s = s.replace(new RegExp(_SCHOOL_SPAN + ' — ([^\\n<]{4,100})','g'),
-    (_, sc, plan) => `${sc} — ${_PLAN_RED(plan)}`);
+  // 4. Plan names → dark red
+  //    Use regex literals to avoid new RegExp() string-escaping pitfalls.
+  //    All patterns require a preceding blue school span OR explicit 【計畫名稱】 label.
+  const PR = p => `<span style="color:#8b0000">${p}</span>`;
+  const SP = `<span style="color:#1d4ed8">`;
+  const SPE = `</span>`;
+  // 4a: 【計畫名稱】plan  (structured individual-school QA format)
+  s = s.replace(/【計畫名稱】([^\n<【]{4,100})/g, (_, p) => `【計畫名稱】${PR(p.trimEnd())}`);
+  // 4b: school：「plan」
+  s = s.replace(/<span style="color:#1d4ed8">([^<]*)<\/span>[：:]\s*「([^」\n]{2,100})」/g,
+    (_, sc, p) => `${SP}${sc}${SPE}：「${PR(p)}」`);
+  // 4c: school：plan  (no brackets; stops at newline / HTML / 「)
+  s = s.replace(/<span style="color:#1d4ed8">([^<]*)<\/span>[：:]\s*([^\n<「]{4,100})/g,
+    (_, sc, p) => `${SP}${sc}${SPE}：${PR(p.trimEnd())}`);
+  // 4d: school「plan」
+  s = s.replace(/<span style="color:#1d4ed8">([^<]*)<\/span>「([^」\n]{2,100})」/g,
+    (_, sc, p) => `${SP}${sc}${SPE}「${PR(p)}」`);
+  // 4e: school — plan
+  s = s.replace(/<span style="color:#1d4ed8">([^<]*)<\/span> — ([^\n<]{4,100})/g,
+    (_, sc, p) => `${SP}${sc}${SPE} — ${PR(p)}`);
   // 5. Line breaks
   s = s.replace(/\n/g, '<br>');
   return s;
