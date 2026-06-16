@@ -815,13 +815,15 @@ const _PLANS = [
 ];
 const _PLAN_RE = new RegExp(_PLANS.map(n => n.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')).join('|'),'g');
 
+const _COUNTY_RE = /臺北市|台北市|新北市|桃園市|臺中市|台中市|臺南市|台南市|高雄市|基隆市|新竹市|嘉義市|新竹縣|苗栗縣|彰化縣|南投縣|雲林縣|嘉義縣|屏東縣|宜蘭縣|花蓮縣|臺東縣|台東縣|澎湖縣|金門縣|連江縣/g;
+
 function renderAnswer(raw) {
   let s = raw.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
   s = s.replace(/\*\*([^]*?)\*\*/g, '$1');
   s = s.replace(/\*/g, '');
-  s = s.replace(/〔([^〕\n]{1,40})〕/g, (_, p) => `<u>${p}</u>`);
   s = s.replace(_SCHOOL_RE, m => `<span style="color:#1d4ed8">${m}</span>`);
   s = s.replace(_PLAN_RE, m => `<span style="color:#8b0000">${m}</span>`);
+  s = s.replace(_COUNTY_RE, m => `<u>${m}</u>`);
   s = s.replace(/\n/g, '<br>');
   return s;
 }
