@@ -555,22 +555,32 @@ const _SCHOOLS = [
 ];
 const _SCHOOL_RE = new RegExp(_SCHOOLS.map(n => n.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')).join('|'),'g');
 
+// Match plan name only when immediately preceded by a blue school span
+// Supported separators: ：/ :  /  —  / 「」
+const _SCHOOL_SPAN = `(<span style="color:#1d4ed8">[^<]*<\\/span>)`;
+const _PLAN_RED = plan => `<span style="color:#8b0000">${plan}</span>`;
+
 function renderAnswer(raw) {
   // 1. HTML escape
   let s = raw.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
   // 2. Strip ALL **...** markers (keep content); then strip lone *
   s = s.replace(/\*\*([^]*?)\*\*/g, '$1');
   s = s.replace(/\*/g, '');
-  // 3. School names → blue  (must run BEFORE plan-name rules)
+  // 3. School names → blue (must run BEFORE plan-name rules)
   s = s.replace(_SCHOOL_RE, m => `<span style="color:#1d4ed8">${m}</span>`);
-  // 4. Plan name after school span + em-dash: 學校 — 計畫名  → dark red
-  //    Only triggers when preceded by a blue school span, preventing false positives
-  s = s.replace(/(<span style="color:#1d4ed8">[^<]*<\/span>) — ([^\n<]{4,80})/g,
-    (_, school, plan) => `${school} — <span style="color:#8b0000">${plan}</span>`);
-  // 5. Plan name「計畫名」immediately after school span → dark red
-  s = s.replace(/(<span style="color:#1d4ed8">[^<]*<\/span>)「([^」\n]{4,80})」/g,
-    (_, school, plan) => `${school}「<span style="color:#8b0000">${plan}</span>」`);
-  // 6. Line breaks
+  // 4a. school：「計畫名」 → dark red inside brackets
+  s = s.replace(new RegExp(_SCHOOL_SPAN + '[：:]\\s*「([^」\\n]{2,100})」','g'),
+    (_, sc, plan) => `${sc}：「${_PLAN_RED(plan)}」`);
+  // 4b. school：計畫名 (no brackets) → dark red until newline / HTML tag / 「
+  s = s.replace(new RegExp(_SCHOOL_SPAN + '[：:]\\s*([^\\n<「]{4,100})','g'),
+    (_, sc, plan) => `${sc}：${_PLAN_RED(plan.trimEnd())}`);
+  // 4c. school「計畫名」(colon already consumed above; remaining bracket-only cases)
+  s = s.replace(new RegExp(_SCHOOL_SPAN + '「([^」\\n]{2,100})」','g'),
+    (_, sc, plan) => `${sc}「${_PLAN_RED(plan)}」`);
+  // 4d. school — 計畫名
+  s = s.replace(new RegExp(_SCHOOL_SPAN + ' — ([^\\n<]{4,100})','g'),
+    (_, sc, plan) => `${sc} — ${_PLAN_RED(plan)}`);
+  // 5. Line breaks
   s = s.replace(/\n/g, '<br>');
   return s;
 }
