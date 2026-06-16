@@ -823,6 +823,9 @@ function renderAnswer(raw) {
   s = s.replace(/\*/g, '');
   s = s.replace(_SCHOOL_RE, m => `<span style="color:#1d4ed8">${m}</span>`);
   s = s.replace(_PLAN_RE, m => `<span style="color:#8b0000">${m}</span>`);
+  // LLM-marked place names and person names → underline
+  s = s.replace(/〔([^〕\n]{1,40})〕/g, (_, p) => `<u>${p}</u>`);
+  // Hardcoded county fallback (catches any county LLM missed)
   s = s.replace(_COUNTY_RE, m => `<u>${m}</u>`);
   s = s.replace(/\n/g, '<br>');
   return s;
