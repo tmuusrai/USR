@@ -55,7 +55,9 @@ body{font-family:"Segoe UI","Noto Sans TC",sans-serif;background:#f5f7fa;height:
 #messages::-webkit-scrollbar-thumb{background:#e2e8f0;border-radius:4px}
 .msg{padding:10px 14px;border-radius:10px;font-size:.87rem;line-height:1.75;max-width:88%}
 .msg.user{background:#dbeafe;color:#1e3a5f;align-self:flex-end;border-bottom-right-radius:2px}
-.msg.bot{background:#f8fafc;border:1px solid #e2e8f0;color:#1e293b;align-self:flex-start;border-bottom-left-radius:2px;white-space:pre-wrap}
+.msg.bot{background:#f8fafc;border:1px solid #e2e8f0;color:#1e293b;align-self:flex-start;border-bottom-left-radius:2px;word-break:break-word}
+.msg.bot strong{color:#1d4ed8}
+.msg.bot u{text-decoration-color:#64748b}
 .msg.loading{color:#94a3b8;font-style:italic;background:#f8fafc;border:1px solid #e2e8f0;align-self:flex-start}
 #input-row{display:flex;gap:10px;align-items:flex-end}
 #question{flex:1;padding:10px 14px;border:1.5px solid #cbd5e1;border-radius:10px;font-size:.9rem;resize:none;height:44px;outline:none;transition:border-color .2s;font-family:inherit;line-height:1.4;background:#f8fafc}
@@ -468,10 +470,10 @@ async function askQuestion() {
           started = true;
           t_first_chunk = performance.now();
           botEl.className = "msg bot";
-          botEl.textContent = "";
+          botEl.innerHTML = "";
         }
         answerText += evt.text;
-        botEl.textContent = answerText;
+        botEl.innerHTML = renderAnswer(answerText);
         box.scrollTop = box.scrollHeight;
       } else if (evt.type === "sources") {
         renderRAG(evt.sources || []);
@@ -527,6 +529,27 @@ function renderSuggestions(questions, afterEl) {
   });
   afterEl.insertAdjacentElement("afterend", row);
   document.getElementById("messages").scrollTop = document.getElementById("messages").scrollHeight;
+}
+
+function renderAnswer(raw) {
+  // 1. HTML escape (safety first)
+  let s = raw.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  // 2. Bold **text** → blue <strong>
+  s = s.replace(/\*\*([^*\n]{1,100}?)\*\*/g, '<strong>$1</strong>');
+  // 3. Plan names「name」→ dark red bold (content only, not brackets)
+  s = s.replace(/「([^」\n]{1,60})」/g,
+    (_, n) => `「<span style="color:#8b0000;font-weight:600">${n}</span>」`);
+  // 4. Taiwan counties / cities → underline
+  ['新北市','桃園市','基隆市','新竹市','新竹縣','苗栗縣','彰化縣','南投縣','雲林縣',
+   '嘉義市','嘉義縣','屏東縣','宜蘭縣','花蓮縣','台東縣','臺東縣','澎湖縣','金門縣',
+   '連江縣','台北市','臺北市','台中市','臺中市','台南市','臺南市','高雄市'
+  ].forEach(p => { s = s.replace(new RegExp(p,'g'), `<u>${p}</u>`); });
+  // 5. People names after 主持人 → underline (2-4 Chinese chars)
+  s = s.replace(/主持人([：:　 ]{0,2})([一-鿿]{2,4})/g,
+    (_, sep, name) => `主持人${sep}<u>${name}</u>`);
+  // 6. Line breaks
+  s = s.replace(/\n/g, '<br>');
+  return s;
 }
 
 function appendMsg(text, type) {
