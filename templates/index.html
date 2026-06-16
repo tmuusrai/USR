@@ -558,17 +558,18 @@ const _SCHOOL_RE = new RegExp(_SCHOOLS.map(n => n.replace(/[.*+?^${}()|[\]\\]/g,
 function renderAnswer(raw) {
   // 1. HTML escape
   let s = raw.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
-  // 2. Strip ALL **...** markers (keep content); then strip any lone *
+  // 2. Strip ALL **...** markers (keep content); then strip lone *
   s = s.replace(/\*\*([^]*?)\*\*/g, '$1');
   s = s.replace(/\*/g, '');
-  // 3. Plan names after em-dash (SDG list format: 學校 — 計畫名) → dark red
-  s = s.replace(/ — ([^\n<]{4,80})/g,
-    (_, plan) => ` — <span style="color:#8b0000">${plan}</span>`);
-  // 4. Plan names in「」→ dark red (content only, brackets stay plain)
-  s = s.replace(/「([^」\n]{1,80})」/g,
-    (_, n) => `「<span style="color:#8b0000">${n}</span>」`);
-  // 5. School names → blue
+  // 3. School names → blue  (must run BEFORE plan-name rules)
   s = s.replace(_SCHOOL_RE, m => `<span style="color:#1d4ed8">${m}</span>`);
+  // 4. Plan name after school span + em-dash: 學校 — 計畫名  → dark red
+  //    Only triggers when preceded by a blue school span, preventing false positives
+  s = s.replace(/(<span style="color:#1d4ed8">[^<]*<\/span>) — ([^\n<]{4,80})/g,
+    (_, school, plan) => `${school} — <span style="color:#8b0000">${plan}</span>`);
+  // 5. Plan name「計畫名」immediately after school span → dark red
+  s = s.replace(/(<span style="color:#1d4ed8">[^<]*<\/span>)「([^」\n]{4,80})」/g,
+    (_, school, plan) => `${school}「<span style="color:#8b0000">${plan}</span>」`);
   // 6. Line breaks
   s = s.replace(/\n/g, '<br>');
   return s;
