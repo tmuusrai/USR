@@ -316,8 +316,9 @@ def ask():
                 t_voyage = time.perf_counter()
 
                 # ② FAISS：第一輪搜尋
-                _school = _extract_school(question)
-                _list   = bool(_LIST_INTENT_RE.search(question)) and not _school
+                _school    = _extract_school(question)
+                _list      = bool(_LIST_INTENT_RE.search(question)) and not _school
+                _personnel = bool(_PERSONNEL_RE.search(question))
                 _fetch  = TOP_K * 5 if _school else (TOP_K * 3 if _list else TOP_K)
                 docs1 = vectorstore.similarity_search_by_vector(query_vec, k=_fetch)
 
@@ -334,11 +335,13 @@ def ask():
                 if _school:
                     docs = _school_filter_docs(docs_all, _school, TOP_K)
                     print(f"[ASK] 學校過濾「{_school}」→ {len(docs)} 筆")
-                elif _list:
+                elif _list and not _personnel:
                     docs = _dedup_by_school(docs_all, TOP_K)
                     print(f"[ASK] 列舉去重 → {len(docs)} 間學校")
                 else:
                     docs = docs_all[:TOP_K]
+                    if _personnel:
+                        print(f"[ASK] 人員查詢，不去重 → {len(docs)} 筆")
                 t_faiss = time.perf_counter()
 
                 context = "\n\n".join(doc.page_content for doc in docs)
@@ -457,6 +460,10 @@ def _generate_suggestions(question: str, answer: str) -> list[str]:
         print(f"[SUGGEST] 生成失敗：{e}")
     return []
 
+
+_PERSONNEL_RE = re.compile(
+    r'人員|成員|團隊|師資|主任|執行秘書|計畫主持|共同主持|協同主持|老師|教授|誰|姓名|人名'
+)
 
 _LIST_INTENT_RE  = re.compile(
     r'哪些|有哪|哪幾|列出'
