@@ -343,15 +343,15 @@ def ask():
                         print(f"[ASK] 人員角色輪「{_role}」→ 合併後 {len(docs_all)} 筆")
 
                 if _school:
-                    # 學校特定查詢：額外以主題詞再搜一輪，確保結構化段落也被抓到
-                    _topic = _extract_keywords(question)
-                    if _topic and _topic != question:
+                    # 學校特定查詢：去掉學校名稱後以主題詞再搜一輪
+                    _topic = question.replace(_school, "").strip()
+                    _topic = re.sub(r'[的跟與和相關有關請問]+', ' ', _topic).strip()
+                    if _topic:
                         topic_vec = embeddings.embed_query(_topic)
                         docs_topic = vectorstore.similarity_search_by_vector(topic_vec, k=TOP_K * 3)
                         docs_all = _merge_docs(docs_all, docs_topic)
                         print(f"[ASK] 學校主題輪「{_topic}」→ 合併後 {len(docs_all)} 筆")
-                    # 學校查詢送較多 chunk（30 筆）避免關鍵段落被截掉
-                    docs = _school_filter_docs(docs_all, _school, TOP_K * 2)
+                    docs = _school_filter_docs(docs_all, _school, TOP_K)
                     print(f"[ASK] 學校過濾「{_school}」→ {len(docs)} 筆")
                 elif _list and not _personnel:
                     docs = _dedup_by_school(docs_all, TOP_K)
