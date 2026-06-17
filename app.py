@@ -319,7 +319,8 @@ def ask():
                 _school    = _extract_school(question)
                 _list      = bool(_LIST_INTENT_RE.search(question)) and not _school
                 _personnel = bool(_PERSONNEL_RE.search(question))
-                _fetch  = TOP_K * 5 if _school else (TOP_K * 3 if _list else TOP_K)
+                # 人員查詢需要跨多校 chunk，拉高 fetch 量
+                _fetch  = TOP_K * 5 if _school else (TOP_K * 4 if _personnel else (TOP_K * 3 if _list else TOP_K))
                 docs1 = vectorstore.similarity_search_by_vector(query_vec, k=_fetch)
 
                 # ③ FAISS：第二輪（關鍵詞搜尋，補充第一輪漏掉的 chunk）
@@ -332,6 +333,15 @@ def ask():
                 else:
                     docs_all = docs1
 
+                # ④ 人員查詢：額外以角色關鍵詞再搜一輪（抓「為X人員/X主任」等）
+                if _personnel:
+                    _role = _extract_role_term(question)
+                    if _role:
+                        role_vec = embeddings.embed_query(_role)
+                        docs3 = vectorstore.similarity_search_by_vector(role_vec, k=TOP_K * 2)
+                        docs_all = _merge_docs(docs_all, docs3)
+                        print(f"[ASK] 人員角色輪「{_role}」→ 合併後 {len(docs_all)} 筆")
+
                 if _school:
                     docs = _school_filter_docs(docs_all, _school, TOP_K)
                     print(f"[ASK] 學校過濾「{_school}」→ {len(docs)} 筆")
@@ -339,7 +349,9 @@ def ask():
                     docs = _dedup_by_school(docs_all, TOP_K)
                     print(f"[ASK] 列舉去重 → {len(docs)} 間學校")
                 else:
-                    docs = docs_all[:TOP_K]
+                    # 人員查詢送較多 chunk 讓 LLM 有足夠資料
+                    limit = TOP_K * 2 if _personnel else TOP_K
+                    docs = docs_all[:limit]
                     if _personnel:
                         print(f"[ASK] 人員查詢，不去重 → {len(docs)} 筆")
                 t_faiss = time.perf_counter()
@@ -514,6 +526,19 @@ def _school_filter_docs(docs, school: str, k: int):
     """過濾含學校名稱的 chunk，無結果則退回全部。"""
     filtered = [d for d in docs if school in d.metadata.get("source", "")]
     return filtered[:k] if filtered else docs[:k]
+
+
+def _extract_role_term(question: str) -> str | None:
+    """從人員查詢中提取角色/職稱關鍵詞，例如「原住民資源中心人員」→「原住民資源中心」。"""
+    # 擷取「為X人員/X主任/X中心/X職稱」等後半部分作為角色詞
+    m = re.search(r'[為是]([一-鿿A-Za-z0-9]{4,20}?)(?:人員|成員|主任|秘書|教授|老師)?$', question.strip())
+    if m:
+        return m.group(1).strip()
+    # 退回：取問題中最長的非問句 CJK 詞組
+    tokens = re.findall(r'[一-鿿]{4,}', question)
+    if tokens:
+        return max(tokens, key=len)
+    return None
 
 
 def _extract_keywords(question: str) -> str | None:
