@@ -351,7 +351,7 @@ def ask():
                         docs_topic = vectorstore.similarity_search_by_vector(topic_vec, k=TOP_K * 3)
                         docs_all = _merge_docs(docs_all, docs_topic)
                         print(f"[ASK] 學校主題輪「{_topic}」→ 合併後 {len(docs_all)} 筆")
-                    docs = _school_filter_docs(docs_all, _school, TOP_K)
+                    docs = _school_filter_docs(docs_all, _school, TOP_K * 2)
                     print(f"[ASK] 學校過濾「{_school}」→ {len(docs)} 筆")
                 elif _list and not _personnel:
                     docs = _dedup_by_school(docs_all, TOP_K)
