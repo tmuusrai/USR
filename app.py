@@ -5,6 +5,7 @@ import json
 import time
 import queue as _queue
 import threading
+from collections import OrderedDict
 from pathlib import Path
 
 sys.stdout.reconfigure(encoding="utf-8")
@@ -49,15 +50,22 @@ INDEX_DIR       = Path("faiss_index")
 
 # ── Embedding 模型（全域共用，避免重複初始化）──────────
 class _CachedEmbeddings(Embeddings):
-    """Query embedding 快取，相同問題不重複呼叫 Voyage AI。"""
+    """Query embedding 快取，相同問題不重複呼叫 Voyage AI。上限 200 筆（LRU）。"""
+    _MAX = 200
+
     def __init__(self, base):
         self._base  = base
-        self._cache = {}
+        self._cache = OrderedDict()
 
     def embed_query(self, text: str) -> list:
-        if text not in self._cache:
-            self._cache[text] = self._base.embed_query(text)
-        return self._cache[text]
+        if text in self._cache:
+            self._cache.move_to_end(text)
+            return self._cache[text]
+        vec = self._base.embed_query(text)
+        self._cache[text] = vec
+        if len(self._cache) > self._MAX:
+            self._cache.popitem(last=False)
+        return vec
 
     def embed_documents(self, texts: list) -> list:
         return self._base.embed_documents(texts)
