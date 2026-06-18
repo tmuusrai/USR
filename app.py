@@ -353,15 +353,8 @@ def ask():
                         print(f"[ASK] 學校主題輪「{_topic}」→ 合併後 {len(docs_all)} 筆")
                     docs = _school_filter_docs(docs_all, _school, TOP_K * 2)
                     print(f"[ASK] 學校過濾「{_school}」→ {len(docs)} 筆")
-                elif _list and not _personnel:
-                    docs = _dedup_by_school(docs_all, TOP_K)
-                    print(f"[ASK] 列舉去重 → {len(docs)} 間學校")
                 else:
-                    # 人員查詢送較多 chunk 讓 LLM 有足夠資料
-                    limit = TOP_K * 2 if _personnel else TOP_K
-                    docs = docs_all[:limit]
-                    if _personnel:
-                        print(f"[ASK] 人員查詢，不去重 → {len(docs)} 筆")
+                    docs = docs_all[:TOP_K]
                 t_faiss = time.perf_counter()
 
                 context = "\n\n".join(doc.page_content for doc in docs)
