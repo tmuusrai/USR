@@ -352,6 +352,8 @@ body{font-family:"Segoe UI","Noto Sans TC",sans-serif;background:#f5f7fa;height:
 </div>
 
 <script>
+const chatId = crypto.randomUUID();
+
 function toggleSidebar() {
   document.getElementById("sidebar").classList.toggle("open");
   document.getElementById("rag-panel").classList.remove("open");
@@ -434,7 +436,7 @@ async function askQuestion() {
 
 
   try {
-    const body = { question };
+    const body = { question, chat_id: chatId };
     if (pendingQuestion) {
       body.original_question = pendingQuestion;
       pendingQuestion = null;

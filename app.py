@@ -236,6 +236,41 @@ def load_or_build_index() -> FAISS:
     return vectorstore
 
 
+# ── 對話記憶 ─────────────────────────────────────────
+_chat_history: dict[str, list] = {}   # chat_id -> [{q, a}]
+_MAX_HISTORY  = 3                      # 每個 session 保留最近幾輪
+
+_FOLLOWUP_RE = re.compile(
+    r'此計畫|這個計畫|這計畫|該計畫|這所學校|這間學校|該校|這所|此所'
+    r'|它的|其計畫|上述|前述|剛才說|這題|這個問題|繼續|再問|另外'
+)
+
+
+def _rewrite_question(question: str, history: list) -> str:
+    """用 Gemini 把含代名詞的追問改寫成完整獨立問題。"""
+    if not history:
+        return question
+    last = history[-1]
+    prompt = (
+        "根據以下對話記錄，將新問題改寫為完整獨立的問題（將代名詞替換成具體名稱）。"
+        "直接輸出改寫後的問題，不要解釋，不要加引號。\n\n"
+        f"使用者：{last['q']}\n"
+        f"助理（摘要）：{last['a'][:300]}\n\n"
+        f"新問題：{question}\n"
+        "改寫後的問題："
+    )
+    try:
+        from langchain_core.messages import HumanMessage as _HM
+        res = llm.bind(temperature=0).invoke([_HM(content=prompt)])
+        rewritten = res.content.strip()
+        if rewritten:
+            print(f"[REWRITE] {question!r} → {rewritten!r}")
+            return rewritten
+    except Exception as e:
+        print(f"[REWRITE] 失敗：{e}")
+    return question
+
+
 # ── 啟動時初始化 ──────────────────────────────────────
 llm = ChatGoogleGenerativeAI(
     model=os.getenv("LLM_MODEL", "gemini-2.5-pro-preview"),
@@ -292,6 +327,7 @@ def ask():
 
     data = request.get_json(silent=True) or {}
     question = (data.get("question") or "").strip()
+    chat_id   = (data.get("chat_id") or "").strip()
     original_question = (data.get("original_question") or "").strip()
     skip_eval = bool(original_question)
     if original_question:
@@ -305,6 +341,12 @@ def ask():
     def generate():
         try:
             t0 = time.perf_counter()
+
+            # ── 對話記憶：取得 history，必要時改寫問題 ──
+            history = _chat_history.get(chat_id, []) if chat_id else []
+            search_question = question
+            if chat_id and history and _FOLLOWUP_RE.search(question):
+                search_question = _rewrite_question(question, history)
 
             # ✦ 主觀評量問題攔截：反問使用者定義判斷準則
             if not skip_eval and _is_evaluation_question(question):
@@ -327,19 +369,19 @@ def ask():
                 return
             else:
                 # ① Voyage AI：將問題向量化
-                query_vec = embeddings.embed_query(question)
+                query_vec = embeddings.embed_query(search_question)
                 t_voyage = time.perf_counter()
 
                 # ② FAISS：第一輪搜尋
-                _school    = _extract_school(question)
-                _list      = bool(_LIST_INTENT_RE.search(question)) and not _school
-                _personnel = bool(_PERSONNEL_RE.search(question))
+                _school    = _extract_school(search_question)
+                _list      = bool(_LIST_INTENT_RE.search(search_question)) and not _school
+                _personnel = bool(_PERSONNEL_RE.search(search_question))
                 # 人員查詢需要跨多校 chunk，拉高 fetch 量
                 _fetch  = TOP_K * 5 if _school else (TOP_K * 4 if _personnel else (TOP_K * 3 if _list else TOP_K))
                 docs1 = vectorstore.similarity_search_by_vector(query_vec, k=_fetch)
 
                 # ③ FAISS：第二輪（關鍵詞搜尋，補充第一輪漏掉的 chunk）
-                _kw = _extract_keywords(question)
+                _kw = _extract_keywords(search_question)
                 if _kw:
                     kw_vec = embeddings.embed_query(_kw)
                     docs2  = vectorstore.similarity_search_by_vector(kw_vec, k=TOP_K)
@@ -431,6 +473,18 @@ def ask():
             )
 
             yield f"data: {json.dumps({'type': 'done', 'timing': timing})}\n\n"
+
+            # ── 儲存對話記憶 ──
+            if chat_id:
+                full_ans = "".join(answer_parts)
+                hist = _chat_history.setdefault(chat_id, [])
+                hist.append({"q": question, "a": full_ans[:500]})
+                if len(hist) > _MAX_HISTORY:
+                    hist.pop(0)
+                if len(_chat_history) > 1000:
+                    for k in list(_chat_history.keys())[:200]:
+                        del _chat_history[k]
+
             suggestions = _generate_suggestions(question, "".join(answer_parts))
             if suggestions:
                 yield f"data: {json.dumps({'type': 'suggested_questions', 'questions': suggestions}, ensure_ascii=False)}\n\n"
