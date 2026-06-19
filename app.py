@@ -107,6 +107,13 @@ _PLAN_TYPE_RE = re.compile(
     r'(大學特色類(?:萌芽型|深耕型)|永續發展類(?:國際合作型|特色永續型))'
 )
 
+# 清理計畫編號與 _formatted 後綴
+_PLAN_CODE_RE = re.compile(r'\s*\(114USR-[^)]*\)|_formatted', re.IGNORECASE)
+
+def _clean_plan_code(text: str) -> str:
+    """移除 chunk 內容或檔名中的計畫編號與 _formatted。"""
+    return _PLAN_CODE_RE.sub('', text).strip()
+
 
 def _extract_plan_type(content: str) -> str:
     """從 md 內容前 600 字提取計畫類型（萌芽型/深耕型/國際合作型/特色永續型）。"""
@@ -365,14 +372,15 @@ def ask():
                     docs = docs_all[:TOP_K]
                 t_faiss = time.perf_counter()
 
-                context = "\n\n".join(doc.page_content for doc in docs)
+                context = "\n\n".join(_clean_plan_code(doc.page_content) for doc in docs)
             prompt_value = RAG_PROMPT.invoke({"context": context, "question": question})
 
             sources = []
             seen = set()
             for doc in docs:
                 meta = doc.metadata
-                src  = Path(meta.get("source", "")).name
+                raw_src = Path(meta.get("source", "")).stem
+                src  = _clean_plan_code(raw_src)
                 page = meta.get("page", 0) + 1
                 if (src, page) not in seen:
                     seen.add((src, page))
