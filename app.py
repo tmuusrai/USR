@@ -243,6 +243,8 @@ _MAX_HISTORY  = 3                      # 每個 session 保留最近幾輪
 _FOLLOWUP_RE = re.compile(
     r'此計畫|這個計畫|這計畫|該計畫|這所學校|這間學校|該校|這所|此所'
     r'|它的|其計畫|上述|前述|剛才說|這題|這個問題|繼續|再問|另外'
+    r'|它|這間|那個|那所|那間|那個計畫'
+    r'|再給|再說|再介紹|再提供|再詳細|更詳細|更多|進一步|詳細說明|展開說'
 )
 
 
@@ -408,7 +410,12 @@ def ask():
                         docs_topic = vectorstore.similarity_search_by_vector(topic_vec, k=TOP_K * 3)
                         docs_all = _merge_docs(docs_all, docs_topic)
                         print(f"[ASK] 學校主題輪「{_topic}」→ 合併後 {len(docs_all)} 筆")
-                    docs = _school_filter_docs(docs_all, _school, TOP_K * 2)
+                    # 額外用學校名稱搜尋，確保該校敘述型 chunk 也被納入
+                    school_vec = embeddings.embed_query(_school)
+                    docs_school = vectorstore.similarity_search_by_vector(school_vec, k=TOP_K * 10)
+                    docs_all = _merge_docs(docs_all, docs_school)
+                    print(f"[ASK] 學校名稱輪「{_school}」→ 合併後 {len(docs_all)} 筆")
+                    docs = _school_filter_docs(docs_all, _school, TOP_K * 3)
                     print(f"[ASK] 學校過濾「{_school}」→ {len(docs)} 筆")
                 else:
                     docs = docs_all[:TOP_K]
