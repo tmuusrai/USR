@@ -380,6 +380,11 @@ def ask():
 
                 # ② FAISS：第一輪搜尋
                 _school    = _extract_school(search_question)
+                # 追問且改寫後仍無學校名稱：從歷史記錄補回
+                if not _school and history and _FOLLOWUP_RE.search(question):
+                    _school = _extract_school(history[-1]['q'])
+                    if _school:
+                        print(f"[ASK] 從歷史補充學校：{_school}")
                 _list      = bool(_LIST_INTENT_RE.search(search_question)) and not _school
                 _personnel = bool(_PERSONNEL_RE.search(search_question))
                 # 人員查詢需要跨多校 chunk，拉高 fetch 量
