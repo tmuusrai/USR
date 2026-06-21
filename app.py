@@ -594,10 +594,25 @@ def _is_evaluation_question(question: str) -> bool:
     return bool(_EVAL_RE.search(question))
 
 
+def _build_known_schools() -> list[str]:
+    """從 114md/ 檔名提取已知學校名稱，按長度降冪排列（優先匹配較長名稱）。"""
+    schools = set()
+    _name_re = re.compile(r'^([一-鿿]{3,12}(?:大學|學院|科大))')
+    for f in MD_DIR.glob("*.md"):
+        m = _name_re.match(f.name)
+        if m:
+            schools.add(m.group(1))
+    return sorted(schools, key=len, reverse=True)
+
+_KNOWN_SCHOOLS: list[str] = _build_known_schools()
+
+
 def _extract_school(text: str) -> str | None:
-    """從問題中提取學校名稱片段（用於 FAISS 來源過濾）"""
-    m = re.search(r'([一-鿿]{2,10}(?:大學|學院|科大|科技大學|醫學大學|師範大學|教育大學|海洋大學|藝術大學|護理大學|管理學院|專科學校))', text)
-    return m.group(1) if m else None
+    """從問題中提取學校名稱（與已知學校清單比對，避免 regex greedy 誤抓前綴詞）。"""
+    for school in _KNOWN_SCHOOLS:
+        if school in text:
+            return school
+    return None
 
 
 def _school_filter_docs(docs, school: str, k: int):
