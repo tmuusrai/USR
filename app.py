@@ -419,7 +419,8 @@ def ask():
                     docs_school = vectorstore.similarity_search_by_vector(school_vec, k=TOP_K * 10)
                     docs_all = _merge_docs(docs_all, docs_school)
                     print(f"[ASK] 學校名稱輪「{_school}」→ 合併後 {len(docs_all)} 筆")
-                    docs = _school_filter_docs(docs_all, _school, TOP_K * 3)
+                    # 單一學校查詢：取所有該校 chunk，不截斷（一份計畫書約 40 chunk）
+                    docs = _school_filter_docs(docs_all, _school, k=9999)
                     print(f"[ASK] 學校過濾「{_school}」→ {len(docs)} 筆")
                 else:
                     docs = docs_all[:TOP_K]
