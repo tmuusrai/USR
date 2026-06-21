@@ -266,6 +266,10 @@ def _rewrite_question(question: str, history: list) -> str:
         res = llm.bind(temperature=0).invoke([_HM(content=prompt)])
         rewritten = res.content.strip()
         if rewritten:
+            # 若前一輪有明確學校名，確保改寫後仍保留
+            prev_school = _extract_school(last['q'])
+            if prev_school and prev_school not in rewritten:
+                rewritten = f"{prev_school}：{rewritten}"
             print(f"[REWRITE] {question!r} → {rewritten!r}")
             return rewritten
     except Exception as e:
