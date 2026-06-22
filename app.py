@@ -1149,6 +1149,21 @@ def _build_wiki_background():
         _wiki_building = False
 
 
+@app.route("/cards")
+def cards_page():
+    if SITE_PASSWORD and not session.get("authenticated", False):
+        return redirect(url_for("index"))
+    plans = []
+    for f in sorted(MD_DIR.glob("*.md")):
+        name = f.stem
+        # 移除 _formatted 後綴與計畫編號括號
+        name = re.sub(r'\([^)]*\)', '', name).replace('_formatted', '').strip('_').strip()
+        parts = name.split('_', 1)
+        if len(parts) == 2:
+            plans.append({"school": parts[0].strip(), "title": parts[1].strip(), "filename": f.stem})
+    return render_template("cards.html", plans=plans)
+
+
 @app.route("/wiki-map")
 def wiki_map_page():
     global _wiki_building

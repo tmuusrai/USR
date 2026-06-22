@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>計畫總覽 — USR 查詢系統</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:"Noto Sans TC",system-ui,sans-serif;background:#f1f5f9;min-height:100vh}
+#topbar{background:linear-gradient(135deg,#1d4ed8,#3b82f6);color:#fff;display:flex;align-items:center;gap:12px;padding:0 18px;height:52px;flex-shrink:0}
+.logo{font-weight:700;font-size:1rem;white-space:nowrap}
+.logo span{font-weight:400;opacity:.85}
+.back-btn{color:rgba(255,255,255,.85);font-size:.82rem;text-decoration:none;padding:5px 12px;border:1px solid rgba(255,255,255,.3);border-radius:6px;transition:background .15s;white-space:nowrap}
+.back-btn:hover{background:rgba(255,255,255,.15)}
+#search-bar{padding:18px 20px 10px;display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+#search-bar input{flex:1;min-width:200px;padding:8px 14px;border:1px solid #cbd5e1;border-radius:8px;font-size:.9rem;outline:none;background:#fff}
+#search-bar input:focus{border-color:#3b82f6;box-shadow:0 0 0 3px rgba(59,130,246,.15)}
+#count{font-size:.82rem;color:#64748b;white-space:nowrap}
+#cards-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:16px;padding:10px 20px 32px}
+.plan-card{background:#fff;border-radius:14px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,.07);border:1px solid #f1f5f9;cursor:pointer;transition:transform .15s,box-shadow .2s,border-color .15s;display:flex;flex-direction:column;text-decoration:none;color:inherit}
+.plan-card:hover{transform:translateY(-4px);box-shadow:0 10px 28px rgba(59,130,246,.18);border-color:#bfdbfe}
+.card-img{height:130px;overflow:hidden;position:relative;flex-shrink:0;background:#e2e8f0}
+.card-img img{width:100%;height:100%;object-fit:cover;transition:transform .3s}
+.plan-card:hover .card-img img{transform:scale(1.07)}
+.card-img-overlay{position:absolute;inset:0;background:linear-gradient(to bottom,transparent 30%,rgba(0,0,0,.48))}
+.uni-tag{position:absolute;bottom:8px;left:10px;background:rgba(255,255,255,.92);color:#1e40af;font-size:.65rem;font-weight:700;padding:2px 8px;border-radius:999px;max-width:calc(100% - 20px);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.card-info{padding:10px 12px 14px;flex:1;display:flex;flex-direction:column}
+.card-title{font-size:.78rem;font-weight:600;color:#1e293b;line-height:1.45;flex:1;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
+.card-ask{margin-top:8px;display:inline-block;padding:4px 12px;background:#eff6ff;color:#1d4ed8;border-radius:999px;font-size:.7rem;font-weight:600;border:1px solid #bfdbfe;align-self:flex-start}
+.plan-card.hidden{display:none}
+@media(max-width:480px){#cards-grid{grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:10px;padding:8px 12px 24px}}
+</style>
+</head>
+<body>
+<div id="topbar">
+  <div class="logo">📚 USR <span>計畫書智慧查詢系統</span></div>
+  <a href="/" class="back-btn">← 回問答頁</a>
+  <a href="/wiki-map" class="back-btn">Wiki 地圖</a>
+</div>
+<div id="search-bar">
+  <input id="filter" type="text" placeholder="搜尋學校或計畫名稱…" oninput="filterCards(this.value)">
+  <span id="count"></span>
+</div>
+<div id="cards-grid"></div>
+
+<script>
+const plans = {{ plans | tojson }};
+
+const IMG_RULES = [
+  [/海洋|漁|里海|海岸|海鄉|蔚藍|水產|鯤鯓|澎湖|金門|石滬|濱海/, 'ocean coast sea'],
+  [/農業|農村|食農|農創|農產|農耕|稻田|稻米|有機農|里山|茶葉|咖啡|花卉|柿|竹/, 'farm agriculture rural'],
+  [/原住民|部落|泰雅|鄒族|賽夏|馬卡道|原鄉|霧台|南島|布農/, 'mountain forest indigenous'],
+  [/山|森林|生態|綠色|植物|水尾|淺山|茶山|玉山|阿里山|烏來|太魯閣|花蓮|台東|宜蘭|南投/, 'mountain forest nature'],
+  [/溪|河|水圳|水域|水資源|頭前溪|曾文溪|埤圳/, 'river water stream'],
+  [/高齡|老|銀髮|樂齡|長照|老化|失智|照護|養老|長者|超高齡/, 'elderly care senior'],
+  [/偏鄉|教育|學習|學伴|學童|兒童|青少年|早療/, 'education school children'],
+  [/醫療|健康|照護|護理|醫學|藥|健促/, 'healthcare medical health'],
+  [/AI|數位|科技|智慧|IoT|XR|機器人|大數據/, 'technology digital innovation'],
+  [/文化|藝術|創生|工藝|傳統|文創|博物館|影像|陶瓷/, 'culture art traditional'],
+  [/觀光|旅遊|旅行|慢城|遊程/, 'tourism travel scenic'],
+  [/食品|餐飲|飲食|食安|料理|惜食/, 'food restaurant cooking'],
+  [/低碳|淨零|碳排|減碳|再生能源|綠電|循環經濟/, 'sustainable clean green energy'],
+  [/都市|城市|城鄉|社區|街道|老街|夜市/, 'city urban community'],
+  [/新住民|多元|共融|移民|越南/, 'multicultural diversity'],
+  [/身心障礙|漸凍|自閉症/, 'care support inclusion'],
+  [/動物|流浪動物|貓|狗/, 'animals wildlife'],
+  [/島|離島|小琉球/, 'island ocean'],
+];
+
+function getKeyword(title) {
+  for (const [re, kw] of IMG_RULES) {
+    if (re.test(title)) return kw;
+  }
+  return 'taiwan community university';
+}
+
+function imgUrl(plan, idx) {
+  const kw = getKeyword(plan.title);
+  // loremflickr: keyword-based + lock keeps it consistent per plan
+  return `https://loremflickr.com/300/180/${encodeURIComponent(kw)}?lock=${idx}`;
+}
+
+function goToChat(school, title) {
+  const q = encodeURIComponent(`請介紹${school}的計畫「${title}」執行內容與成果`);
+  window.location.href = `/?q=${q}`;
+}
+
+const grid = document.getElementById("cards-grid");
+const countEl = document.getElementById("count");
+
+plans.forEach((p, i) => {
+  const card = document.createElement("a");
+  card.className = "plan-card";
+  card.href = "#";
+  card.addEventListener("click", e => { e.preventDefault(); goToChat(p.school, p.title); });
+  card.innerHTML = `
+    <div class="card-img">
+      <img src="${imgUrl(p, i)}" alt="${p.title}" loading="lazy"
+           onerror="this.src='https://picsum.photos/seed/${i}/300/180'">
+      <div class="card-img-overlay"></div>
+      <div class="uni-tag">${p.school}</div>
+    </div>
+    <div class="card-info">
+      <div class="card-title" title="${p.title}">${p.title}</div>
+      <span class="card-ask">查詢此計畫 →</span>
+    </div>`;
+  grid.appendChild(card);
+});
+
+function updateCount(n) {
+  countEl.textContent = `顯示 ${n} / ${plans.length} 件計畫`;
+}
+updateCount(plans.length);
+
+function filterCards(val) {
+  const q = val.trim().toLowerCase();
+  let shown = 0;
+  document.querySelectorAll(".plan-card").forEach((card, i) => {
+    const p = plans[i];
+    const match = !q || p.school.toLowerCase().includes(q) || p.title.toLowerCase().includes(q);
+    card.classList.toggle("hidden", !match);
+    if (match) shown++;
+  });
+  updateCount(shown);
+}
+</script>
+</body>
+</html>

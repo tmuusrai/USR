@@ -170,6 +170,7 @@ body{font-family:"Segoe UI","Noto Sans TC",sans-serif;background:#f5f7fa;height:
 <div id="topbar">
   <button class="menu-btn" onclick="toggleSidebar()" title="功能導覽">☰</button>
   <div class="logo">📚 USR <span>計畫書智慧查詢系統</span></div>
+  <a href="/cards" style="color:rgba(255,255,255,.85);font-size:.82rem;text-decoration:none;padding:5px 12px;border:1px solid rgba(255,255,255,.3);border-radius:6px;transition:background .15s;white-space:nowrap" onmouseover="this.style.background='rgba(255,255,255,.15)'" onmouseout="this.style.background='none'">📋 計畫總覽</a>
   <a href="/wiki-map" style="color:rgba(255,255,255,.85);font-size:.82rem;text-decoration:none;padding:5px 12px;border:1px solid rgba(255,255,255,.3);border-radius:6px;transition:background .15s;white-space:nowrap" onmouseover="this.style.background='rgba(255,255,255,.15)'" onmouseout="this.style.background='none'">Wiki 地圖</a>
   <div class="font-btns">
     <button class="font-btn" onclick="setFontSize('small',this)">小</button>
@@ -363,6 +364,17 @@ body{font-family:"Segoe UI","Noto Sans TC",sans-serif;background:#f5f7fa;height:
 
 <script>
 const chatId = crypto.randomUUID();
+
+// 從計畫總覽頁點卡片跳回時，自動帶入問題
+(function(){
+  const q = new URLSearchParams(location.search).get("q");
+  if (q) {
+    window.addEventListener("DOMContentLoaded", () => {
+      const el = document.getElementById("question");
+      if (el) { el.value = q; el.dispatchEvent(new Event("input")); }
+    });
+  }
+})();
 
 function toggleSidebar() {
   document.getElementById("sidebar").classList.toggle("open");
