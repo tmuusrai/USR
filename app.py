@@ -249,17 +249,29 @@ _FOLLOWUP_RE = re.compile(
 
 
 def _rewrite_question(question: str, history: list) -> str:
-    """用 Gemini 把含代名詞的追問改寫成完整獨立問題。"""
+    """
+    用 LLM 兩步驟判斷追問意圖並改寫為完整獨立問題。
+    前驗：舊問題 × 新問題 初步判斷是否為追問
+    後驗：舊問題 × 舊回答 × 新問題 確認指涉對象並改寫
+    非追問時直接回傳原問題。
+    """
     if not history:
         return question
     last = history[-1]
     prompt = (
-        "根據以下對話記錄，將新問題改寫為完整獨立的問題（將代名詞替換成具體名稱）。"
-        "直接輸出改寫後的問題，不要解釋，不要加引號。\n\n"
-        f"使用者：{last['q']}\n"
-        f"助理（摘要）：{last['a'][:300]}\n\n"
-        f"新問題：{question}\n"
-        "改寫後的問題："
+        "你是對話理解專家。判斷「新問題」是否為追問，並輸出最終搜尋用問題。\n\n"
+        f"【前一輪問題】\n{last['q']}\n\n"
+        f"【前一輪回答摘要】\n{last['a'][:400]}\n\n"
+        f"【新問題】\n{question}\n\n"
+        "判斷步驟：\n"
+        "步驟一（前驗）：僅看「前一輪問題」與「新問題」——新問題是否在延伸前一輪的主題、"
+        "或含有代名詞／省略指涉而無法獨立理解？\n"
+        "步驟二（後驗）：再看「前一輪回答」——回答所提及的具體對象，"
+        "是否讓新問題的指涉更明確？\n\n"
+        "輸出規則：\n"
+        "・若是追問：將代名詞與隱含指涉替換為具體名稱，輸出完整獨立問題\n"
+        "・若非追問（全新主題）：原樣輸出新問題，不作任何修改\n\n"
+        "只輸出最終問題，不要解釋，不要加引號。"
     )
     try:
         from langchain_core.messages import HumanMessage as _HM
@@ -351,7 +363,7 @@ def ask():
             # ── 對話記憶：取得 history，必要時改寫問題 ──
             history = _chat_history.get(chat_id, []) if chat_id else []
             search_question = question
-            if chat_id and history and _FOLLOWUP_RE.search(question):
+            if chat_id and history:
                 search_question = _rewrite_question(question, history)
 
             # ✦ 主觀評量問題攔截：反問使用者定義判斷準則
