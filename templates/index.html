@@ -70,7 +70,8 @@ body{font-family:"Segoe UI","Noto Sans TC",sans-serif;background:#f5f7fa;height:
 .seg-btn.active{background:#fff;color:#1d4ed8;box-shadow:0 1px 4px rgba(0,0,0,.1);font-weight:600}
 .seg-btn.active.agent{color:#7c3aed}
 .seg-btn.active.subagent{color:#0891b2}
-.user-seg{display:flex;background:#fef3c7;border-radius:9px;padding:3px;gap:2px}
+.user-seg{display:none;background:#fef3c7;border-radius:9px;padding:3px;gap:2px}
+.user-seg.visible{display:flex}
 .user-btn{padding:5px 13px;border-radius:7px;border:none;background:none;color:#92400e;font-size:.8rem;font-weight:500;cursor:pointer;transition:all .15s;white-space:nowrap}
 .user-btn:hover{background:#fde68a;color:#78350f}
 .user-btn.active{background:#fff;color:#b45309;box-shadow:0 1px 4px rgba(0,0,0,.1);font-weight:600}
@@ -419,6 +420,7 @@ function setMode(mode, btn) {
   document.querySelectorAll(".seg-btn").forEach(b => b.classList.remove("active"));
   btn.classList.add("active");
   document.getElementById("question").placeholder = PLACEHOLDERS[mode];
+  document.querySelector(".user-seg").classList.toggle("visible", mode === "subagent");
 }
 function setUserType(type, btn) {
   currentUserType = type;
