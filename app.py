@@ -102,6 +102,47 @@ RAG_PROMPT = PromptTemplate(
 回答：""",
 )
 
+REVIEWER_PROMPT = PromptTemplate(
+    input_variables=["context", "question"],
+    template="""你是一位 USR（大學社會責任）計畫的書面審查及實地訪評委員。
+請根據以下計畫書內容，提供結構化的審查分析，協助委員進行評核。
+
+【計畫書內容】
+{context}
+
+【審查對象／問題】
+{question}
+
+【回答規則】
+- 只根據上方提供的計畫書內容回答，不自行推測或補充計畫書未提及的內容。
+- 回答請使用繁體中文。
+- 凡提及計畫，格式必須為「學校全名：計畫全名」。
+- 提及地名或人名時，一律用〔〕標記。
+
+請依以下結構輸出：
+
+## 一、執行現況摘要
+簡述計畫的核心目標、主要執行內容與目前進度。
+
+## 二、量化指標
+列出所有可量化的數據（參與人次、場次、合作單位數、學生人數、經費執行率等）。
+若有同類型計畫的比較資料，請標示相對表現（高於／低於同儕）。
+
+## 三、質性亮點與待釐清事項
+- **亮點**：值得肯定的創新作法或特色
+- **待釐清**：計畫書中不夠具體或需進一步說明的地方
+
+## 四、同儕比較（同類型計畫）
+根據提供的同類型計畫參考資料，說明此計畫與同儕的異同與相對表現。
+若無比較資料，請直接說明「未提供同類型計畫比較資料」。
+
+## 五、建議訪評問題（3～5題）
+根據計畫內容，提出具體、有深度的訪評問題，幫助委員深入了解計畫執行品質與影響力。
+問題應針對此計畫的具體細節，而非泛用問題。
+
+回答：""",
+)
+
 
 _PLAN_TYPE_RE = re.compile(
     r'(大學特色類(?:萌芽型|深耕型)|永續發展類(?:國際合作型|特色永續型))'
@@ -346,6 +387,9 @@ def ask():
     data = request.get_json(silent=True) or {}
     question = (data.get("question") or "").strip()
     chat_id   = (data.get("chat_id") or "").strip()
+    user_type = (data.get("user_type") or "applicant").strip()
+    if user_type not in ("applicant", "reviewer"):
+        user_type = "applicant"
     original_question = (data.get("original_question") or "").strip()
     skip_eval = bool(original_question)
     if original_question:
@@ -444,7 +488,29 @@ def ask():
                 t_faiss = time.perf_counter()
 
                 context = "\n\n".join(_clean_plan_code(doc.page_content) for doc in docs)
-            prompt_value = RAG_PROMPT.invoke({"context": context, "question": question})
+
+                # ── 委員模式：同儕比較（同類型計畫 2~3 所其他學校）──
+                if user_type == "reviewer" and _school:
+                    plan_type = None
+                    for doc in docs[:10]:
+                        m = _PLAN_TYPE_RE.search(doc.page_content)
+                        if m:
+                            plan_type = m.group(1)
+                            break
+                    if plan_type:
+                        peer_vec = embeddings.embed_query(plan_type)
+                        peer_raw = vectorstore.similarity_search_by_vector(peer_vec, k=TOP_K * 5)
+                        peer_docs = [d for d in peer_raw
+                                     if _school not in d.metadata.get("source", "")]
+                        peer_docs = _dedup_by_school(peer_docs, k=3)
+                        print(f"[ASK] 委員同儕「{plan_type}」→ {len(peer_docs)} 所學校")
+                        if peer_docs:
+                            peer_ctx = "\n\n".join(_clean_plan_code(d.page_content) for d in peer_docs)
+                            context = f"{context}\n\n【同類型計畫參考（{plan_type}）】\n{peer_ctx}"
+
+            prompt_value = (REVIEWER_PROMPT if user_type == "reviewer" else RAG_PROMPT).invoke(
+                {"context": context, "question": question}
+            )
 
             sources = []
             seen = set()

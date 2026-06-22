@@ -63,13 +63,18 @@ body{font-family:"Segoe UI","Noto Sans TC",sans-serif;background:#f5f7fa;height:
 #ask-btn{padding:11px 24px;background:linear-gradient(135deg,#1d4ed8,#3b82f6);color:#fff;border:none;border-radius:10px;font-size:.9rem;font-weight:600;cursor:pointer;transition:opacity .2s,transform .1s;white-space:nowrap}
 #ask-btn:hover:not(:disabled){transform:translateY(-1px)}
 #ask-btn:disabled{opacity:.45;cursor:not-allowed}
-#mode-toggle{display:flex;align-items:center;padding:6px 0;flex-shrink:0}
+#mode-toggle{display:flex;align-items:center;gap:10px;padding:6px 0;flex-shrink:0;flex-wrap:wrap}
 .mode-seg{display:flex;background:#f1f5f9;border-radius:9px;padding:3px;gap:2px}
 .seg-btn{padding:5px 13px;border-radius:7px;border:none;background:none;color:#64748b;font-size:.8rem;font-weight:500;cursor:pointer;transition:all .15s;white-space:nowrap}
 .seg-btn:hover{background:#e2e8f0;color:#334155}
 .seg-btn.active{background:#fff;color:#1d4ed8;box-shadow:0 1px 4px rgba(0,0,0,.1);font-weight:600}
 .seg-btn.active.agent{color:#7c3aed}
 .seg-btn.active.subagent{color:#0891b2}
+.user-seg{display:flex;background:#fef3c7;border-radius:9px;padding:3px;gap:2px}
+.user-btn{padding:5px 13px;border-radius:7px;border:none;background:none;color:#92400e;font-size:.8rem;font-weight:500;cursor:pointer;transition:all .15s;white-space:nowrap}
+.user-btn:hover{background:#fde68a;color:#78350f}
+.user-btn.active{background:#fff;color:#b45309;box-shadow:0 1px 4px rgba(0,0,0,.1);font-weight:600}
+.user-btn.active.reviewer{color:#dc2626}
 .msg.step{background:#f5f3ff;border:1px solid #ddd6fe;color:#6d28d9;align-self:flex-start;font-size:.78rem;font-style:italic}
 .suggest-row{display:flex;flex-wrap:wrap;gap:6px;margin-top:4px;align-self:flex-start;max-width:88%}
 .suggest-btn{background:#eff6ff;border:1px solid #bfdbfe;color:#1d4ed8;border-radius:14px;padding:5px 13px;font-size:.77rem;cursor:pointer;transition:all .15s;font-family:inherit;line-height:1.4}
@@ -329,6 +334,10 @@ body{font-family:"Segoe UI","Noto Sans TC",sans-serif;background:#f5f7fa;height:
         <button class="seg-btn agent" onclick="setMode('agent',this)">🤖 Agent</button>
         <button class="seg-btn subagent" onclick="setMode('subagent',this)">⚡ SubAgent</button>
       </div>
+      <div class="user-seg">
+        <button class="user-btn active" onclick="setUserType('applicant',this)">申請者</button>
+        <button class="user-btn reviewer" onclick="setUserType('reviewer',this)">委員</button>
+      </div>
     </div>
     <div id="input-row">
       <textarea id="question" placeholder="請輸入問題，例如：有哪些計畫關注高齡照護？"
@@ -398,6 +407,7 @@ async function checkStatus() {
 }
 
 let currentMode = "rag";
+let currentUserType = "applicant";
 let pendingQuestion = null;  // stores original eval question waiting for user criteria
 const PLACEHOLDERS = {
   rag:      "請輸入問題，例如：有哪些計畫關注高齡照護？",
@@ -409,6 +419,11 @@ function setMode(mode, btn) {
   document.querySelectorAll(".seg-btn").forEach(b => b.classList.remove("active"));
   btn.classList.add("active");
   document.getElementById("question").placeholder = PLACEHOLDERS[mode];
+}
+function setUserType(type, btn) {
+  currentUserType = type;
+  document.querySelectorAll(".user-btn").forEach(b => b.classList.remove("active"));
+  btn.classList.add("active");
 }
 function toggleAgentMode(cb) {} // kept for compatibility
 
@@ -436,7 +451,7 @@ async function askQuestion() {
 
 
   try {
-    const body = { question, chat_id: chatId };
+    const body = { question, chat_id: chatId, user_type: currentUserType };
     if (pendingQuestion) {
       body.original_question = pendingQuestion;
       pendingQuestion = null;
