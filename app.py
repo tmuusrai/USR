@@ -143,6 +143,159 @@ REVIEWER_PROMPT = PromptTemplate(
 回答：""",
 )
 
+REVIEWER_PLAN_PROMPT = """你是 USR 計畫書評審委員，正在準備審查特定學校的計畫書。
+請針對以下審查問題，列出 3~4 個繁體中文搜尋關鍵字組合，用來從計畫書資料庫中找到：
+1. 目標學校的計畫執行詳情與成效
+2. 同類型計畫（其他學校）作為同儕比較基準
+3. 量化指標與成果數據
+
+問題：{question}
+
+只輸出 JSON 陣列，不要其他文字，例如：
+["中正大學 USR 計畫執行", "深耕型計畫 量化指標 成效", "社區參與 大學 影響力", "同類型計畫 比較"]"""
+
+REVIEWER_ANSWER_ONSITE = """你是 USR（大學社會責任）計畫的實地訪評委員。
+請根據以下計畫書資料，提供「實地訪評」的專業審查協助。
+
+【計畫書資料】
+{context}
+
+【審查問題】
+{question}
+
+【輸出規則】
+- 只根據提供的資料回答，不自行推測或捏造數據
+- 使用繁體中文，提及計畫格式為「學校全名：計畫全名」
+- 地名人名使用〔〕標記
+
+## 一、計畫執行現況摘要
+簡述核心目標、主要執行內容、目前進度（2~3句）。
+
+## 二、量化指標核查表
+列出所有可核實的量化數據，與同儕比較：
+| 量化指標 | 本計畫數值 | 同儕參考 | 相對表現 |
+|---------|-----------|---------|---------|
+（涵蓋：參與人次/場次、服務社區數、學生參與數、合作單位數、經費執行率等。若無比較數據標示「待查核」）
+
+## 三、實地訪評查核清單
+- ✅ **可現場驗證的具體成果**（設施、場域、社區、產出物）
+- 📋 **建議調閱的文件紀錄**（活動照片、簽到表、合作合約、成果報告）
+- 🏫 **建議訪視的現場與訪談對象**（社區、學生、合作夥伴）
+
+## 四、實地訪評關鍵問題（5~7題）
+**量化核實：**
+1.
+2.
+**質性探究：**
+3.
+4.
+**永續性與影響力：**
+5.
+
+## 五、質性品質評估
+- **創新亮點**：值得肯定的特色作法
+- **待現場確認**：計畫書描述需進一步核實的事項
+- **潛在風險點**：執行面可能的問題
+
+## 六、同儕比較參考
+根據同類型計畫資料，說明本計畫相對表現與特色差異。若無同儕資料，說明「未找到足夠同類型計畫比較資料」。
+
+回答："""
+
+REVIEWER_ANSWER_WRITTEN = """你是 USR（大學社會責任）計畫的書面評審委員。
+請根據以下計畫書資料，提供「書面審查」的專業評核協助。
+
+【計畫書資料】
+{context}
+
+【審查問題】
+{question}
+
+【輸出規則】
+- 只根據提供的資料回答，不自行推測或捏造數據
+- 使用繁體中文，提及計畫格式為「學校全名：計畫全名」
+- 地名人名使用〔〕標記
+
+## 一、計畫基本資訊
+學校、計畫類型（萌芽/深耕/國際合作/特色永續型）、核心主題、執行場域。
+
+## 二、量化指標比較分析
+列出所有量化數據，與同類型計畫進行比較：
+| 量化指標 | 本計畫 | 同儕平均/範圍 | 相對表現 |
+|---------|--------|-------------|---------|
+（涵蓋：人次、場次、社區數、學生數、合作單位數、經費執行率等。若無比較數據標示「待查核」）
+
+## 三、書面審查查核清單
+- [ ] 計畫目標明確且可衡量（SMART原則）
+- [ ] 執行策略與目標邏輯連貫
+- [ ] 量化指標設定合理且具挑戰性
+- [ ] 社區需求調查與問題診斷清楚
+- [ ] 跨域合作機制具體說明
+- [ ] 永續發展與退場機制規劃完整
+- [ ] 經費配置與執行項目對應合理
+- [ ] SDG對應說明清楚
+
+## 四、書面評核關鍵問題（5~7題）
+**量化與成效：**
+1.
+2.
+**質性與品質：**
+3.
+4.
+**可行性與邏輯：**
+5.
+
+## 五、質性品質評估
+- **論述完整性**：各章節邏輯性與一致性
+- **創新性**：特色作法與差異化程度
+- **可行性**：目標、策略、資源的匹配程度
+
+## 六、同儕表現比較
+與同類型計畫相比，本計畫的相對優勢與不足之處。若無同儕資料，說明「未找到足夠同類型計畫比較資料」。
+
+## 七、書面評審重點觀察
+最值得注意的 2~3 個發現（優點或需改進之處）。
+
+回答："""
+
+APPLICANT_ANSWER_PROMPT = """你是 USR（大學社會責任）計畫的申請輔導助理，協助大學了解其他學校的計畫執行狀況，作為規劃與改善的參考。
+請根據以下計畫書資料，提供結構化的執行情況分析。
+
+【計畫書資料】
+{context}
+
+【問題】
+{question}
+
+【輸出規則】
+- 只根據提供的資料回答，不自行推測或補充計畫書未提及的內容
+- 使用繁體中文，提及計畫格式為「學校全名：計畫全名」
+- 地名人名使用〔〕標記
+
+## 一、執行現況概覽
+簡述相關計畫的核心目標與主要執行方向（2~3句）。
+
+## 二、特色作法與亮點
+列出各計畫的創新做法或特色策略，可供參考借鑑：
+- **學校：計畫** — 特色說明
+
+## 三、量化成果參考
+列出具體的量化數據，作為目標設定參考：
+| 學校 | 指標 | 數值 |
+|------|------|------|
+（涵蓋：參與人次、場次、合作社區數、學生人數、合作單位等）
+
+## 四、執行步驟與 Process
+歸納相關計畫的執行流程與策略，說明「怎麼做」：
+1. （前期：社區需求調查、場域盤點）
+2. （執行：跨域合作方式、課程/活動設計）
+3. （深化：成果評估、永續機制）
+
+## 五、可參考的類似計畫
+列出 2~3 個執行方向相近、值得參考的計畫，說明可借鑑之處。
+
+回答："""
+
 
 _PLAN_TYPE_RE = re.compile(
     r'(大學特色類(?:萌芽型|深耕型)|永續發展類(?:國際合作型|特色永續型))'
@@ -353,10 +506,19 @@ init_qa()
 
 
 # ── 路由 ──────────────────────────────────────────────
+def _load_plans():
+    plans = []
+    for f in sorted(MD_DIR.glob("*.md")):
+        name = re.sub(r'\([^)]*\)', '', f.stem).replace('_formatted', '').strip('_').strip()
+        parts = name.split('_', 1)
+        if len(parts) == 2:
+            plans.append({"school": parts[0].strip(), "title": parts[1].strip()})
+    return plans
+
 @app.route("/")
 def index():
     authenticated = not SITE_PASSWORD or session.get("authenticated", False)
-    return render_template("index.html", authenticated=authenticated)
+    return render_template("index.html", authenticated=authenticated, plans=_load_plans())
 
 
 @app.route("/login", methods=["POST"])
@@ -942,6 +1104,12 @@ def subagent_ask():
         return jsonify({"error": "請輸入問題。"}), 400
     if len(question) > 500:
         return jsonify({"error": "問題不得超過 500 字。"}), 400
+    user_type = (data.get("user_type") or "applicant").strip()
+    if user_type not in ("applicant", "reviewer"):
+        user_type = "applicant"
+    reviewer_subtype = (data.get("reviewer_subtype") or "written").strip()
+    if reviewer_subtype not in ("onsite", "written"):
+        reviewer_subtype = "written"
 
     def generate():
         import re
@@ -971,7 +1139,8 @@ def subagent_ask():
 
             # ── 步驟 1：規劃搜尋詞（背景執行緒 + keepalive，應對 Gemini 思考階段）──
             plan_q = _queue.Queue()
-            _plan_msg = HumanMessage(content=AGENT_PLAN_PROMPT.format(question=question))
+            _plan_prompt = REVIEWER_PLAN_PROMPT if user_type == "reviewer" else AGENT_PLAN_PROMPT
+            _plan_msg = HumanMessage(content=_plan_prompt.format(question=question))
             def _plan_worker():
                 try:
                     res = llm.bind(temperature=0).invoke([_plan_msg])
@@ -1039,6 +1208,29 @@ def subagent_ask():
                         all_sources.append(s)
 
             t_search_ms = round((time.perf_counter() - t_search_start) * 1000)
+
+            # ── 委員模式：從 subagent 結果提取計畫類型，追加同儕比較 ──
+            if user_type == "reviewer":
+                _school_sa = _extract_school(question)
+                if _school_sa:
+                    _plan_type_sa = None
+                    for idx in sorted(results_map):
+                        _, obs, _ = results_map[idx]
+                        m = _PLAN_TYPE_RE.search(obs)
+                        if m:
+                            _plan_type_sa = m.group(1)
+                            break
+                    if _plan_type_sa:
+                        peer_vec = embeddings.embed_query(_plan_type_sa)
+                        peer_raw = vectorstore.similarity_search_by_vector(peer_vec, k=TOP_K * 5)
+                        peer_docs = [d for d in peer_raw
+                                     if _school_sa not in d.metadata.get("source", "")]
+                        peer_docs = _dedup_by_school(peer_docs, k=3)
+                        print(f"[SUBAGENT] 委員同儕「{_plan_type_sa}」→ {len(peer_docs)} 所學校")
+                        if peer_docs:
+                            peer_ctx = "\n\n".join(_clean_plan_code(d.page_content) for d in peer_docs)
+                            all_context.append(f"【同類型計畫參考（{_plan_type_sa}）】\n{peer_ctx}")
+
             yield f"data: {json.dumps({'type': 'sources', 'sources': all_sources}, ensure_ascii=False)}\n\n"
             yield f"data: {json.dumps({'type': 'status', 'text': '🧠 整合所有 subagent 結果，生成回答...'}, ensure_ascii=False)}\n\n"
 
@@ -1046,7 +1238,11 @@ def subagent_ask():
             context = "\n\n".join(all_context)
             if len(context) > 20000:
                 context = context[:20000] + "\n\n...(資料已截斷)"
-            prompt_msg = HumanMessage(content=AGENT_ANSWER_PROMPT.format(
+            if user_type == "reviewer":
+                _answer_tmpl = REVIEWER_ANSWER_ONSITE if reviewer_subtype == "onsite" else REVIEWER_ANSWER_WRITTEN
+            else:
+                _answer_tmpl = APPLICANT_ANSWER_PROMPT
+            prompt_msg = HumanMessage(content=_answer_tmpl.format(
                 question=question, context=context or "查無相關資料"
             ))
 

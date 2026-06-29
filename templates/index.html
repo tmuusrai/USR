@@ -76,6 +76,11 @@ body{font-family:"Segoe UI","Noto Sans TC",sans-serif;background:#f5f7fa;height:
 .user-btn:hover{background:#fde68a;color:#78350f}
 .user-btn.active{background:#fff;color:#b45309;box-shadow:0 1px 4px rgba(0,0,0,.1);font-weight:600}
 .user-btn.active.reviewer{color:#dc2626}
+.reviewer-sub-seg{display:none;background:#fce7f3;border-radius:9px;padding:3px;gap:2px}
+.reviewer-sub-seg.visible{display:flex}
+.rsub-btn{padding:5px 13px;border-radius:7px;border:none;background:none;color:#9d174d;font-size:.78rem;font-weight:500;cursor:pointer;transition:all .15s;white-space:nowrap}
+.rsub-btn:hover{background:#fbcfe8;color:#831843}
+.rsub-btn.active{background:#fff;color:#be185d;box-shadow:0 1px 4px rgba(0,0,0,.1);font-weight:600}
 .msg.step{background:#f5f3ff;border:1px solid #ddd6fe;color:#6d28d9;align-self:flex-start;font-size:.78rem;font-style:italic}
 .suggest-row{display:flex;flex-wrap:wrap;gap:6px;margin-top:4px;align-self:flex-start;max-width:88%}
 .suggest-btn{background:#eff6ff;border:1px solid #bfdbfe;color:#1d4ed8;border-radius:14px;padding:5px 13px;font-size:.77rem;cursor:pointer;transition:all .15s;font-family:inherit;line-height:1.4}
@@ -170,7 +175,7 @@ body{font-family:"Segoe UI","Noto Sans TC",sans-serif;background:#f5f7fa;height:
 <div id="topbar">
   <button class="menu-btn" onclick="toggleSidebar()" title="功能導覽">☰</button>
   <div class="logo">📚 USR <span>計畫書智慧查詢系統</span></div>
-  <a href="/cards" style="color:rgba(255,255,255,.85);font-size:.82rem;text-decoration:none;padding:5px 12px;border:1px solid rgba(255,255,255,.3);border-radius:6px;transition:background .15s;white-space:nowrap" onmouseover="this.style.background='rgba(255,255,255,.15)'" onmouseout="this.style.background='none'">📋 計畫總覽</a>
+  <button onclick="openCardsModal()" style="color:rgba(255,255,255,.85);font-size:.82rem;background:none;border:1px solid rgba(255,255,255,.3);border-radius:6px;padding:5px 12px;cursor:pointer;transition:background .15s;white-space:nowrap" onmouseover="this.style.background='rgba(255,255,255,.15)'" onmouseout="this.style.background='none'">📋 計畫總覽</button>
   <a href="/wiki-map" style="color:rgba(255,255,255,.85);font-size:.82rem;text-decoration:none;padding:5px 12px;border:1px solid rgba(255,255,255,.3);border-radius:6px;transition:background .15s;white-space:nowrap" onmouseover="this.style.background='rgba(255,255,255,.15)'" onmouseout="this.style.background='none'">Wiki 地圖</a>
   <div class="font-btns">
     <button class="font-btn" onclick="setFontSize('small',this)">小</button>
@@ -340,6 +345,10 @@ body{font-family:"Segoe UI","Noto Sans TC",sans-serif;background:#f5f7fa;height:
         <button class="user-btn active" onclick="setUserType('applicant',this)">申請者</button>
         <button class="user-btn reviewer" onclick="setUserType('reviewer',this)">委員</button>
       </div>
+      <div class="reviewer-sub-seg" id="reviewer-sub-seg">
+        <button class="rsub-btn active" onclick="setReviewerSubtype('written',this)">📄 書面評審</button>
+        <button class="rsub-btn" onclick="setReviewerSubtype('onsite',this)">🏫 實地訪評</button>
+      </div>
     </div>
     <div id="input-row">
       <textarea id="question" placeholder="請輸入問題，例如：有哪些計畫關注高齡照護？"
@@ -421,22 +430,39 @@ async function checkStatus() {
 
 let currentMode = "rag";
 let currentUserType = "applicant";
+let currentReviewerSubtype = "written";
 let pendingQuestion = null;  // stores original eval question waiting for user criteria
 const PLACEHOLDERS = {
   rag:      "請輸入問題，例如：有哪些計畫關注高齡照護？",
   agent:    "請輸入複雜問題，例如：比較各校高齡照護計畫的特色與差異？",
   subagent: "請輸入跨面向問題，例如：有哪些學校同時關注高齡照護和數位科技？",
+  reviewer: "委員模式：輸入學校名稱，例如：評估國立中正大學的計畫執行狀況與重點查核項目",
 };
+function updatePlaceholder() {
+  const el = document.getElementById("question");
+  el.placeholder = currentUserType === "reviewer" ? PLACEHOLDERS.reviewer : PLACEHOLDERS[currentMode];
+}
 function setMode(mode, btn) {
   currentMode = mode;
   document.querySelectorAll(".seg-btn").forEach(b => b.classList.remove("active"));
   btn.classList.add("active");
-  document.getElementById("question").placeholder = PLACEHOLDERS[mode];
-  document.querySelector(".user-seg").classList.toggle("visible", mode === "subagent");
+  const isSubagent = mode === "subagent";
+  document.querySelector(".user-seg").classList.toggle("visible", isSubagent);
+  if (!isSubagent) {
+    document.getElementById("reviewer-sub-seg").classList.remove("visible");
+  }
+  updatePlaceholder();
 }
 function setUserType(type, btn) {
   currentUserType = type;
   document.querySelectorAll(".user-btn").forEach(b => b.classList.remove("active"));
+  btn.classList.add("active");
+  document.getElementById("reviewer-sub-seg").classList.toggle("visible", type === "reviewer");
+  updatePlaceholder();
+}
+function setReviewerSubtype(subtype, btn) {
+  currentReviewerSubtype = subtype;
+  document.querySelectorAll(".rsub-btn").forEach(b => b.classList.remove("active"));
   btn.classList.add("active");
 }
 function toggleAgentMode(cb) {} // kept for compatibility
@@ -465,7 +491,7 @@ async function askQuestion() {
 
 
   try {
-    const body = { question, chat_id: chatId, user_type: currentUserType };
+    const body = { question, chat_id: chatId, user_type: currentUserType, reviewer_subtype: currentReviewerSubtype };
     if (pendingQuestion) {
       body.original_question = pendingQuestion;
       pendingQuestion = null;
@@ -958,6 +984,121 @@ function setFontSize(size, btn) {
   const btn = document.querySelector(`.font-btn[onclick*="'${saved}'"]`);
   if(btn){ document.querySelectorAll('.font-btn').forEach(b=>b.classList.remove('active')); btn.classList.add('active'); }
 })();
+</script>
+
+<!-- ── 計畫總覽 Modal ─────────────────────────────── -->
+<div id="cards-modal" style="display:none;position:fixed;inset:0;z-index:1000;background:rgba(0,0,0,.55);backdrop-filter:blur(3px);overflow:hidden">
+  <div style="position:absolute;inset:0;display:flex;flex-direction:column;background:#f1f5f9;max-width:1100px;margin:24px auto;border-radius:18px;overflow:hidden;box-shadow:0 24px 60px rgba(0,0,0,.3)">
+    <div style="background:linear-gradient(135deg,#1d4ed8,#3b82f6);color:#fff;display:flex;align-items:center;gap:12px;padding:14px 20px;flex-shrink:0">
+      <span style="font-weight:700;font-size:1rem;flex:1">📋 USR 計畫總覽</span>
+      <input id="cards-filter" type="text" placeholder="搜尋學校或計畫名稱…"
+        oninput="filterCardsModal(this.value)"
+        style="padding:6px 14px;border-radius:8px;border:none;font-size:.85rem;width:260px;outline:none">
+      <span id="cards-count" style="font-size:.78rem;opacity:.85;white-space:nowrap"></span>
+      <button onclick="closeCardsModal()" style="background:rgba(255,255,255,.2);border:none;color:#fff;border-radius:8px;padding:5px 12px;cursor:pointer;font-size:.85rem">✕ 關閉</button>
+    </div>
+    <div id="cards-grid-modal" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:14px;padding:18px 20px;overflow-y:auto;flex:1"></div>
+  </div>
+</div>
+
+<style>
+.m-card{background:#fff;border-radius:14px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,.07);border:1px solid #f1f5f9;cursor:pointer;transition:transform .15s,box-shadow .2s,border-color .15s;display:flex;flex-direction:column;text-decoration:none;color:inherit}
+.m-card:hover{transform:translateY(-4px);box-shadow:0 10px 28px rgba(59,130,246,.18);border-color:#bfdbfe}
+.m-card-img{height:120px;overflow:hidden;position:relative;flex-shrink:0;background:#e2e8f0}
+.m-card-img img{width:100%;height:100%;object-fit:cover;transition:transform .3s}
+.m-card:hover .m-card-img img{transform:scale(1.07)}
+.m-card-img-overlay{position:absolute;inset:0;background:linear-gradient(to bottom,transparent 30%,rgba(0,0,0,.48))}
+.m-uni-tag{position:absolute;bottom:7px;left:9px;background:rgba(255,255,255,.92);color:#1e40af;font-size:.63rem;font-weight:700;padding:2px 8px;border-radius:999px;max-width:calc(100% - 18px);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.m-card-info{padding:9px 11px 12px;flex:1;display:flex;flex-direction:column}
+.m-card-title{font-size:.76rem;font-weight:600;color:#1e293b;line-height:1.45;flex:1;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
+.m-card-ask{margin-top:7px;display:inline-block;padding:3px 11px;background:#eff6ff;color:#1d4ed8;border-radius:999px;font-size:.68rem;font-weight:600;border:1px solid #bfdbfe;align-self:flex-start}
+.m-card.hidden{display:none}
+</style>
+
+<script>
+const _PLAN_CARDS = {{ plans | tojson }};
+
+const IMG_RULES_M = [
+  [/海洋|漁|里海|海岸|海鄉|蔚藍|水產|鯤鯓|澎湖|金門|石滬|濱海/, 'ocean coast sea'],
+  [/農業|農村|食農|農創|農產|農耕|稻田|稻米|有機農|里山|茶葉|咖啡|花卉|柿|竹/, 'farm agriculture rural'],
+  [/原住民|部落|泰雅|鄒族|賽夏|馬卡道|原鄉|霧台|南島|布農/, 'mountain forest indigenous'],
+  [/山|森林|生態|綠色|植物|水尾|淺山|茶山|玉山|阿里山|烏來|太魯閣|花蓮|台東|宜蘭|南投/, 'mountain forest nature'],
+  [/溪|河|水圳|水域|水資源|頭前溪|曾文溪|埤圳/, 'river water stream'],
+  [/高齡|老|銀髮|樂齡|長照|老化|失智|照護|養老|長者|超高齡/, 'elderly care senior'],
+  [/偏鄉|教育|學習|學伴|學童|兒童|青少年|早療/, 'education school children'],
+  [/醫療|健康|照護|護理|醫學|藥|健促/, 'healthcare medical health'],
+  [/AI|數位|科技|智慧|IoT|XR|機器人|大數據/, 'technology digital innovation'],
+  [/文化|藝術|創生|工藝|傳統|文創|博物館|影像|陶瓷/, 'culture art traditional'],
+  [/觀光|旅遊|旅行|慢城|遊程/, 'tourism travel scenic'],
+  [/食品|餐飲|飲食|食安|料理|惜食/, 'food restaurant cooking'],
+  [/低碳|淨零|碳排|減碳|再生能源|綠電|循環經濟/, 'sustainable clean green energy'],
+  [/都市|城市|城鄉|社區|街道|老街|夜市/, 'city urban community'],
+  [/新住民|多元|共融|移民|越南/, 'multicultural diversity'],
+  [/身心障礙|漸凍|自閉症/, 'care support inclusion'],
+  [/動物|流浪動物|貓|狗/, 'animals wildlife'],
+  [/島|離島|小琉球/, 'island ocean'],
+];
+function _getKw(title) {
+  for (const [re, kw] of IMG_RULES_M) { if (re.test(title)) return kw; }
+  return 'taiwan community university';
+}
+
+let _cardsRendered = false;
+function openCardsModal() {
+  document.getElementById("cards-modal").style.display = "block";
+  document.getElementById("cards-filter").value = "";
+  if (!_cardsRendered) {
+    const grid = document.getElementById("cards-grid-modal");
+    _PLAN_CARDS.forEach((p, i) => {
+      const kw = _getKw(p.title);
+      const card = document.createElement("div");
+      card.className = "m-card";
+      card.innerHTML = `
+        <div class="m-card-img">
+          <img src="https://loremflickr.com/300/180/${encodeURIComponent(kw)}?lock=${i}"
+               alt="${p.title}" loading="lazy"
+               onerror="this.src='https://picsum.photos/seed/${i}/300/180'">
+          <div class="m-card-img-overlay"></div>
+          <div class="m-uni-tag">${p.school}</div>
+        </div>
+        <div class="m-card-info">
+          <div class="m-card-title" title="${p.title}">${p.title}</div>
+          <span class="m-card-ask">查詢此計畫 →</span>
+        </div>`;
+      card.addEventListener("click", () => askFromCard(p.school, p.title));
+      grid.appendChild(card);
+    });
+    document.getElementById("cards-count").textContent = `共 ${_PLAN_CARDS.length} 件`;
+    _cardsRendered = true;
+  } else {
+    filterCardsModal("");
+  }
+}
+function closeCardsModal() {
+  document.getElementById("cards-modal").style.display = "none";
+}
+document.getElementById("cards-modal").addEventListener("click", e => {
+  if (e.target === document.getElementById("cards-modal")) closeCardsModal();
+});
+function filterCardsModal(val) {
+  const q = val.trim().toLowerCase();
+  let shown = 0;
+  document.querySelectorAll(".m-card").forEach((card, i) => {
+    const p = _PLAN_CARDS[i];
+    const match = !q || p.school.toLowerCase().includes(q) || p.title.toLowerCase().includes(q);
+    card.classList.toggle("hidden", !match);
+    if (match) shown++;
+  });
+  document.getElementById("cards-count").textContent = `顯示 ${shown} / ${_PLAN_CARDS.length} 件`;
+}
+function askFromCard(school, title) {
+  closeCardsModal();
+  const q = `請介紹${school}的計畫「${title}」執行內容、特色作法與主要成果`;
+  const el = document.getElementById("question");
+  el.value = q;
+  el.dispatchEvent(new Event("input"));
+  askQuestion();
+}
 </script>
 </body>
 </html>
