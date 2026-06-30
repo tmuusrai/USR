@@ -385,10 +385,7 @@ def load_or_build_index(year: str = "114") -> FAISS:
                 plan_type = _extract_plan_type(md_docs[0].page_content) if md_docs else ""
                 md_plan_types[str(md_path)] = plan_type
                 # 從檔名提取學校與計畫名稱，注入至每個 heading 後
-                stem = md_path.stem
-                if year == "113":
-                    stem = re.sub(r'^\d+\s+OK\s+', '', stem)
-                m_name = re.match(r'^(.+?)_(.+?)(?:\([^)]+\))*$', stem)
+                m_name = re.match(r'^(.+?)_(.+?)(?:\([^)]+\))*$', md_path.stem)
                 if m_name:
                     school  = m_name.group(1).strip()
                     project = m_name.group(2).strip()
@@ -409,11 +406,7 @@ def load_or_build_index(year: str = "114") -> FAISS:
     for chunk in chunks:
         src = Path(chunk.metadata.get("source", ""))
         if src.suffix.lower() == ".md":
-            year_of_chunk = "113" if "113md" in str(src) else "114"
-            chunk_stem = src.stem
-            if year_of_chunk == "113":
-                chunk_stem = re.sub(r'^\d+\s+OK\s+', '', chunk_stem)
-            m_name = re.match(r'^(.+?)_(.+?)(?:\([^)]+\))*$', chunk_stem)
+            m_name = re.match(r'^(.+?)_(.+?)(?:\([^)]+\))*$', src.stem)
             if m_name:
                 school     = m_name.group(1).strip()
                 project    = m_name.group(2).strip()
@@ -525,10 +518,7 @@ def _load_plans(year: str = "114"):
     md_dir = MD_DIR if year == "114" else MD_DIR_113
     plans = []
     for f in sorted(md_dir.glob("*.md")):
-        stem = f.stem
-        if year == "113":
-            stem = re.sub(r'^\d+\s+OK\s+', '', stem)
-        name = re.sub(r'\([^)]*\)', '', stem).replace('_formatted', '').strip('_').strip()
+        name = re.sub(r'\([^)]*\)', '', f.stem).replace('_formatted', '').strip('_').strip()
         parts = name.split('_', 1)
         if len(parts) == 2:
             plans.append({"school": parts[0].strip(), "title": parts[1].strip()})
