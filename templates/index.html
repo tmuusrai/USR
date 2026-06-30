@@ -936,16 +936,57 @@ const _PLAN_RE = new RegExp(_PLANS.map(n => n.replace(/[.*+?^${}()|[\]\\]/g,'\\$
 
 const _COUNTY_RE = /臺北市|台北市|新北市|桃園市|臺中市|台中市|臺南市|台南市|高雄市|基隆市|新竹市|嘉義市|新竹縣|苗栗縣|彰化縣|南投縣|雲林縣|嘉義縣|屏東縣|宜蘭縣|花蓮縣|臺東縣|台東縣|澎湖縣|金門縣|連江縣/g;
 
+function buildTable(lines) {
+  const isSep = l => /^\|[-:| ]+\|$/.test(l.trim());
+  const parseRow = l => l.trim().replace(/^\||\|$/g, '').split('|').map(c => c.trim());
+  let html = '<div style="overflow-x:auto;margin:8px 0"><table style="border-collapse:collapse;width:100%;font-size:.82rem;line-height:1.6">';
+  const hasHeader = lines.length >= 2 && isSep(lines[1]);
+  if (hasHeader) {
+    html += '<thead><tr>';
+    parseRow(lines[0]).forEach(cell => {
+      html += `<th style="border:1px solid #cbd5e1;padding:7px 12px;background:#f1f5f9;color:#1e293b;font-weight:700;text-align:left;white-space:nowrap">${cell}</th>`;
+    });
+    html += '</tr></thead><tbody>';
+    lines = lines.slice(2);
+  } else {
+    html += '<tbody>';
+  }
+  lines.forEach((line, idx) => {
+    if (isSep(line)) return;
+    html += `<tr style="background:${idx%2===0?'#fff':'#f8fafc'}">`;
+    parseRow(line).forEach(cell => {
+      html += `<td style="border:1px solid #e2e8f0;padding:6px 12px;color:#334155;vertical-align:top">${cell}</td>`;
+    });
+    html += '</tr>';
+  });
+  return html + '</tbody></table></div>';
+}
+function convertTables(s) {
+  const lines = s.split('\n');
+  const out = [];
+  let i = 0;
+  while (i < lines.length) {
+    if (lines[i].trim().startsWith('|')) {
+      const tLines = [];
+      while (i < lines.length && lines[i].trim().startsWith('|')) { tLines.push(lines[i]); i++; }
+      out.push(buildTable(tLines));
+    } else { out.push(lines[i]); i++; }
+  }
+  return out.join('\n');
+}
 function renderAnswer(raw) {
   let s = raw.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
   s = s.replace(/\*\*([^]*?)\*\*/g, '$1');
   s = s.replace(/\*/g, '');
   s = s.replace(_SCHOOL_RE, m => `<span style="color:#1d4ed8">${m}</span>`);
   s = s.replace(_PLAN_RE, m => `<span style="color:#8b0000">${m}</span>`);
-  // LLM-marked place names and person names → underline
   s = s.replace(/〔([^〕\n]{1,40})〕/g, (_, p) => `<u>${p}</u>`);
-  // Hardcoded county fallback (catches any county LLM missed)
   s = s.replace(_COUNTY_RE, m => `<u>${m}</u>`);
+  s = convertTables(s);
+  s = s.replace(/^(#{1,3}) (.+)$/gm, (_, h, t) => {
+    const st = ['font-weight:800;color:#1e40af;font-size:1rem;margin:10px 0 3px','font-weight:700;color:#1e40af;margin:8px 0 2px','font-weight:600;color:#374151;margin:6px 0 1px'][h.length-1];
+    return `<div style="${st}">${t}</div>`;
+  });
   s = s.replace(/\n/g, '<br>');
   return s;
 }

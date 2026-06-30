@@ -1432,4 +1432,4 @@ def status():
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 8080))
-    app.run(debug=os.getenv("FLASK_DEBUG", "false").lower() == "true", port=port)
+    app.run(debug=os.getenv("FLASK_DEBUG", "false").lower() == "true", port=port, use_reloader=True)
