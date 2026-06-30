@@ -450,6 +450,10 @@ function setMode(mode, btn) {
   document.querySelector(".user-seg").classList.toggle("visible", isSubagent);
   if (!isSubagent) {
     document.getElementById("reviewer-sub-seg").classList.remove("visible");
+    const ep = document.getElementById("subagent-prompts");
+    if (ep) ep.remove();
+  } else {
+    showSubagentPrompts();
   }
   updatePlaceholder();
 }
@@ -459,6 +463,50 @@ function setUserType(type, btn) {
   btn.classList.add("active");
   document.getElementById("reviewer-sub-seg").classList.toggle("visible", type === "reviewer");
   updatePlaceholder();
+  if (currentMode === "subagent") showSubagentPrompts();
+}
+function showSubagentPrompts() {
+  const existing = document.getElementById("subagent-prompts");
+  if (existing) existing.remove();
+  const PROMPTS = {
+    applicant: [
+      "哪些學校同時關注高齡照護和數位科技？",
+      "比較各校永續發展計畫的創新特色",
+      "偏鄉教育與原住民族計畫有哪些交集？",
+      "跨領域整合最完整的計畫有哪些？",
+      "哪些計畫在社區創生上最具成效？",
+    ],
+    reviewer: [
+      "評估各校計畫的執行深度與廣度",
+      "哪些計畫的永續性與可複製性最高？",
+      "比較各校計畫在社會影響力上的差異",
+      "計畫書中最具創新性的做法有哪些？",
+      "各校計畫的跨域合作成效如何？",
+    ],
+  };
+  const box = document.getElementById("messages");
+  const wrap = document.createElement("div");
+  wrap.id = "subagent-prompts";
+  wrap.style.cssText = "display:flex;flex-direction:column;gap:6px;align-self:flex-start;max-width:90%";
+  const label = document.createElement("div");
+  label.className = "msg bot";
+  label.textContent = currentUserType === "reviewer"
+    ? "⚡ 委員模式已就緒，選擇以下問題或直接輸入："
+    : "⚡ 申請者模式已就緒，選擇以下問題或直接輸入：";
+  wrap.appendChild(label);
+  const row = document.createElement("div");
+  row.className = "suggest-row";
+  row.style.maxWidth = "100%";
+  (PROMPTS[currentUserType] || PROMPTS.applicant).forEach(q => {
+    const btn = document.createElement("button");
+    btn.className = "suggest-btn";
+    btn.textContent = "💬 " + q;
+    btn.onclick = () => { wrap.remove(); submitQ(q); };
+    row.appendChild(btn);
+  });
+  wrap.appendChild(row);
+  box.appendChild(wrap);
+  box.scrollTop = box.scrollHeight;
 }
 function setReviewerSubtype(subtype, btn) {
   currentReviewerSubtype = subtype;
