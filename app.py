@@ -48,6 +48,9 @@ LLM_WIKI_DIR    = Path("llm_wiki_data")
 QA_DIR          = Path("qa_data")
 INDEX_DIR       = Path("faiss_index")
 
+MD_DIR_113      = Path("113md")
+INDEX_DIR_113   = Path("faiss_index_113")
+
 # ── Embedding 模型（全域共用，避免重複初始化）──────────
 class _CachedEmbeddings(Embeddings):
     """Query embedding 快取，相同問題不重複呼叫 Voyage AI。上限 200 筆（LRU）。"""
@@ -326,26 +329,28 @@ def _inject_school_label(content: str, school: str, project: str) -> str:
     return "\n".join(lines)
 
 
-def load_or_build_index() -> FAISS:
-    """載入既有索引；若不存在則從 pdfs/ 重新建立。"""
-    index_file = INDEX_DIR / "index.faiss"
+def load_or_build_index(year: str = "114") -> FAISS:
+    """載入既有索引；若不存在則從 md/ 重新建立。"""
+    md_dir    = MD_DIR    if year == "114" else MD_DIR_113
+    index_dir = INDEX_DIR if year == "114" else INDEX_DIR_113
+    index_file = index_dir / "index.faiss"
 
     if index_file.exists():
-        print("[INDEX] 載入既有 FAISS 索引...")
+        print(f"[INDEX] 載入既有 FAISS 索引（{year}年）...")
         return FAISS.load_local(
-            str(INDEX_DIR),
+            str(index_dir),
             embeddings,
             allow_dangerous_deserialization=True,
         )
 
-    print("[INDEX] 未找到索引，開始建立...")
-    pdf_files = list(PDF_DIR.rglob("*.pdf")) if PDF_DIR.exists() else []
-    # 問答索引使用 114md/ 原始計畫書；llm_wiki_data/ 僅供知識地圖用
-    md_files = list(MD_DIR.glob("*.md")) if MD_DIR.exists() else []
-    print(f"[INDEX] 使用 114md/ 原始版（{len(md_files)} 份）")
+    print(f"[INDEX] 未找到索引（{year}年），開始建立...")
+    pdf_files = list(PDF_DIR.rglob("*.pdf")) if (year == "114" and PDF_DIR.exists()) else []
+    # 問答索引使用 md_dir/ 原始計畫書；llm_wiki_data/ 僅供知識地圖用
+    md_files = list(md_dir.glob("*.md")) if md_dir.exists() else []
+    print(f"[INDEX] 使用 {md_dir}/ 原始版（{len(md_files)} 份）")
     overview  = QA_DIR / "計劃總覽.txt"
-    if not pdf_files and not md_files and not overview.exists():
-        raise FileNotFoundError("pdfs/、114md/、qa_data/計劃總覽.txt 都找不到，請先放入計畫書。")
+    if not pdf_files and not md_files and not (year == "114" and overview.exists()):
+        raise FileNotFoundError(f"{md_dir}/、qa_data/計劃總覽.txt 都找不到，請先放入 {year} 年度計畫書。")
 
     docs = []
     for pdf_path in pdf_files:
@@ -353,13 +358,13 @@ def load_or_build_index() -> FAISS:
         loader = PyPDFLoader(str(pdf_path))
         docs.extend(loader.load())
 
-    if EXTRA_DIR.exists():
+    if year == "114" and EXTRA_DIR.exists():
         for txt_path in EXTRA_DIR.rglob("*.txt"):
             print(f"  讀取補充文件：{txt_path.name}")
             loader = TextLoader(str(txt_path), encoding="utf-8")
             docs.extend(loader.load())
 
-    if overview.exists():
+    if year == "114" and overview.exists():
         print(f"  讀取：{overview.name}")
         for enc in ["utf-8-sig", "utf-8", "cp950", "big5"]:
             try:
@@ -380,7 +385,10 @@ def load_or_build_index() -> FAISS:
                 plan_type = _extract_plan_type(md_docs[0].page_content) if md_docs else ""
                 md_plan_types[str(md_path)] = plan_type
                 # 從檔名提取學校與計畫名稱，注入至每個 heading 後
-                m_name = re.match(r'^(.+?)_(.+?)(?:\([^)]+\))*$', md_path.stem)
+                stem = md_path.stem
+                if year == "113":
+                    stem = re.sub(r'^\d+\s+OK\s+', '', stem)
+                m_name = re.match(r'^(.+?)_(.+?)(?:\([^)]+\))*$', stem)
                 if m_name:
                     school  = m_name.group(1).strip()
                     project = m_name.group(2).strip()
@@ -401,7 +409,11 @@ def load_or_build_index() -> FAISS:
     for chunk in chunks:
         src = Path(chunk.metadata.get("source", ""))
         if src.suffix.lower() == ".md":
-            m_name = re.match(r'^(.+?)_(.+?)(?:\([^)]+\))*$', src.stem)
+            year_of_chunk = "113" if "113md" in str(src) else "114"
+            chunk_stem = src.stem
+            if year_of_chunk == "113":
+                chunk_stem = re.sub(r'^\d+\s+OK\s+', '', chunk_stem)
+            m_name = re.match(r'^(.+?)_(.+?)(?:\([^)]+\))*$', chunk_stem)
             if m_name:
                 school     = m_name.group(1).strip()
                 project    = m_name.group(2).strip()
@@ -411,7 +423,7 @@ def load_or_build_index() -> FAISS:
                 if f"【{school}" not in chunk.page_content[:80]:
                     chunk.page_content = f"{tag}\n{chunk.page_content}"
     total = len(chunks)
-    print(f"[INDEX] 共切出 {total} 個段落，開始向量化...", flush=True)
+    print(f"[INDEX] 共切出 {total} 個段落，開始向量化（{year}年）...", flush=True)
 
     BATCH = 128
     vectorstore = None
@@ -424,9 +436,9 @@ def load_or_build_index() -> FAISS:
         done = min(i + BATCH, total)
         print(f"  [{done}/{total}] {done*100//total}% 完成", flush=True)
 
-    INDEX_DIR.mkdir(exist_ok=True)
-    vectorstore.save_local(str(INDEX_DIR))
-    print("[INDEX] 索引建立完成並已儲存。", flush=True)
+    index_dir.mkdir(exist_ok=True)
+    vectorstore.save_local(str(index_dir))
+    print(f"[INDEX] {year} 年索引建立完成並已儲存。", flush=True)
     return vectorstore
 
 
@@ -490,26 +502,33 @@ llm = ChatGoogleGenerativeAI(
     temperature=0.2,
 )
 
-try:
-    vectorstore = load_or_build_index()
-    retriever   = vectorstore.as_retriever(
-        search_type="similarity",
-        search_kwargs={"k": TOP_K},
-    )
-    print("[APP] RAG 系統就緒。")
-except FileNotFoundError as e:
-    vectorstore = None
-    retriever   = None
-    print(f"[APP] 警告：{e}")
+vectorstores: dict = {}
+retriever = None
+for _yr in ("114", "113"):
+    try:
+        vs = load_or_build_index(_yr)
+        vectorstores[_yr] = vs
+        if _yr == "114":
+            retriever = vs.as_retriever(search_type="similarity", search_kwargs={"k": TOP_K})
+        print(f"[APP] RAG {_yr} 就緒。")
+    except FileNotFoundError as e:
+        vectorstores[_yr] = None
+        print(f"[APP] 警告 {_yr}：{e}")
+
+vectorstore = vectorstores.get("114")  # backwards-compat alias
 
 init_qa()
 
 
 # ── 路由 ──────────────────────────────────────────────
-def _load_plans():
+def _load_plans(year: str = "114"):
+    md_dir = MD_DIR if year == "114" else MD_DIR_113
     plans = []
-    for f in sorted(MD_DIR.glob("*.md")):
-        name = re.sub(r'\([^)]*\)', '', f.stem).replace('_formatted', '').strip('_').strip()
+    for f in sorted(md_dir.glob("*.md")):
+        stem = f.stem
+        if year == "113":
+            stem = re.sub(r'^\d+\s+OK\s+', '', stem)
+        name = re.sub(r'\([^)]*\)', '', stem).replace('_formatted', '').strip('_').strip()
         parts = name.split('_', 1)
         if len(parts) == 2:
             plans.append({"school": parts[0].strip(), "title": parts[1].strip()})
@@ -518,7 +537,8 @@ def _load_plans():
 @app.route("/")
 def index():
     authenticated = not SITE_PASSWORD or session.get("authenticated", False)
-    return render_template("index.html", authenticated=authenticated, plans=_load_plans())
+    return render_template("index.html", authenticated=authenticated,
+        plans_114=_load_plans("114"), plans_113=_load_plans("113"))
 
 
 @app.route("/login", methods=["POST"])
@@ -556,6 +576,10 @@ def ask():
     skip_eval = bool(original_question)
     if original_question:
         question = f"{original_question}（請依以下標準評估：{question}）"
+    year = (data.get("year") or "114").strip()
+    if year not in ("113", "114"):
+        year = "114"
+    vs = vectorstores.get(year) or vectorstores.get("114")
 
     if not question:
         return jsonify({"error": "請輸入問題。"}), 400
@@ -607,13 +631,13 @@ def ask():
                 _personnel = bool(_PERSONNEL_RE.search(search_question))
                 # 人員查詢需要跨多校 chunk，拉高 fetch 量
                 _fetch  = TOP_K * 5 if _school else (TOP_K * 4 if _personnel else (TOP_K * 3 if _list else TOP_K))
-                docs1 = vectorstore.similarity_search_by_vector(query_vec, k=_fetch)
+                docs1 = vs.similarity_search_by_vector(query_vec, k=_fetch)
 
                 # ③ FAISS：第二輪（關鍵詞搜尋，補充第一輪漏掉的 chunk）
                 _kw = _extract_keywords(search_question)
                 if _kw:
                     kw_vec = embeddings.embed_query(_kw)
-                    docs2  = vectorstore.similarity_search_by_vector(kw_vec, k=TOP_K)
+                    docs2  = vs.similarity_search_by_vector(kw_vec, k=TOP_K)
                     docs_all = _merge_docs(docs1, docs2)
                     print(f"[ASK] 第二輪關鍵詞「{_kw}」→ 合併後 {len(docs_all)} 筆")
                 else:
@@ -624,7 +648,7 @@ def ask():
                     _role = _extract_role_term(question)
                     if _role:
                         role_vec = embeddings.embed_query(_role)
-                        docs3 = vectorstore.similarity_search_by_vector(role_vec, k=TOP_K * 2)
+                        docs3 = vs.similarity_search_by_vector(role_vec, k=TOP_K * 2)
                         docs_all = _merge_docs(docs_all, docs3)
                         print(f"[ASK] 人員角色輪「{_role}」→ 合併後 {len(docs_all)} 筆")
 
@@ -634,12 +658,12 @@ def ask():
                     _topic = re.sub(r'[的跟與和相關有關請問]+', ' ', _topic).strip()
                     if _topic:
                         topic_vec = embeddings.embed_query(_topic)
-                        docs_topic = vectorstore.similarity_search_by_vector(topic_vec, k=TOP_K * 3)
+                        docs_topic = vs.similarity_search_by_vector(topic_vec, k=TOP_K * 3)
                         docs_all = _merge_docs(docs_all, docs_topic)
                         print(f"[ASK] 學校主題輪「{_topic}」→ 合併後 {len(docs_all)} 筆")
                     # 額外用學校名稱搜尋，確保該校敘述型 chunk 也被納入
                     school_vec = embeddings.embed_query(_school)
-                    docs_school = vectorstore.similarity_search_by_vector(school_vec, k=TOP_K * 10)
+                    docs_school = vs.similarity_search_by_vector(school_vec, k=TOP_K * 10)
                     docs_all = _merge_docs(docs_all, docs_school)
                     print(f"[ASK] 學校名稱輪「{_school}」→ 合併後 {len(docs_all)} 筆")
                     # 單一學校查詢：取所有該校 chunk，不截斷（一份計畫書約 40 chunk）
@@ -661,7 +685,7 @@ def ask():
                             break
                     if plan_type:
                         peer_vec = embeddings.embed_query(plan_type)
-                        peer_raw = vectorstore.similarity_search_by_vector(peer_vec, k=TOP_K * 5)
+                        peer_raw = vs.similarity_search_by_vector(peer_vec, k=TOP_K * 5)
                         peer_docs = [d for d in peer_raw
                                      if _school not in d.metadata.get("source", "")]
                         peer_docs = _dedup_by_school(peer_docs, k=3)
@@ -921,15 +945,16 @@ def _dedup_by_school(docs, k: int):
     return result
 
 
-def tool_search_rag(query: str, k: int = 5):
+def tool_search_rag(query: str, k: int = 5, year: str = "114"):
     """回傳 (觀察文字, sources列表)"""
-    print(f"[TOOL] 搜尋：{query[:60]}  vectorstore={'OK' if vectorstore else 'None'}")
+    _vs = vectorstores.get(year, vectorstores.get("114"))
+    print(f"[TOOL] 搜尋（{year}年）：{query[:60]}  vectorstore={'OK' if _vs else 'None'}")
     vec = embeddings.embed_query(query)
     print(f"[TOOL] embed 完成，vec長度={len(vec)}")
     school = _extract_school(query)
     _list  = bool(_LIST_INTENT_RE.search(query)) and not school
     fetch_k = k * 5 if school else (k * 3 if _list else k)
-    docs = vectorstore.similarity_search_by_vector(vec, k=fetch_k)
+    docs = _vs.similarity_search_by_vector(vec, k=fetch_k)
     if school:
         docs = _school_filter_docs(docs, school, k)
         print(f"[TOOL] 學校過濾「{school}」→ {len(docs)} 筆")
@@ -961,7 +986,7 @@ def _normalize_content(content):
     return content
 
 
-def react_agent_stream(question: str, max_steps: int = 5):
+def react_agent_stream(question: str, max_steps: int = 5, year: str = "114"):
     """固定 2 步架構：Gemini 規劃搜尋詞 → 執行搜尋 → Gemini 整合回答。"""
     import re
     from langchain_core.messages import HumanMessage
@@ -995,7 +1020,7 @@ def react_agent_stream(question: str, max_steps: int = 5):
     for i, query in enumerate(queries[:3]):
         yield "step", {"step": i + 1, "preview": f"搜尋：{str(query)[:80]}"}
         try:
-            observation, sources = tool_search_rag(str(query), k=10)
+            observation, sources = tool_search_rag(str(query), k=10, year=year)
             all_context.append(f"【搜尋 {i+1}：{query}】\n{observation}")
             for s in sources:
                 key = (s["source"], s["page"])
@@ -1030,10 +1055,15 @@ def agent_ask():
     if SITE_PASSWORD and not session.get("authenticated"):
         return jsonify({"error": "請先登入。"}), 401
 
-    if vectorstore is None:
+    data = request.get_json(silent=True) or {}
+    year = (data.get("year") or "114").strip()
+    if year not in ("113", "114"):
+        year = "114"
+    vs = vectorstores.get(year) or vectorstores.get("114")
+
+    if vs is None:
         return jsonify({"error": "索引尚未建立。"}), 503
 
-    data = request.get_json(silent=True) or {}
     question = (data.get("question") or "").strip()
     original_question = (data.get("original_question") or "").strip()
     skip_eval = bool(original_question)
@@ -1058,7 +1088,7 @@ def agent_ask():
 
             yield f"data: {json.dumps({'type': 'status', 'text': '🤖 Agent 模式啟動，第一步：分析問題（約 5-10 秒）...'}, ensure_ascii=False)}\n\n"
             step_count = 0
-            for event_type, data in react_agent_stream(question):
+            for event_type, data in react_agent_stream(question, year=year):
                 if event_type == "heartbeat":
                     yield ": keepalive\n\n"  # SSE comment，保持連線不斷
                 elif event_type == "step":
@@ -1091,10 +1121,16 @@ def agent_ask():
 def subagent_ask():
     if SITE_PASSWORD and not session.get("authenticated"):
         return jsonify({"error": "請先登入。"}), 401
-    if vectorstore is None:
-        return jsonify({"error": "索引尚未建立。"}), 503
 
     data = request.get_json(silent=True) or {}
+    year = (data.get("year") or "114").strip()
+    if year not in ("113", "114"):
+        year = "114"
+    vs = vectorstores.get(year) or vectorstores.get("114")
+
+    if vs is None:
+        return jsonify({"error": "索引尚未建立。"}), 503
+
     question = (data.get("question") or "").strip()
     original_question = (data.get("original_question") or "").strip()
     skip_eval = bool(original_question)
@@ -1181,7 +1217,7 @@ def subagent_ask():
             def _run_subagent(idx_query):
                 idx, query = idx_query
                 try:
-                    obs, srcs = tool_search_rag(query, k=10)
+                    obs, srcs = tool_search_rag(query, k=10, year=year)
                     return idx, query, obs, srcs
                 except Exception as e:
                     print(f"[SUBAGENT] subagent {idx+1} 失敗：{e}")
@@ -1222,7 +1258,7 @@ def subagent_ask():
                             break
                     if _plan_type_sa:
                         peer_vec = embeddings.embed_query(_plan_type_sa)
-                        peer_raw = vectorstore.similarity_search_by_vector(peer_vec, k=TOP_K * 5)
+                        peer_raw = vs.similarity_search_by_vector(peer_vec, k=TOP_K * 5)
                         peer_docs = [d for d in peer_raw
                                      if _school_sa not in d.metadata.get("source", "")]
                         peer_docs = _dedup_by_school(peer_docs, k=3)
@@ -1304,19 +1340,29 @@ def subagent_ask():
 @app.route("/rebuild-index", methods=["POST"])
 def rebuild_index():
     """重新建立索引（上傳新 PDF 後呼叫）。"""
-    global vectorstore, retriever
+    global vectorstore, retriever, vectorstores
+
+    req_data = request.get_json(silent=True) or {}
+    year = req_data.get("year", "114")
+    if year not in ("113", "114"):
+        year = "114"
+
+    target_index_dir = INDEX_DIR if year == "114" else INDEX_DIR_113
 
     # 刪除舊索引
-    for f in INDEX_DIR.glob("*"):
+    for f in target_index_dir.glob("*"):
         f.unlink()
 
     try:
-        vectorstore = load_or_build_index()
-        retriever   = vectorstore.as_retriever(
-            search_type="similarity",
-            search_kwargs={"k": TOP_K},
-        )
-        return jsonify({"message": "索引重建完成。"})
+        vs = load_or_build_index(year)
+        vectorstores[year] = vs
+        if year == "114":
+            vectorstore = vs
+            retriever   = vs.as_retriever(
+                search_type="similarity",
+                search_kwargs={"k": TOP_K},
+            )
+        return jsonify({"message": f"{year} 年索引重建完成。"})
     except FileNotFoundError as e:
         return jsonify({"error": str(e)}), 400
     except Exception as e:
@@ -1423,10 +1469,14 @@ def status():
     """健康檢查：確認系統是否就緒。"""
     pdf_count = len(list(PDF_DIR.rglob("*.pdf"))) if PDF_DIR.exists() else 0
     index_ready = (INDEX_DIR / "index.faiss").exists()
+    index_113_ready = (INDEX_DIR_113 / "index.faiss").exists()
+    ready = index_ready or index_113_ready
     return jsonify({
-        "ready":      retriever is not None,
-        "pdf_count":  pdf_count,
-        "index_ready": index_ready,
+        "ready":          ready,
+        "pdf_count":      pdf_count,
+        "index_ready":    index_ready,
+        "index_113_ready": index_113_ready,
+        "years_ready":    [y for y, v in vectorstores.items() if v is not None],
     })
 
 

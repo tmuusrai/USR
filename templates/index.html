@@ -119,6 +119,10 @@ body{font-family:"Segoe UI","Noto Sans TC",sans-serif;background:#f5f7fa;height:
 /* ── RESPONSIVE ── */
 .menu-btn,.rag-btn{display:none;background:none;border:none;font-size:1.2rem;cursor:pointer;padding:4px 8px;border-radius:6px;line-height:1;color:rgba(255,255,255,.85)}
 .menu-btn:hover,.rag-btn:hover{background:rgba(255,255,255,.15)}
+.year-seg{display:flex;background:rgba(255,255,255,.15);border-radius:8px;padding:2px;gap:2px;margin-left:8px}
+.year-btn{padding:4px 12px;border-radius:6px;border:none;background:none;color:rgba(255,255,255,.8);font-size:.8rem;font-weight:600;cursor:pointer;transition:all .15s;white-space:nowrap}
+.year-btn:hover{background:rgba(255,255,255,.2)}
+.year-btn.active{background:rgba(255,255,255,.9);color:#1d4ed8}
 .font-btns{display:flex;gap:3px;margin-left:auto}
 .font-btn{background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.25);color:rgba(255,255,255,.85);border-radius:6px;cursor:pointer;padding:3px 9px;font-weight:600;line-height:1.4;transition:background .15s}
 .font-btn:hover{background:rgba(255,255,255,.25)}
@@ -177,6 +181,10 @@ body{font-family:"Segoe UI","Noto Sans TC",sans-serif;background:#f5f7fa;height:
   <div class="logo">📚 USR <span>計畫書智慧查詢系統</span></div>
   <button onclick="openCardsModal()" style="color:rgba(255,255,255,.85);font-size:.82rem;background:none;border:1px solid rgba(255,255,255,.3);border-radius:6px;padding:5px 12px;cursor:pointer;transition:background .15s;white-space:nowrap" onmouseover="this.style.background='rgba(255,255,255,.15)'" onmouseout="this.style.background='none'">📋 計畫總覽</button>
   <a href="/wiki-map" style="color:rgba(255,255,255,.85);font-size:.82rem;text-decoration:none;padding:5px 12px;border:1px solid rgba(255,255,255,.3);border-radius:6px;transition:background .15s;white-space:nowrap" onmouseover="this.style.background='rgba(255,255,255,.15)'" onmouseout="this.style.background='none'">Wiki 地圖</a>
+  <div class="year-seg">
+    <button class="year-btn active" onclick="setYear('114',this)">114年</button>
+    <button class="year-btn" onclick="setYear('113',this)">113年</button>
+  </div>
   <div class="font-btns">
     <button class="font-btn" onclick="setFontSize('small',this)">小</button>
     <button class="font-btn active" onclick="setFontSize('medium',this)">中</button>
@@ -330,7 +338,7 @@ body{font-family:"Segoe UI","Noto Sans TC",sans-serif;background:#f5f7fa;height:
 <div id="main">
   <div id="hero">
     <h2>🎓 USR 智慧問答知識檢索中心</h2>
-    <p>整合全台 105 間大學・257 份社會責任計畫書・語意搜尋・即時 AI 解析</p>
+    <p id="hero-sub">整合全台 105 間大學・257 份社會責任計畫書・語意搜尋・即時 AI 解析</p>
   </div>
   <div id="chat-wrap">
     <div id="resize-handle" title="拖曳調整大小"></div>
@@ -431,6 +439,17 @@ async function checkStatus() {
 let currentMode = "rag";
 let currentUserType = "applicant";
 let currentReviewerSubtype = "written";
+let currentYear = "114";
+function setYear(year, btn) {
+  currentYear = year;
+  document.querySelectorAll(".year-btn").forEach(b => b.classList.remove("active"));
+  btn.classList.add("active");
+  _cardsRendered = false;
+  document.getElementById("cards-grid-modal").innerHTML = "";
+  document.getElementById("cards-count").textContent = "";
+  const counts = {"114": "257 份 114 年度計畫書", "113": "251 份 113 年度計畫書"};
+  document.getElementById("hero-sub").textContent = `整合全台 105 間大學・${counts[year]}・語意搜尋・即時 AI 解析`;
+}
 let pendingQuestion = null;  // stores original eval question waiting for user criteria
 const PLACEHOLDERS = {
   rag:      "請輸入問題，例如：有哪些計畫關注高齡照護？",
@@ -553,7 +572,7 @@ async function askQuestion() {
 
 
   try {
-    const body = { question, chat_id: chatId, user_type: currentUserType, reviewer_subtype: currentReviewerSubtype };
+    const body = { question, chat_id: chatId, user_type: currentUserType, reviewer_subtype: currentReviewerSubtype, year: currentYear };
     if (pendingQuestion) {
       body.original_question = pendingQuestion;
       pendingQuestion = null;
@@ -1119,7 +1138,10 @@ function setFontSize(size, btn) {
 </style>
 
 <script>
-const _PLAN_CARDS = {{ plans | tojson }};
+const _ALL_PLANS = {
+  "114": {{ plans_114 | tojson }},
+  "113": {{ plans_113 | tojson }}
+};
 
 const IMG_RULES_M = [
   [/海洋|漁|里海|海岸|海鄉|蔚藍|水產|鯤鯓|澎湖|金門|石滬|濱海/, 'ocean coast sea'],
@@ -1150,9 +1172,10 @@ let _cardsRendered = false;
 function openCardsModal() {
   document.getElementById("cards-modal").style.display = "block";
   document.getElementById("cards-filter").value = "";
+  const plans = _ALL_PLANS[currentYear] || _ALL_PLANS["114"];
   if (!_cardsRendered) {
     const grid = document.getElementById("cards-grid-modal");
-    _PLAN_CARDS.forEach((p, i) => {
+    plans.forEach((p, i) => {
       const kw = _getKw(p.title);
       const card = document.createElement("div");
       card.className = "m-card";
@@ -1171,7 +1194,7 @@ function openCardsModal() {
       card.addEventListener("click", () => askFromCard(p.school, p.title));
       grid.appendChild(card);
     });
-    document.getElementById("cards-count").textContent = `共 ${_PLAN_CARDS.length} 件`;
+    document.getElementById("cards-count").textContent = `共 ${plans.length} 件`;
     _cardsRendered = true;
   } else {
     filterCardsModal("");
@@ -1185,14 +1208,15 @@ document.getElementById("cards-modal").addEventListener("click", e => {
 });
 function filterCardsModal(val) {
   const q = val.trim().toLowerCase();
+  const plans = _ALL_PLANS[currentYear] || _ALL_PLANS["114"];
   let shown = 0;
   document.querySelectorAll(".m-card").forEach((card, i) => {
-    const p = _PLAN_CARDS[i];
-    const match = !q || p.school.toLowerCase().includes(q) || p.title.toLowerCase().includes(q);
+    const p = plans[i];
+    const match = !p || !q || p.school.toLowerCase().includes(q) || p.title.toLowerCase().includes(q);
     card.classList.toggle("hidden", !match);
     if (match) shown++;
   });
-  document.getElementById("cards-count").textContent = `顯示 ${shown} / ${_PLAN_CARDS.length} 件`;
+  document.getElementById("cards-count").textContent = `顯示 ${shown} / ${plans.length} 件`;
 }
 function askFromCard(school, title) {
   closeCardsModal();
