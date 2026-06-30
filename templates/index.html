@@ -476,12 +476,19 @@ function showSubagentPrompts() {
       "跨領域整合最完整的計畫有哪些？",
       "哪些計畫在社區創生上最具成效？",
     ],
-    reviewer: [
-      "評估各校計畫的執行深度與廣度",
-      "哪些計畫的永續性與可複製性最高？",
-      "比較各校計畫在社會影響力上的差異",
-      "計畫書中最具創新性的做法有哪些？",
-      "各校計畫的跨域合作成效如何？",
+    reviewer_written: [
+      "分析這份計畫書的論述完整性與邏輯性",
+      "計畫目標是否符合 SMART 原則？",
+      "評估計畫的創新性與差異化程度",
+      "經費配置是否與執行項目對應合理？",
+      "永續發展與退場機制規劃是否完整？",
+    ],
+    reviewer_onsite: [
+      "現場應查核哪些具體成果與設施？",
+      "建議訪談哪些社區成員與合作夥伴？",
+      "需要調閱哪些文件與紀錄？",
+      "實地訪評時應提問哪些關鍵問題？",
+      "計畫執行現況與計畫書是否相符？",
     ],
   };
   const box = document.getElementById("messages");
@@ -490,14 +497,20 @@ function showSubagentPrompts() {
   wrap.style.cssText = "display:flex;flex-direction:column;gap:6px;align-self:flex-start;max-width:90%";
   const label = document.createElement("div");
   label.className = "msg bot";
-  label.textContent = currentUserType === "reviewer"
-    ? "⚡ 委員模式已就緒，選擇以下問題或直接輸入："
-    : "⚡ 申請者模式已就緒，選擇以下問題或直接輸入：";
+  const labelMap = {
+    applicant: "⚡ 申請者模式已就緒，選擇以下問題或直接輸入：",
+    reviewer_written: "📄 書面評審模式已就緒，選擇以下問題或直接輸入：",
+    reviewer_onsite: "🏫 實地訪評模式已就緒，選擇以下問題或直接輸入：",
+  };
+  const promptKey = currentUserType === "reviewer"
+    ? "reviewer_" + currentReviewerSubtype
+    : "applicant";
+  label.textContent = labelMap[promptKey] || labelMap.applicant;
   wrap.appendChild(label);
   const row = document.createElement("div");
   row.className = "suggest-row";
   row.style.maxWidth = "100%";
-  (PROMPTS[currentUserType] || PROMPTS.applicant).forEach(q => {
+  (PROMPTS[promptKey] || PROMPTS.applicant).forEach(q => {
     const btn = document.createElement("button");
     btn.className = "suggest-btn";
     btn.textContent = "💬 " + q;
@@ -512,6 +525,7 @@ function setReviewerSubtype(subtype, btn) {
   currentReviewerSubtype = subtype;
   document.querySelectorAll(".rsub-btn").forEach(b => b.classList.remove("active"));
   btn.classList.add("active");
+  if (currentMode === "subagent") showSubagentPrompts();
 }
 function toggleAgentMode(cb) {} // kept for compatibility
 
