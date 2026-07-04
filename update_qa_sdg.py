@@ -10,7 +10,7 @@ sys.stdout.reconfigure(encoding="utf-8")
 sys.path.insert(0, str(Path(__file__).parent))
 from sdg_audit import parse_all_mds, _norm
 
-QA_FILE = Path("qa_data/qa_custom.txt")
+QA_FILE = Path("qa_data/qa_custom_114.txt")
 
 SDG_NAMES = {
     1:"消除貧窮", 2:"零飢餓", 3:"良好健康與福祉", 4:"優質教育",

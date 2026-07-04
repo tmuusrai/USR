@@ -3,7 +3,7 @@ from collections import defaultdict
 
 txt_dir   = r"C:\Users\Kuo\desktop\usr\114txt"
 plan_file = r"C:\Users\Kuo\desktop\usr\web\qa_data\計劃總覽.txt"
-qa_file   = r"C:\Users\Kuo\desktop\usr\web\qa_data\qa_custom.txt"
+qa_file   = r"C:\Users\Kuo\desktop\usr\web\qa_data\qa_custom_114.txt"
 
 SDG_NAMES = {
     1:"消除貧窮", 2:"零飢餓", 3:"良好健康與福祉",

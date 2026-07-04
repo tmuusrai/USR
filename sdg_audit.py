@@ -9,7 +9,7 @@ from pathlib import Path
 sys.stdout.reconfigure(encoding="utf-8")
 
 MD_DIR  = Path("114md")
-QA_FILE = Path("qa_data/qa_custom.txt")
+QA_FILE = Path("qa_data/qa_custom_114.txt")
 
 SDG_NAMES = {
     1:"消除貧窮", 2:"消除飢餓", 3:"良好健康與福祉", 4:"優質教育",

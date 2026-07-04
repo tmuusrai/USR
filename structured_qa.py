@@ -27,7 +27,7 @@ _QA_DIR = Path(__file__).parent / "qa_data"
 def init_qa() -> None:
     """啟動時呼叫一次，載入各年度 qa_custom.txt。"""
     global _READY
-    for year, fname in [("114", "qa_custom.txt"), ("113", "qa_custom_113.txt")]:
+    for year, fname in [("114", "qa_custom_114.txt"), ("113", "qa_custom_113.txt")]:
         path = _QA_DIR / fname
         _load_custom_qa(path, year)
         print(f"[QA] {year} 年自訂 QA：{len(_CUSTOM_QA_BY_YEAR[year])} 組。")
