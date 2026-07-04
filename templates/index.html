@@ -447,8 +447,9 @@ function setYear(year, btn) {
   _cardsRendered = false;
   document.getElementById("cards-grid-modal").innerHTML = "";
   document.getElementById("cards-count").textContent = "";
-  const counts = {"114": "257 份 114 年度計畫書", "113": "251 份 113 年度計畫書"};
-  document.getElementById("hero-sub").textContent = `整合全台 105 間大學・${counts[year]}・語意搜尋・即時 AI 解析`;
+  const _yplans = _ALL_PLANS[year] || _ALL_PLANS["114"];
+  const _schoolCount = new Set(_yplans.map(p => p.school)).size;
+  document.getElementById("hero-sub").textContent = `整合全台 ${_schoolCount} 間大學・${_yplans.length} 份 ${year} 年度計畫書・語意搜尋・即時 AI 解析`;
 }
 let pendingQuestion = null;  // stores original eval question waiting for user criteria
 const PLACEHOLDERS = {

@@ -17,37 +17,39 @@ def _half(s: str) -> str:
     return unicodedata.normalize('NFKC', s)
 
 # ── 內部儲存 ──────────────────────────────────────────────
-_CUSTOM_QA: list[dict] = []              # [{"keywords": [...], "answer": str}]
+_CUSTOM_QA_BY_YEAR: dict[str, list[dict]] = {"114": [], "113": []}
 _READY = False
 
 # qa_data/ 資料夾預設與 structured_qa.py 同層
 _QA_DIR = Path(__file__).parent / "qa_data"
-_QA_CUSTOM_PATH = _QA_DIR / "qa_custom.txt"
 
 
 def init_qa() -> None:
-    """啟動時呼叫一次，載入 qa_data/qa_custom.txt。"""
+    """啟動時呼叫一次，載入各年度 qa_custom.txt。"""
     global _READY
-    _load_custom_qa(_QA_CUSTOM_PATH)
+    for year, fname in [("114", "qa_custom.txt"), ("113", "qa_custom_113.txt")]:
+        path = _QA_DIR / fname
+        _load_custom_qa(path, year)
+        print(f"[QA] {year} 年自訂 QA：{len(_CUSTOM_QA_BY_YEAR[year])} 組。")
     _READY = True
-    print(f"[QA] 自訂 QA：{len(_CUSTOM_QA)} 組。")
 
 
-def try_structured_answer(question: str) -> str | None:
+def try_structured_answer(question: str, year: str = "114") -> str | None:
     """
-    若問題命中 qa_custom.txt，回傳完整答案字串；否則回傳 None（交給 RAG 處理）。
+    若問題命中對應年度的 qa_custom，回傳完整答案字串；否則回傳 None（交給 RAG 處理）。
     """
     if not _READY:
         return None
-    return _match_custom_qa(question.strip())
+    qa_list = _CUSTOM_QA_BY_YEAR.get(year, _CUSTOM_QA_BY_YEAR["114"])
+    return _match_custom_qa(question.strip(), qa_list)
 
 
 # ── 自訂 QA 載入與比對 ────────────────────────────────────
 
-def _load_custom_qa(path: Path) -> None:
+def _load_custom_qa(path: Path, year: str = "114") -> None:
     """解析 qa_custom.txt，每組 Q&A 支援多個同義問法（用 | 分隔）。"""
     if not path.exists():
-        print(f"[QA] 找不到 {path.name}，自訂 QA 停用。")
+        print(f"[QA] 找不到 {path.name}，{year} 年自訂 QA 停用。")
         return
 
     text = _read_text(path)
@@ -57,6 +59,7 @@ def _load_custom_qa(path: Path) -> None:
     current_keywords: list[str] = []
     current_answer_lines: list[str] = []
     in_answer = False
+    qa_list = _CUSTOM_QA_BY_YEAR[year]
 
     def _flush():
         if current_keywords and current_answer_lines:
@@ -66,7 +69,7 @@ def _load_custom_qa(path: Path) -> None:
                 lines.pop()
             answer = "\n".join(lines).strip()
             if answer:
-                _CUSTOM_QA.append({
+                qa_list.append({
                     "keywords": current_keywords[:],
                     "answer": answer,
                 })
@@ -100,7 +103,7 @@ def _load_custom_qa(path: Path) -> None:
     _flush()
 
 
-def _match_custom_qa(question: str) -> str | None:
+def _match_custom_qa(question: str, qa_list: list[dict]) -> str | None:
     """
     比對邏輯：
     - 問題中包含 Q 的任一同義句，視為命中
@@ -110,7 +113,7 @@ def _match_custom_qa(question: str) -> str | None:
     best_score = 0
     best_answer = None
 
-    for entry in _CUSTOM_QA:
+    for entry in qa_list:
         for kw_phrase in entry["keywords"]:
             score = _phrase_score(q_lower, _half(kw_phrase).lower())
             if score > best_score:

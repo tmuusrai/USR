@@ -595,7 +595,7 @@ def ask():
                 return
 
             # ① 結構化 QA 優先（列舉型問題直接回傳，不走 FAISS / LLM）
-            structured_ctx = try_structured_answer(question)
+            structured_ctx = try_structured_answer(question, year=year)
             if structured_ctx:
                 yield f"data: {json.dumps({'type': 'sources', 'sources': []}, ensure_ascii=False)}\n\n"
                 yield f"data: {json.dumps({'type': 'chunk', 'text': structured_ctx}, ensure_ascii=False)}\n\n"
@@ -982,7 +982,7 @@ def react_agent_stream(question: str, max_steps: int = 5, year: str = "114"):
     from langchain_core.messages import HumanMessage
 
     # ── 結構化 QA 短路：列舉型問題直接回傳，不呼叫 FAISS ──
-    structured_ctx = try_structured_answer(question)
+    structured_ctx = try_structured_answer(question, year=year)
     if structured_ctx:
         yield "sources", []
         yield "answer", structured_ctx
@@ -1153,7 +1153,7 @@ def subagent_ask():
                 return
 
             # ── 結構化 QA 短路 ──
-            structured_ctx = try_structured_answer(question)
+            structured_ctx = try_structured_answer(question, year=year)
             if structured_ctx:
                 yield f"data: {json.dumps({'type': 'sources', 'sources': []}, ensure_ascii=False)}\n\n"
                 yield f"data: {json.dumps({'type': 'chunk', 'text': structured_ctx}, ensure_ascii=False)}\n\n"
