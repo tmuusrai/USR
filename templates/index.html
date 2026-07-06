@@ -1144,29 +1144,29 @@ const _ALL_PLANS = {
   "113": {{ plans_113 | tojson }}
 };
 
-const IMG_RULES_M = [
-  [/海洋|漁|里海|海岸|海鄉|蔚藍|水產|鯤鯓|澎湖|金門|石滬|濱海/, 'ocean coast sea'],
-  [/農業|農村|食農|農創|農產|農耕|稻田|稻米|有機農|里山|茶葉|咖啡|花卉|柿|竹/, 'farm agriculture rural'],
-  [/原住民|部落|泰雅|鄒族|賽夏|馬卡道|原鄉|霧台|南島|布農/, 'mountain forest indigenous'],
-  [/山|森林|生態|綠色|植物|水尾|淺山|茶山|玉山|阿里山|烏來|太魯閣|花蓮|台東|宜蘭|南投/, 'mountain forest nature'],
-  [/溪|河|水圳|水域|水資源|頭前溪|曾文溪|埤圳/, 'river water stream'],
-  [/高齡|老|銀髮|樂齡|長照|老化|失智|照護|養老|長者|超高齡/, 'elderly care senior'],
-  [/偏鄉|教育|學習|學伴|學童|兒童|青少年|早療/, 'education school children'],
-  [/醫療|健康|照護|護理|醫學|藥|健促/, 'healthcare medical health'],
-  [/AI|數位|科技|智慧|IoT|XR|機器人|大數據/, 'technology digital innovation'],
-  [/文化|藝術|創生|工藝|傳統|文創|博物館|影像|陶瓷/, 'culture art traditional'],
-  [/觀光|旅遊|旅行|慢城|遊程/, 'tourism travel scenic'],
-  [/食品|餐飲|飲食|食安|料理|惜食/, 'food restaurant cooking'],
-  [/低碳|淨零|碳排|減碳|再生能源|綠電|循環經濟/, 'sustainable clean green energy'],
-  [/都市|城市|城鄉|社區|街道|老街|夜市/, 'city urban community'],
-  [/新住民|多元|共融|移民|越南/, 'multicultural diversity'],
-  [/身心障礙|漸凍|自閉症/, 'care support inclusion'],
-  [/動物|流浪動物|貓|狗/, 'animals wildlife'],
-  [/島|離島|小琉球/, 'island ocean'],
+const THEME_MAP = [
+  [/海洋|漁|里海|海岸|海鄉|蔚藍|水產|鯤鯓|澎湖|金門|石滬|濱海/, {g:'linear-gradient(135deg,#0369a1,#38bdf8)',e:'🌊'}],
+  [/農業|農村|食農|農創|農產|農耕|稻田|稻米|有機農|里山|茶葉|咖啡|花卉|柿|竹/, {g:'linear-gradient(135deg,#15803d,#86efac)',e:'🌾'}],
+  [/原住民|部落|泰雅|鄒族|賽夏|馬卡道|原鄉|霧台|南島|布農/, {g:'linear-gradient(135deg,#7c3aed,#c4b5fd)',e:'🏔️'}],
+  [/山|森林|生態|綠色|植物|水尾|淺山|茶山|玉山|阿里山|烏來|太魯閣|花蓮|台東|宜蘭|南投/, {g:'linear-gradient(135deg,#166534,#4ade80)',e:'🌿'}],
+  [/溪|河|水圳|水域|水資源|頭前溪|曾文溪|埤圳/, {g:'linear-gradient(135deg,#0891b2,#67e8f9)',e:'💧'}],
+  [/高齡|老|銀髮|樂齡|長照|老化|失智|照護|養老|長者|超高齡/, {g:'linear-gradient(135deg,#9333ea,#e879f9)',e:'❤️'}],
+  [/偏鄉|教育|學習|學伴|學童|兒童|青少年|早療/, {g:'linear-gradient(135deg,#ea580c,#fb923c)',e:'📚'}],
+  [/醫療|健康|照護|護理|醫學|藥|健促/, {g:'linear-gradient(135deg,#dc2626,#f87171)',e:'🏥'}],
+  [/AI|數位|科技|智慧|IoT|XR|機器人|大數據/, {g:'linear-gradient(135deg,#4338ca,#818cf8)',e:'💻'}],
+  [/文化|藝術|創生|工藝|傳統|文創|博物館|影像|陶瓷/, {g:'linear-gradient(135deg,#b45309,#fcd34d)',e:'🎨'}],
+  [/觀光|旅遊|旅行|慢城|遊程/, {g:'linear-gradient(135deg,#0e7490,#22d3ee)',e:'🗺️'}],
+  [/食品|餐飲|飲食|食安|料理|惜食/, {g:'linear-gradient(135deg,#c2410c,#fb923c)',e:'🍽️'}],
+  [/低碳|淨零|碳排|減碳|再生能源|綠電|循環經濟/, {g:'linear-gradient(135deg,#065f46,#34d399)',e:'♻️'}],
+  [/都市|城市|城鄉|社區|街道|老街|夜市/, {g:'linear-gradient(135deg,#334155,#94a3b8)',e:'🏙️'}],
+  [/新住民|多元|共融|移民|越南/, {g:'linear-gradient(135deg,#6d28d9,#a78bfa)',e:'🤝'}],
+  [/身心障礙|漸凍|自閉症/, {g:'linear-gradient(135deg,#1d4ed8,#93c5fd)',e:'💙'}],
+  [/動物|流浪動物|貓|狗/, {g:'linear-gradient(135deg,#92400e,#d97706)',e:'🐾'}],
+  [/島|離島|小琉球/, {g:'linear-gradient(135deg,#0c4a6e,#38bdf8)',e:'🏝️'}],
 ];
-function _getKw(title) {
-  for (const [re, kw] of IMG_RULES_M) { if (re.test(title)) return kw; }
-  return 'taiwan community university';
+function _getTheme(title) {
+  for (const [re, t] of THEME_MAP) { if (re.test(title)) return t; }
+  return {g:'linear-gradient(135deg,#1e40af,#3b82f6)', e:'🎓'};
 }
 
 let _cardsRendered = false;
@@ -1177,14 +1177,12 @@ function openCardsModal() {
   if (!_cardsRendered) {
     const grid = document.getElementById("cards-grid-modal");
     plans.forEach((p, i) => {
-      const kw = _getKw(p.title);
+      const {g, e} = _getTheme(p.title);
       const card = document.createElement("div");
       card.className = "m-card";
       card.innerHTML = `
-        <div class="m-card-img">
-          <img src="https://loremflickr.com/300/180/${encodeURIComponent(kw)}?lock=${i}"
-               alt="${p.title}" loading="lazy"
-               onerror="this.src='https://picsum.photos/seed/${i}/300/180'">
+        <div class="m-card-img" style="background:${g};display:flex;align-items:center;justify-content:center;font-size:2.6rem">
+          <span style="filter:drop-shadow(0 2px 6px rgba(0,0,0,.35))">${e}</span>
           <div class="m-card-img-overlay"></div>
           <div class="m-uni-tag">${p.school}</div>
         </div>
