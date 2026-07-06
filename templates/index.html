@@ -1139,10 +1139,8 @@ function setFontSize(size, btn) {
 </style>
 
 <script>
-const _ALL_PLANS = {
-  "114": {{ plans_114 | tojson }},
-  "113": {{ plans_113 | tojson }}
-};
+let _ALL_PLANS = null;
+let _plansPromise = fetch("/api/plans").then(r => r.json()).then(d => { _ALL_PLANS = d; return d; }).catch(() => { _ALL_PLANS = {"114":[],"113":[]}; });
 
 const THEME_MAP = [
   [/海洋|漁|里海|海岸|海鄉|蔚藍|水產|鯤鯓|澎湖|金門|石滬|濱海/, {g:'linear-gradient(135deg,#0369a1,#38bdf8)',e:'🌊'}],
@@ -1170,10 +1168,11 @@ function _getTheme(title) {
 }
 
 let _cardsRendered = false;
-function openCardsModal() {
+async function openCardsModal() {
   document.getElementById("cards-modal").style.display = "block";
   document.getElementById("cards-filter").value = "";
-  const plans = _ALL_PLANS[currentYear] || _ALL_PLANS["114"];
+  if (!_ALL_PLANS) await _plansPromise;
+  const plans = (_ALL_PLANS[currentYear] || _ALL_PLANS["114"]) || [];
   if (!_cardsRendered) {
     const grid = document.getElementById("cards-grid-modal");
     plans.forEach((p, i) => {

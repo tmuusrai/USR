@@ -1396,6 +1396,17 @@ def cards_page():
     return render_template("cards.html", plans=plans)
 
 
+@app.route("/api/plans")
+def api_plans():
+    """回傳各年度計畫清單（供前端 modal 動態載入）。"""
+    if SITE_PASSWORD and not session.get("authenticated", False):
+        return jsonify({"error": "請先登入"}), 401
+    return jsonify({
+        "114": _load_plans("114"),
+        "113": _load_plans("113"),
+    })
+
+
 @app.route("/wiki-map")
 def wiki_map_page():
     global _wiki_building
