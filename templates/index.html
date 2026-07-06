@@ -1190,13 +1190,13 @@ function openCardsModal() {
         </div>
         <div class="m-card-info">
           <div class="m-card-title" title="${p.title}">${p.title}</div>
-          <span class="m-card-ask">查詢此計畫 →</span>
+          <span class="m-card-ask">了解此校計畫 →</span>
         </div>`;
-      card.addEventListener("click", () => askFromCard(p.school, p.title));
+      card.addEventListener("click", () => askFromCard(p.school));
       grid.appendChild(card);
     });
     document.getElementById("cards-count").textContent = `共 ${plans.length} 件`;
-    _cardsRendered = true;
+    if (plans.length > 0) _cardsRendered = true;
   } else {
     filterCardsModal("");
   }
@@ -1219,9 +1219,9 @@ function filterCardsModal(val) {
   });
   document.getElementById("cards-count").textContent = `顯示 ${shown} / ${plans.length} 件`;
 }
-function askFromCard(school, title) {
+function askFromCard(school) {
   closeCardsModal();
-  const q = `請介紹${school}的計畫「${title}」執行內容、特色作法與主要成果`;
+  const q = `${school}有哪些USR計畫？請介紹${school}的整體計畫概要與主要執行方向`;
   const el = document.getElementById("question");
   el.value = q;
   el.dispatchEvent(new Event("input"));
