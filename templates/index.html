@@ -338,7 +338,7 @@ body{font-family:"Segoe UI","Noto Sans TC",sans-serif;background:#f5f7fa;height:
 <div id="main">
   <div id="hero">
     <h2>🎓 USR 智慧問答知識檢索中心</h2>
-    <p id="hero-sub">整合全台 105 間大學・257 份社會責任計畫書・語意搜尋・即時 AI 解析</p>
+    <p id="hero-sub">整合全台 105 間大學・257 份 <span style="color:#ef4444;font-weight:700">114</span> 年度計畫書・語意搜尋・即時 AI 解析</p>
   </div>
   <div id="chat-wrap">
     <div id="resize-handle" title="拖曳調整大小"></div>
@@ -490,7 +490,7 @@ function setYear(year, btn) {
   const cards = document.querySelectorAll(".m-card");
   const count = [...cards].filter(c => c.dataset.year === year).length;
   const schools = new Set([...cards].filter(c => c.dataset.year === year).map(c => c.dataset.school)).size;
-  document.getElementById("hero-sub").textContent = `整合全台 ${schools} 間大學・${count} 份 ${year} 年度計畫書・語意搜尋・即時 AI 解析`;
+  document.getElementById("hero-sub").innerHTML = `整合全台 ${schools} 間大學・${count} 份 <span style="color:#ef4444;font-weight:700">${year}</span> 年度計畫書・語意搜尋・即時 AI 解析`;
   if (document.getElementById("cards-panel").style.display !== "none") _syncCardsYear();
   const msgs = document.getElementById("messages");
   if (msgs.children.length > 0) {
