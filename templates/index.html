@@ -492,8 +492,10 @@ function setYear(year, btn) {
   const schools = new Set([...cards].filter(c => c.dataset.year === year).map(c => c.dataset.school)).size;
   document.getElementById("hero-sub").textContent = `整合全台 ${schools} 間大學・${count} 份 ${year} 年度計畫書・語意搜尋・即時 AI 解析`;
   if (document.getElementById("cards-panel").style.display !== "none") _syncCardsYear();
-  document.getElementById("messages").innerHTML =
-    `<div style="text-align:center;color:#94a3b8;font-size:0.85rem;padding:24px 0">已切換至 ${year} 年度，對話已清空</div>`;
+  const msgs = document.getElementById("messages");
+  if (msgs.children.length > 0) {
+    msgs.innerHTML = `<div id="year-switch-notice" style="text-align:center;color:#94a3b8;font-size:0.85rem;padding:24px 0">已切換至 ${year} 年度，對話已清空</div>`;
+  }
   chatId = null;
 }
 let pendingQuestion = null;  // stores original eval question waiting for user criteria
@@ -604,6 +606,8 @@ async function askQuestion() {
   const qEl = document.getElementById("question");
   const question = qEl.value.trim();
   if (!question) return;
+  const notice = document.getElementById("year-switch-notice");
+  if (notice) notice.remove();
   appendMsg(question, "user");
   qEl.value = ""; qEl.style.height = "44px";
   document.getElementById("ask-btn").disabled = true;
