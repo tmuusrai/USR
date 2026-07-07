@@ -483,7 +483,7 @@ def load_or_build_index(year: str = "114") -> FAISS:
 
 # ── 對話記憶 ─────────────────────────────────────────
 _chat_history: dict[str, list] = {}   # chat_id -> [{q, a}]
-_MAX_HISTORY  = 3                      # 每個 session 保留最近幾輪
+_MAX_HISTORY  = 5                      # 每個 session 保留最近幾輪
 
 _FOLLOWUP_RE = re.compile(
     r'此計畫|這個計畫|這計畫|該計畫|這所學校|這間學校|該校|這所|此所'
@@ -661,8 +661,8 @@ def ask():
 
                 # ② FAISS：第一輪搜尋
                 _school    = _extract_school(search_question)
-                # 追問且改寫後仍無學校名稱：從歷史記錄補回
-                if not _school and history and _FOLLOWUP_RE.search(question):
+                # 追問且改寫後仍無學校名稱：從歷史記錄補回（不限關鍵字）
+                if not _school and history:
                     _school = _extract_school(history[-1]['q'])
                     if _school:
                         print(f"[ASK] 從歷史補充學校：{_school}")
