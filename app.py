@@ -31,7 +31,7 @@ from structured_qa import init_qa, try_structured_answer
 app = Flask(__name__)
 CORS(app)
 app.secret_key = os.getenv("SECRET_KEY", "usr-web-fixed-key-tmuusrai-2024")
-app.config["PERMANENT_SESSION_LIFETIME"] = __import__("datetime").timedelta(days=30)
+app.config["PERMANENT_SESSION_LIFETIME"] = __import__("datetime").timedelta(days=1)
 
 # ── 設定 ──────────────────────────────────────────────
 GOOGLE_API_KEY  = os.getenv("GOOGLE_API_KEY")
