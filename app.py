@@ -30,7 +30,8 @@ from structured_qa import init_qa, try_structured_answer
 
 app = Flask(__name__)
 CORS(app)
-app.secret_key = os.getenv("SECRET_KEY", os.urandom(32))
+app.secret_key = os.getenv("SECRET_KEY", "usr-web-fixed-key-tmuusrai-2024")
+app.config["PERMANENT_SESSION_LIFETIME"] = __import__("datetime").timedelta(days=30)
 
 # ── 設定 ──────────────────────────────────────────────
 GOOGLE_API_KEY  = os.getenv("GOOGLE_API_KEY")
@@ -643,6 +644,7 @@ def login():
     username_ok = not SITE_USERNAME or data.get("username") == SITE_USERNAME
     password_ok = not SITE_PASSWORD or data.get("password") == SITE_PASSWORD
     if username_ok and password_ok:
+        session.permanent = True
         session["authenticated"] = True
         return jsonify({"ok": True})
     return jsonify({"ok": False, "error": "帳號或密碼錯誤，請再試一次。"}), 401
