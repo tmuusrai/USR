@@ -559,10 +559,17 @@ _MULTI_REF_RE = re.compile(
 def _extract_listed_schools(text: str) -> list[str]:
     """從前一輪編號清單（1. 學校名：...）提取學校名稱。"""
     schools = []
-    for m in re.finditer(r'^\d+\.\s+\*{0,2}([^\*：:\n]{2,15})\*{0,2}\s*[：:]', text, re.MULTILINE):
+    # 主要格式：1. 學校名：  或  1. **學校名**：
+    for m in re.finditer(r'^\d+\.\s+\*{0,2}([^\*：:\n]{2,25}?)\*{0,2}\s*[：:]', text, re.MULTILINE):
         school = m.group(1).strip()
-        if school:
+        if school and 2 <= len(school) <= 25:
             schools.append(school)
+    # 備援格式：若上面沒抓到，嘗試「數字. 學校名（不含：）」行首
+    if not schools:
+        for m in re.finditer(r'^\d+\.\s+([^\n：:]{2,25})\n', text, re.MULTILINE):
+            school = m.group(1).strip().rstrip('。，、')
+            if school and 2 <= len(school) <= 25:
+                schools.append(school)
     return list(dict.fromkeys(schools))  # 去重、保順序
 
 
@@ -775,7 +782,7 @@ def ask():
                 for _s in _listed_schools:
                     _s_vec = embeddings.embed_query(f"{_s} {_topic_q}")
                     _s_docs = vs.similarity_search_by_vector(_s_vec, k=TOP_K * 3)
-                    _s_filtered = _school_filter_docs(_s_docs, _s, k=6)
+                    _s_filtered = _school_filter_docs(_s_docs, _s, k=10)
                     docs_all = _merge_docs(docs_all, _s_filtered)
                     print(f"[ASK] 多校輪「{_s}」→ {len(_s_filtered)} 筆")
                 docs = docs_all
