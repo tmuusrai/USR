@@ -492,6 +492,63 @@ _FOLLOWUP_RE = re.compile(
     r'|再給|再說|再介紹|再提供|再詳細|更詳細|更多|進一步|詳細說明|展開說'
 )
 
+_FULL_PLAN_RE = re.compile(
+    r'完整內容|完整計畫|計畫完整|整個計畫|計畫書內容|整體計畫|計畫總概|計畫概要'
+    r'|執行計畫.*完整|完整.*執行|計畫全文|計畫全貌|計畫摘要|總攬內容'
+    r'|計畫成果(?!.*特定)|執行成果(?!.*特定)|成果報告|整體內容|完整說明'
+    r'|整體介紹|全面介紹|詳細介紹|完整介紹|有哪些USR計畫.*介紹|整體計畫概要'
+)
+
+
+def _read_plan_summary(school: str, year: str = "114") -> str | None:
+    """讀取 md 檔案中的計畫摘要段落，直接回傳結構化文字（不走 FAISS）。"""
+    md_dir = MD_DIR if year == "114" else MD_DIR_113
+    matched = []
+    for f in sorted(md_dir.glob("*.md")):
+        stem_school = f.stem.split("_")[0].strip()
+        if school in stem_school or stem_school in school:
+            matched.append(f)
+    if not matched:
+        return None
+
+    blocks = []
+    for md_path in matched:
+        text = None
+        for enc in ("utf-8-sig", "utf-8", "cp950"):
+            try:
+                text = md_path.read_text(encoding=enc)
+                break
+            except Exception:
+                continue
+        if not text:
+            continue
+
+        # 擷取計畫名稱
+        m_name = re.search(r'計畫名稱[　\s]+(.+)', text)
+        plan_name = m_name.group(1).strip() if m_name else md_path.stem
+
+        # 擷取基本資料（SDGs、類別、場域）
+        header_lines = []
+        for pat in (r'核定類別[　\s]+(.+)', r'SDGs關聯議題[　\s]+(.+)', r'計畫實踐場域[　\s]+(.+)'):
+            m2 = re.search(pat, text)
+            if m2:
+                header_lines.append(m2.group(0).strip())
+
+        # 擷取摘要段落（計畫摘要 → 目錄）
+        lines = text.split('\n')
+        start = next((i for i, l in enumerate(lines) if '計畫摘要' in l), -1)
+        end = next((i for i, l in enumerate(lines) if '目錄' in l and i > (start if start != -1 else 0)), len(lines))
+        summary_text = '\n'.join(lines[start:end]).strip() if start != -1 else ''
+
+        block = f"## {school}：{_clean_plan_code(plan_name)}\n"
+        if header_lines:
+            block += '\n'.join(header_lines) + '\n'
+        if summary_text:
+            block += '\n' + summary_text
+        blocks.append(block)
+
+    return '\n\n---\n\n'.join(blocks) if blocks else None
+
 
 def _rewrite_question(question: str, history: list) -> str:
     """
@@ -654,84 +711,112 @@ def ask():
                 if suggestions:
                     yield f"data: {json.dumps({'type': 'suggested_questions', 'questions': suggestions}, ensure_ascii=False)}\n\n"
                 return
-            else:
-                # ① Voyage AI：將問題向量化
-                query_vec = embeddings.embed_query(search_question)
-                t_voyage = time.perf_counter()
 
-                # ② FAISS：第一輪搜尋
-                _school    = _extract_school(search_question)
-                # 追問且改寫後仍無學校名稱：從歷史記錄補回（不限關鍵字）
-                if not _school and history:
-                    _school = _extract_school(history[-1]['q'])
-                    if _school:
-                        print(f"[ASK] 從歷史補充學校：{_school}")
-                _list      = bool(_LIST_INTENT_RE.search(search_question)) and not _school
-                _personnel = bool(_PERSONNEL_RE.search(search_question))
-                # 人員查詢需要跨多校 chunk，拉高 fetch 量
-                _fetch  = TOP_K * 5 if _school else (TOP_K * 4 if _personnel else (TOP_K * 3 if _list else TOP_K))
-                docs1 = vs.similarity_search_by_vector(query_vec, k=_fetch)
+            # ① 完整計畫摘要攔截：直接讀 md 檔，不走 FAISS
+            _school_for_full = _extract_school(search_question) or (
+                _extract_school(history[-1]['q']) if history else None
+            )
+            if _FULL_PLAN_RE.search(question) and _school_for_full:
+                full_md = _read_plan_summary(_school_for_full, year)
+                if full_md:
+                    prompt_val = RAG_PROMPT.invoke({"context": full_md, "question": question})
+                    yield f"data: {json.dumps({'type': 'sources', 'sources': []}, ensure_ascii=False)}\n\n"
+                    answer_parts: list[str] = []
+                    for chunk in llm.stream(prompt_val.to_messages()):
+                        piece = getattr(chunk, 'content', '') or ''
+                        if piece:
+                            answer_parts.append(piece)
+                            yield f"data: {json.dumps({'type': 'chunk', 'text': piece}, ensure_ascii=False)}\n\n"
+                    total_ms = round((time.perf_counter() - t0) * 1000)
+                    yield f"data: {json.dumps({'type': 'done', 'timing': {'total_ms': total_ms}, 'mode': 'full_plan'})}\n\n"
+                    full_ans = "".join(answer_parts)
+                    if chat_id:
+                        hist = _chat_history.setdefault(chat_id, [])
+                        hist.append({"q": question, "a": full_ans[:500]})
+                        if len(hist) > _MAX_HISTORY:
+                            hist.pop(0)
+                    suggestions = _generate_suggestions(question, full_ans)
+                    if suggestions:
+                        yield f"data: {json.dumps({'type': 'suggested_questions', 'questions': suggestions}, ensure_ascii=False)}\n\n"
+                    return
 
-                # ③ FAISS：第二輪（關鍵詞搜尋，補充第一輪漏掉的 chunk）
-                _kw = _extract_keywords(search_question)
-                if _kw:
-                    kw_vec = embeddings.embed_query(_kw)
-                    docs2  = vs.similarity_search_by_vector(kw_vec, k=TOP_K)
-                    docs_all = _merge_docs(docs1, docs2)
-                    print(f"[ASK] 第二輪關鍵詞「{_kw}」→ 合併後 {len(docs_all)} 筆")
-                else:
-                    docs_all = docs1
+            # ② Voyage AI：將問題向量化（未提早 return 時執行）
+            query_vec = embeddings.embed_query(search_question)
+            t_voyage = time.perf_counter()
 
-                # ④ 人員查詢：額外以角色關鍵詞再搜一輪（抓「為X人員/X主任」等）
-                if _personnel:
-                    _role = _extract_role_term(question)
-                    if _role:
-                        role_vec = embeddings.embed_query(_role)
-                        docs3 = vs.similarity_search_by_vector(role_vec, k=TOP_K * 2)
-                        docs_all = _merge_docs(docs_all, docs3)
-                        print(f"[ASK] 人員角色輪「{_role}」→ 合併後 {len(docs_all)} 筆")
-
+            # ③ FAISS：第一輪搜尋
+            _school    = _extract_school(search_question)
+            # 追問且改寫後仍無學校名稱：從歷史記錄補回（不限關鍵字）
+            if not _school and history:
+                _school = _extract_school(history[-1]['q'])
                 if _school:
-                    # 學校特定查詢：去掉學校名稱後以主題詞再搜一輪
-                    _topic = question.replace(_school, "").strip()
-                    _topic = re.sub(r'[的跟與和相關有關請問]+', ' ', _topic).strip()
-                    if _topic:
-                        topic_vec = embeddings.embed_query(_topic)
-                        docs_topic = vs.similarity_search_by_vector(topic_vec, k=TOP_K * 3)
-                        docs_all = _merge_docs(docs_all, docs_topic)
-                        print(f"[ASK] 學校主題輪「{_topic}」→ 合併後 {len(docs_all)} 筆")
-                    # 額外用學校名稱搜尋，確保該校敘述型 chunk 也被納入
-                    school_vec = embeddings.embed_query(_school)
-                    docs_school = vs.similarity_search_by_vector(school_vec, k=TOP_K * 10)
-                    docs_all = _merge_docs(docs_all, docs_school)
-                    print(f"[ASK] 學校名稱輪「{_school}」→ 合併後 {len(docs_all)} 筆")
-                    # 單一學校查詢：取所有該校 chunk，不截斷（一份計畫書約 40 chunk）
-                    docs = _school_filter_docs(docs_all, _school, k=9999)
-                    print(f"[ASK] 學校過濾「{_school}」→ {len(docs)} 筆")
-                else:
-                    docs = docs_all[:TOP_K]
-                t_faiss = time.perf_counter()
+                    print(f"[ASK] 從歷史補充學校：{_school}")
+            _list      = bool(_LIST_INTENT_RE.search(search_question)) and not _school
+            _personnel = bool(_PERSONNEL_RE.search(search_question))
+            # 人員查詢需要跨多校 chunk，拉高 fetch 量
+            _fetch  = TOP_K * 5 if _school else (TOP_K * 4 if _personnel else (TOP_K * 3 if _list else TOP_K))
+            docs1 = vs.similarity_search_by_vector(query_vec, k=_fetch)
 
-                context = "\n\n".join(_clean_plan_code(doc.page_content) for doc in docs)
+            # ④ FAISS：第二輪（關鍵詞搜尋，補充第一輪漏掉的 chunk）
+            _kw = _extract_keywords(search_question)
+            if _kw:
+                kw_vec = embeddings.embed_query(_kw)
+                docs2  = vs.similarity_search_by_vector(kw_vec, k=TOP_K)
+                docs_all = _merge_docs(docs1, docs2)
+                print(f"[ASK] 第二輪關鍵詞「{_kw}」→ 合併後 {len(docs_all)} 筆")
+            else:
+                docs_all = docs1
 
-                # ── 委員模式：同儕比較（同類型計畫 2~3 所其他學校）──
-                if user_type == "reviewer" and _school:
-                    plan_type = None
-                    for doc in docs[:10]:
-                        m = _PLAN_TYPE_RE.search(doc.page_content)
-                        if m:
-                            plan_type = m.group(1)
-                            break
-                    if plan_type:
-                        peer_vec = embeddings.embed_query(plan_type)
-                        peer_raw = vs.similarity_search_by_vector(peer_vec, k=TOP_K * 5)
-                        peer_docs = [d for d in peer_raw
-                                     if _school not in d.metadata.get("source", "")]
-                        peer_docs = _dedup_by_school(peer_docs, k=3)
-                        print(f"[ASK] 委員同儕「{plan_type}」→ {len(peer_docs)} 所學校")
-                        if peer_docs:
-                            peer_ctx = "\n\n".join(_clean_plan_code(d.page_content) for d in peer_docs)
-                            context = f"{context}\n\n【同類型計畫參考（{plan_type}）】\n{peer_ctx}"
+            # ⑤ 人員查詢：額外以角色關鍵詞再搜一輪（抓「為X人員/X主任」等）
+            if _personnel:
+                _role = _extract_role_term(question)
+                if _role:
+                    role_vec = embeddings.embed_query(_role)
+                    docs3 = vs.similarity_search_by_vector(role_vec, k=TOP_K * 2)
+                    docs_all = _merge_docs(docs_all, docs3)
+                    print(f"[ASK] 人員角色輪「{_role}」→ 合併後 {len(docs_all)} 筆")
+
+            if _school:
+                # 學校特定查詢：去掉學校名稱後以主題詞再搜一輪
+                _topic = question.replace(_school, "").strip()
+                _topic = re.sub(r'[的跟與和相關有關請問]+', ' ', _topic).strip()
+                if _topic:
+                    topic_vec = embeddings.embed_query(_topic)
+                    docs_topic = vs.similarity_search_by_vector(topic_vec, k=TOP_K * 3)
+                    docs_all = _merge_docs(docs_all, docs_topic)
+                    print(f"[ASK] 學校主題輪「{_topic}」→ 合併後 {len(docs_all)} 筆")
+                # 額外用學校名稱搜尋，確保該校敘述型 chunk 也被納入
+                school_vec = embeddings.embed_query(_school)
+                docs_school = vs.similarity_search_by_vector(school_vec, k=TOP_K * 10)
+                docs_all = _merge_docs(docs_all, docs_school)
+                print(f"[ASK] 學校名稱輪「{_school}」→ 合併後 {len(docs_all)} 筆")
+                # 單一學校查詢：取所有該校 chunk，不截斷（一份計畫書約 40 chunk）
+                docs = _school_filter_docs(docs_all, _school, k=9999)
+                print(f"[ASK] 學校過濾「{_school}」→ {len(docs)} 筆")
+            else:
+                docs = docs_all[:TOP_K]
+            t_faiss = time.perf_counter()
+
+            context = "\n\n".join(_clean_plan_code(doc.page_content) for doc in docs)
+
+            # ── 委員模式：同儕比較（同類型計畫 2~3 所其他學校）──
+            if user_type == "reviewer" and _school:
+                plan_type = None
+                for doc in docs[:10]:
+                    m = _PLAN_TYPE_RE.search(doc.page_content)
+                    if m:
+                        plan_type = m.group(1)
+                        break
+                if plan_type:
+                    peer_vec = embeddings.embed_query(plan_type)
+                    peer_raw = vs.similarity_search_by_vector(peer_vec, k=TOP_K * 5)
+                    peer_docs = [d for d in peer_raw
+                                 if _school not in d.metadata.get("source", "")]
+                    peer_docs = _dedup_by_school(peer_docs, k=3)
+                    print(f"[ASK] 委員同儕「{plan_type}」→ {len(peer_docs)} 所學校")
+                    if peer_docs:
+                        peer_ctx = "\n\n".join(_clean_plan_code(d.page_content) for d in peer_docs)
+                        context = f"{context}\n\n【同類型計畫參考（{plan_type}）】\n{peer_ctx}"
 
             prompt_value = (REVIEWER_PROMPT if user_type == "reviewer" else RAG_PROMPT).invoke(
                 {"context": context, "question": question}
