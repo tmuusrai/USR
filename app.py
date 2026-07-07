@@ -772,8 +772,13 @@ def ask():
             # ③ 多校清單追問：偵測「以上N間」，從歷史逐一搜尋每間學校
             _listed_schools: list[str] = []
             if _MULTI_REF_RE.search(question) and history:
-                last_hist = history[-1]
-                _listed_schools = last_hist.get('schools') or _extract_listed_schools(last_hist['a'])
+                # 往回找最近一筆有學校清單的歷史（不只看最後一筆，避免清單被新答案覆蓋）
+                _listed_schools = []
+                for _h in reversed(history):
+                    _candidate = _h.get('schools') or _extract_listed_schools(_h['a'])
+                    if _candidate:
+                        _listed_schools = _candidate
+                        break
                 print(f"[ASK] 多校清單追問，偵測到 {len(_listed_schools)} 間：{_listed_schools}")
 
             if _listed_schools:
@@ -928,8 +933,9 @@ def ask():
             if chat_id:
                 full_ans = "".join(answer_parts)
                 hist = _chat_history.setdefault(chat_id, [])
-                hist.append({"q": question, "a": full_ans[:5000],
-                             "schools": _extract_listed_schools(full_ans)})
+                # 多校追問時保留原始清單（而非從新答案重新提取，避免清單縮水）
+                saved_schools = _listed_schools if _listed_schools else _extract_listed_schools(full_ans)
+                hist.append({"q": question, "a": full_ans[:5000], "schools": saved_schools})
                 if len(hist) > _MAX_HISTORY:
                     hist.pop(0)
                 if len(_chat_history) > 1000:
