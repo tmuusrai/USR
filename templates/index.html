@@ -1137,28 +1137,28 @@ let _ALL_PLANS = null;
 let _plansPromise = fetch("/api/plans").then(r => r.json()).then(d => { _ALL_PLANS = d; return d; }).catch(() => { _ALL_PLANS = {"114":[],"113":[]}; });
 
 const THEME_MAP = [
-  [/海洋|漁|里海|海岸|海鄉|蔚藍|水產|鯤鯓|澎湖|金門|石滬|濱海/, {g:'linear-gradient(135deg,#0369a1,#38bdf8)',e:'🌊'}],
-  [/農業|農村|食農|農創|農產|農耕|稻田|稻米|有機農|里山|茶葉|咖啡|花卉|柿|竹/, {g:'linear-gradient(135deg,#15803d,#86efac)',e:'🌾'}],
-  [/原住民|部落|泰雅|鄒族|賽夏|馬卡道|原鄉|霧台|南島|布農/, {g:'linear-gradient(135deg,#7c3aed,#c4b5fd)',e:'🏔️'}],
-  [/山|森林|生態|綠色|植物|水尾|淺山|茶山|玉山|阿里山|烏來|太魯閣|花蓮|台東|宜蘭|南投/, {g:'linear-gradient(135deg,#166534,#4ade80)',e:'🌿'}],
-  [/溪|河|水圳|水域|水資源|頭前溪|曾文溪|埤圳/, {g:'linear-gradient(135deg,#0891b2,#67e8f9)',e:'💧'}],
-  [/高齡|老|銀髮|樂齡|長照|老化|失智|照護|養老|長者|超高齡/, {g:'linear-gradient(135deg,#9333ea,#e879f9)',e:'❤️'}],
-  [/偏鄉|教育|學習|學伴|學童|兒童|青少年|早療/, {g:'linear-gradient(135deg,#ea580c,#fb923c)',e:'📚'}],
-  [/醫療|健康|照護|護理|醫學|藥|健促/, {g:'linear-gradient(135deg,#dc2626,#f87171)',e:'🏥'}],
-  [/AI|數位|科技|智慧|IoT|XR|機器人|大數據/, {g:'linear-gradient(135deg,#4338ca,#818cf8)',e:'💻'}],
-  [/文化|藝術|創生|工藝|傳統|文創|博物館|影像|陶瓷/, {g:'linear-gradient(135deg,#b45309,#fcd34d)',e:'🎨'}],
-  [/觀光|旅遊|旅行|慢城|遊程/, {g:'linear-gradient(135deg,#0e7490,#22d3ee)',e:'🗺️'}],
-  [/食品|餐飲|飲食|食安|料理|惜食/, {g:'linear-gradient(135deg,#c2410c,#fb923c)',e:'🍽️'}],
-  [/低碳|淨零|碳排|減碳|再生能源|綠電|循環經濟/, {g:'linear-gradient(135deg,#065f46,#34d399)',e:'♻️'}],
-  [/都市|城市|城鄉|社區|街道|老街|夜市/, {g:'linear-gradient(135deg,#334155,#94a3b8)',e:'🏙️'}],
-  [/新住民|多元|共融|移民|越南/, {g:'linear-gradient(135deg,#6d28d9,#a78bfa)',e:'🤝'}],
-  [/身心障礙|漸凍|自閉症/, {g:'linear-gradient(135deg,#1d4ed8,#93c5fd)',e:'💙'}],
-  [/動物|流浪動物|貓|狗/, {g:'linear-gradient(135deg,#92400e,#d97706)',e:'🐾'}],
-  [/島|離島|小琉球/, {g:'linear-gradient(135deg,#0c4a6e,#38bdf8)',e:'🏝️'}],
+  [/海洋|漁|里海|海岸|海鄉|蔚藍|水產|鯤鯓|澎湖|金門|石滬|濱海/, {g:'linear-gradient(135deg,#0369a1,#38bdf8)',e:'🌊',kw:'ocean,fishing,coastal,sea'}],
+  [/農業|農村|食農|農創|農產|農耕|稻田|稻米|有機農|里山|茶葉|咖啡|花卉|柿|竹/, {g:'linear-gradient(135deg,#15803d,#86efac)',e:'🌾',kw:'farming,rice,harvest,agriculture'}],
+  [/原住民|部落|泰雅|鄒族|賽夏|馬卡道|原鄉|霧台|南島|布農/, {g:'linear-gradient(135deg,#7c3aed,#c4b5fd)',e:'🏔️',kw:'indigenous,tribe,mountain,traditional'}],
+  [/山|森林|生態|綠色|植物|水尾|淺山|茶山|玉山|阿里山|烏來|太魯閣|花蓮|台東|宜蘭|南投/, {g:'linear-gradient(135deg,#166534,#4ade80)',e:'🌿',kw:'forest,nature,ecology,mountain'}],
+  [/溪|河|水圳|水域|水資源|頭前溪|曾文溪|埤圳/, {g:'linear-gradient(135deg,#0891b2,#67e8f9)',e:'💧',kw:'river,stream,water,canal'}],
+  [/高齡|老|銀髮|樂齡|長照|老化|失智|照護|養老|長者|超高齡/, {g:'linear-gradient(135deg,#9333ea,#e879f9)',e:'❤️',kw:'elderly,senior,care,aging'}],
+  [/偏鄉|教育|學習|學伴|學童|兒童|青少年|早療/, {g:'linear-gradient(135deg,#ea580c,#fb923c)',e:'📚',kw:'education,children,school,learning'}],
+  [/醫療|健康|照護|護理|醫學|藥|健促/, {g:'linear-gradient(135deg,#dc2626,#f87171)',e:'🏥',kw:'healthcare,medical,hospital,wellness'}],
+  [/AI|數位|科技|智慧|IoT|XR|機器人|大數據/, {g:'linear-gradient(135deg,#4338ca,#818cf8)',e:'💻',kw:'technology,innovation,digital,computer'}],
+  [/文化|藝術|創生|工藝|傳統|文創|博物館|影像|陶瓷/, {g:'linear-gradient(135deg,#b45309,#fcd34d)',e:'🎨',kw:'art,culture,craft,museum'}],
+  [/觀光|旅遊|旅行|慢城|遊程/, {g:'linear-gradient(135deg,#0e7490,#22d3ee)',e:'🗺️',kw:'travel,tourism,scenic,landscape'}],
+  [/食品|餐飲|飲食|食安|料理|惜食/, {g:'linear-gradient(135deg,#c2410c,#fb923c)',e:'🍽️',kw:'food,cooking,restaurant,cuisine'}],
+  [/低碳|淨零|碳排|減碳|再生能源|綠電|循環經濟/, {g:'linear-gradient(135deg,#065f46,#34d399)',e:'♻️',kw:'sustainability,solar,renewable,green'}],
+  [/都市|城市|城鄉|社區|街道|老街|夜市/, {g:'linear-gradient(135deg,#334155,#94a3b8)',e:'🏙️',kw:'city,urban,community,street'}],
+  [/新住民|多元|共融|移民|越南/, {g:'linear-gradient(135deg,#6d28d9,#a78bfa)',e:'🤝',kw:'diversity,multicultural,people,community'}],
+  [/身心障礙|漸凍|自閉症/, {g:'linear-gradient(135deg,#1d4ed8,#93c5fd)',e:'💙',kw:'disability,inclusion,support,care'}],
+  [/動物|流浪動物|貓|狗/, {g:'linear-gradient(135deg,#92400e,#d97706)',e:'🐾',kw:'animals,pets,cats,dogs'}],
+  [/島|離島|小琉球/, {g:'linear-gradient(135deg,#0c4a6e,#38bdf8)',e:'🏝️',kw:'island,beach,tropical,ocean'}],
 ];
 function _getTheme(title) {
   for (const [re, t] of THEME_MAP) { if (re.test(title)) return t; }
-  return {g:'linear-gradient(135deg,#1e40af,#3b82f6)', e:'🎓'};
+  return {g:'linear-gradient(135deg,#1e40af,#3b82f6)', e:'🎓', kw:'university,campus,education,taiwan'};
 }
 
 let _cardsRendered = false;
@@ -1174,14 +1174,20 @@ async function openCardsModal() {
   if (!_cardsRendered) {
     const grid = document.getElementById("cards-grid-modal");
     plans.forEach((p, i) => {
-      const {g, e} = _getTheme(p.title);
+      const {g, e, kw} = _getTheme(p.title);
       const card = document.createElement("div");
       card.className = "m-card";
       card.innerHTML = `
-        <div class="m-card-img" style="background:${g};display:flex;align-items:center;justify-content:center;font-size:2.4rem">
-          <span style="filter:drop-shadow(0 2px 6px rgba(0,0,0,.35))">${e}</span>
-          <div class="m-card-img-overlay"></div>
-          <div class="m-uni-tag">${p.school}</div>
+        <div class="m-card-img" style="background:${g};position:relative">
+          <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:2.4rem;z-index:0">
+            <span style="filter:drop-shadow(0 2px 6px rgba(0,0,0,.35))">${e}</span>
+          </div>
+          <img src="https://source.unsplash.com/300x180/?${kw}&sig=${i}"
+               loading="lazy" decoding="async"
+               style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;z-index:1"
+               onerror="this.remove()">
+          <div class="m-card-img-overlay" style="z-index:2"></div>
+          <div class="m-uni-tag" style="z-index:3">${p.school}</div>
         </div>
         <div class="m-card-info">
           <div class="m-card-title" title="${p.title}">${p.title}</div>
