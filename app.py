@@ -564,7 +564,7 @@ def _rewrite_question(question: str, history: list) -> str:
     prompt = (
         "你是對話理解專家。判斷「新問題」是否為追問，並輸出最終搜尋用問題。\n\n"
         f"【前一輪問題】\n{last['q']}\n\n"
-        f"【前一輪回答摘要】\n{last['a'][:400]}\n\n"
+        f"【前一輪回答摘要】\n{last['a'][:2000]}\n\n"
         f"【新問題】\n{question}\n\n"
         "判斷步驟：\n"
         "步驟一（前驗）：僅看「前一輪問題」與「新問題」——新問題是否在延伸前一輪的主題、"
@@ -734,7 +734,7 @@ def ask():
                     full_ans = "".join(answer_parts)
                     if chat_id:
                         hist = _chat_history.setdefault(chat_id, [])
-                        hist.append({"q": question, "a": full_ans[:500]})
+                        hist.append({"q": question, "a": full_ans[:2000]})
                         if len(hist) > _MAX_HISTORY:
                             hist.pop(0)
                     suggestions = _generate_suggestions(question, full_ans)
@@ -885,7 +885,7 @@ def ask():
             if chat_id:
                 full_ans = "".join(answer_parts)
                 hist = _chat_history.setdefault(chat_id, [])
-                hist.append({"q": question, "a": full_ans[:500]})
+                hist.append({"q": question, "a": full_ans[:2000]})
                 if len(hist) > _MAX_HISTORY:
                     hist.pop(0)
                 if len(_chat_history) > 1000:
