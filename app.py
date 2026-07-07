@@ -551,6 +551,21 @@ def _read_plan_summary(school: str, year: str = "114") -> str | None:
     return '\n\n---\n\n'.join(blocks) if blocks else None
 
 
+_MULTI_REF_RE = re.compile(
+    r'以上\s*\d+\s*間|上述\s*\d+\s*間|這\s*\d+\s*間|那\s*\d+\s*間'
+    r'|以上這些|上面這些|前面這些|上述計畫|以上計畫'
+)
+
+def _extract_listed_schools(text: str) -> list[str]:
+    """從前一輪編號清單（1. 學校名：...）提取學校名稱。"""
+    schools = []
+    for m in re.finditer(r'^\d+\.\s+\*{0,2}([^\*：:\n]{2,15})\*{0,2}\s*[：:]', text, re.MULTILINE):
+        school = m.group(1).strip()
+        if school:
+            schools.append(school)
+    return list(dict.fromkeys(schools))  # 去重、保順序
+
+
 def _rewrite_question(question: str, history: list) -> str:
     """
     用 LLM 兩步驟判斷追問意圖並改寫為完整獨立問題。
@@ -746,58 +761,77 @@ def ask():
             query_vec = embeddings.embed_query(search_question)
             t_voyage = time.perf_counter()
 
-            # ③ FAISS：第一輪搜尋
-            _school    = _extract_school(search_question)
-            # 追問且改寫後仍無學校名稱：從歷史記錄補回（不限關鍵字）
-            if not _school and history:
-                _school = _extract_school(history[-1]['q'])
+            # ③ 多校清單追問：偵測「以上N間」，從歷史逐一搜尋每間學校
+            _listed_schools: list[str] = []
+            if _MULTI_REF_RE.search(question) and history:
+                _listed_schools = _extract_listed_schools(history[-1]['a'])
+                print(f"[ASK] 多校清單追問，偵測到 {len(_listed_schools)} 間：{_listed_schools}")
+
+            if _listed_schools:
+                _topic_q = re.sub(r'以上\S*間\S*計劃?|上述\S*計劃?|這些計劃?', '', question).strip()
+                docs_all = []
+                for _s in _listed_schools:
+                    _s_vec = embeddings.embed_query(f"{_s} {_topic_q}")
+                    _s_docs = vs.similarity_search_by_vector(_s_vec, k=TOP_K * 3)
+                    _s_filtered = _school_filter_docs(_s_docs, _s, k=6)
+                    docs_all = _merge_docs(docs_all, _s_filtered)
+                    print(f"[ASK] 多校輪「{_s}」→ {len(_s_filtered)} 筆")
+                docs = docs_all
+                _school = None
+                t_faiss = time.perf_counter()
+            else:
+                # ③ FAISS：第一輪搜尋
+                _school    = _extract_school(search_question)
+                # 追問且改寫後仍無學校名稱：從歷史記錄補回（不限關鍵字）
+                if not _school and history:
+                    _school = _extract_school(history[-1]['q'])
+                    if _school:
+                        print(f"[ASK] 從歷史補充學校：{_school}")
+                _list      = bool(_LIST_INTENT_RE.search(search_question)) and not _school
+                _personnel = bool(_PERSONNEL_RE.search(search_question))
+                # 人員查詢需要跨多校 chunk，拉高 fetch 量
+                _fetch  = TOP_K * 5 if _school else (TOP_K * 4 if _personnel else (TOP_K * 3 if _list else TOP_K))
+                docs1 = vs.similarity_search_by_vector(query_vec, k=_fetch)
+
+                # ④ FAISS：第二輪（關鍵詞搜尋，補充第一輪漏掉的 chunk）
+                _kw = _extract_keywords(search_question)
+                if _kw:
+                    kw_vec = embeddings.embed_query(_kw)
+                    docs2  = vs.similarity_search_by_vector(kw_vec, k=TOP_K)
+                    docs_all = _merge_docs(docs1, docs2)
+                    print(f"[ASK] 第二輪關鍵詞「{_kw}」→ 合併後 {len(docs_all)} 筆")
+                else:
+                    docs_all = docs1
+
+                # ⑤ 人員查詢：額外以角色關鍵詞再搜一輪（抓「為X人員/X主任」等）
+                if _personnel:
+                    _role = _extract_role_term(question)
+                    if _role:
+                        role_vec = embeddings.embed_query(_role)
+                        docs3 = vs.similarity_search_by_vector(role_vec, k=TOP_K * 2)
+                        docs_all = _merge_docs(docs_all, docs3)
+                        print(f"[ASK] 人員角色輪「{_role}」→ 合併後 {len(docs_all)} 筆")
+
                 if _school:
-                    print(f"[ASK] 從歷史補充學校：{_school}")
-            _list      = bool(_LIST_INTENT_RE.search(search_question)) and not _school
-            _personnel = bool(_PERSONNEL_RE.search(search_question))
-            # 人員查詢需要跨多校 chunk，拉高 fetch 量
-            _fetch  = TOP_K * 5 if _school else (TOP_K * 4 if _personnel else (TOP_K * 3 if _list else TOP_K))
-            docs1 = vs.similarity_search_by_vector(query_vec, k=_fetch)
-
-            # ④ FAISS：第二輪（關鍵詞搜尋，補充第一輪漏掉的 chunk）
-            _kw = _extract_keywords(search_question)
-            if _kw:
-                kw_vec = embeddings.embed_query(_kw)
-                docs2  = vs.similarity_search_by_vector(kw_vec, k=TOP_K)
-                docs_all = _merge_docs(docs1, docs2)
-                print(f"[ASK] 第二輪關鍵詞「{_kw}」→ 合併後 {len(docs_all)} 筆")
-            else:
-                docs_all = docs1
-
-            # ⑤ 人員查詢：額外以角色關鍵詞再搜一輪（抓「為X人員/X主任」等）
-            if _personnel:
-                _role = _extract_role_term(question)
-                if _role:
-                    role_vec = embeddings.embed_query(_role)
-                    docs3 = vs.similarity_search_by_vector(role_vec, k=TOP_K * 2)
-                    docs_all = _merge_docs(docs_all, docs3)
-                    print(f"[ASK] 人員角色輪「{_role}」→ 合併後 {len(docs_all)} 筆")
-
-            if _school:
-                # 學校特定查詢：去掉學校名稱後以主題詞再搜一輪
-                _topic = question.replace(_school, "").strip()
-                _topic = re.sub(r'[的跟與和相關有關請問]+', ' ', _topic).strip()
-                if _topic:
-                    topic_vec = embeddings.embed_query(_topic)
-                    docs_topic = vs.similarity_search_by_vector(topic_vec, k=TOP_K * 3)
-                    docs_all = _merge_docs(docs_all, docs_topic)
-                    print(f"[ASK] 學校主題輪「{_topic}」→ 合併後 {len(docs_all)} 筆")
-                # 額外用學校名稱搜尋，確保該校敘述型 chunk 也被納入
-                school_vec = embeddings.embed_query(_school)
-                docs_school = vs.similarity_search_by_vector(school_vec, k=TOP_K * 10)
-                docs_all = _merge_docs(docs_all, docs_school)
-                print(f"[ASK] 學校名稱輪「{_school}」→ 合併後 {len(docs_all)} 筆")
-                # 單一學校查詢：取所有該校 chunk，不截斷（一份計畫書約 40 chunk）
-                docs = _school_filter_docs(docs_all, _school, k=9999)
-                print(f"[ASK] 學校過濾「{_school}」→ {len(docs)} 筆")
-            else:
-                docs = docs_all[:TOP_K]
-            t_faiss = time.perf_counter()
+                    # 學校特定查詢：去掉學校名稱後以主題詞再搜一輪
+                    _topic = question.replace(_school, "").strip()
+                    _topic = re.sub(r'[的跟與和相關有關請問]+', ' ', _topic).strip()
+                    if _topic:
+                        topic_vec = embeddings.embed_query(_topic)
+                        docs_topic = vs.similarity_search_by_vector(topic_vec, k=TOP_K * 3)
+                        docs_all = _merge_docs(docs_all, docs_topic)
+                        print(f"[ASK] 學校主題輪「{_topic}」→ 合併後 {len(docs_all)} 筆")
+                    # 額外用學校名稱搜尋，確保該校敘述型 chunk 也被納入
+                    school_vec = embeddings.embed_query(_school)
+                    docs_school = vs.similarity_search_by_vector(school_vec, k=TOP_K * 10)
+                    docs_all = _merge_docs(docs_all, docs_school)
+                    print(f"[ASK] 學校名稱輪「{_school}」→ 合併後 {len(docs_all)} 筆")
+                    # 單一學校查詢：取所有該校 chunk，不截斷（一份計畫書約 40 chunk）
+                    docs = _school_filter_docs(docs_all, _school, k=9999)
+                    print(f"[ASK] 學校過濾「{_school}」→ {len(docs)} 筆")
+                else:
+                    docs = docs_all[:TOP_K]
+                t_faiss = time.perf_counter()
 
             context = "\n\n".join(_clean_plan_code(doc.page_content) for doc in docs)
 
