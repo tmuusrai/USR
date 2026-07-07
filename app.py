@@ -304,6 +304,52 @@ _PLAN_TYPE_RE = re.compile(
     r'(大學特色類(?:萌芽型|深耕型)|永續發展類(?:國際合作型|特色永續型))'
 )
 
+_THEME_RULES = [
+    (re.compile(r'海洋|漁|里海|海岸|海鄉|蔚藍|水產|鯤鯓|澎湖|金門|石滬|濱海'),
+     {'g': 'linear-gradient(135deg,#0369a1,#38bdf8)', 'e': '🌊', 'kw': 'ocean,fishing,coastal,sea'}),
+    (re.compile(r'農業|農村|食農|農創|農產|農耕|稻田|稻米|有機農|里山|茶葉|咖啡|花卉|柿|竹'),
+     {'g': 'linear-gradient(135deg,#15803d,#86efac)', 'e': '🌾', 'kw': 'farming,rice,harvest,agriculture'}),
+    (re.compile(r'原住民|部落|泰雅|鄒族|賽夏|馬卡道|原鄉|霧台|南島|布農'),
+     {'g': 'linear-gradient(135deg,#7c3aed,#c4b5fd)', 'e': '🏔️', 'kw': 'indigenous,tribe,mountain,traditional'}),
+    (re.compile(r'山|森林|生態|綠色|植物|水尾|淺山|茶山|玉山|阿里山|烏來|太魯閣|花蓮|台東|宜蘭|南投'),
+     {'g': 'linear-gradient(135deg,#166534,#4ade80)', 'e': '🌿', 'kw': 'forest,nature,ecology,mountain'}),
+    (re.compile(r'溪|河|水圳|水域|水資源|頭前溪|曾文溪|埤圳'),
+     {'g': 'linear-gradient(135deg,#0891b2,#67e8f9)', 'e': '💧', 'kw': 'river,stream,water,canal'}),
+    (re.compile(r'高齡|銀髮|樂齡|長照|失智|照護|養老|長者|超高齡'),
+     {'g': 'linear-gradient(135deg,#9333ea,#e879f9)', 'e': '❤️', 'kw': 'elderly,senior,care,aging'}),
+    (re.compile(r'偏鄉|學伴|學童|兒童|青少年|早療'),
+     {'g': 'linear-gradient(135deg,#ea580c,#fb923c)', 'e': '📚', 'kw': 'education,children,school,learning'}),
+    (re.compile(r'醫療|健康|護理|醫學|健促'),
+     {'g': 'linear-gradient(135deg,#dc2626,#f87171)', 'e': '🏥', 'kw': 'healthcare,medical,hospital,wellness'}),
+    (re.compile(r'AI|數位|科技|智慧|IoT|XR|機器人|大數據'),
+     {'g': 'linear-gradient(135deg,#4338ca,#818cf8)', 'e': '💻', 'kw': 'technology,innovation,digital,computer'}),
+    (re.compile(r'文化|藝術|創生|工藝|傳統|文創|博物館|影像|陶瓷'),
+     {'g': 'linear-gradient(135deg,#b45309,#fcd34d)', 'e': '🎨', 'kw': 'art,culture,craft,museum'}),
+    (re.compile(r'觀光|旅遊|旅行|慢城|遊程'),
+     {'g': 'linear-gradient(135deg,#0e7490,#22d3ee)', 'e': '🗺️', 'kw': 'travel,tourism,scenic,landscape'}),
+    (re.compile(r'食品|餐飲|飲食|食安|料理|惜食'),
+     {'g': 'linear-gradient(135deg,#c2410c,#fb923c)', 'e': '🍽️', 'kw': 'food,cooking,restaurant,cuisine'}),
+    (re.compile(r'低碳|淨零|碳排|減碳|再生能源|綠電|循環經濟'),
+     {'g': 'linear-gradient(135deg,#065f46,#34d399)', 'e': '♻️', 'kw': 'sustainability,solar,renewable,green'}),
+    (re.compile(r'都市|城市|城鄉|社區|街道|老街|夜市'),
+     {'g': 'linear-gradient(135deg,#334155,#94a3b8)', 'e': '🏙️', 'kw': 'city,urban,community,street'}),
+    (re.compile(r'新住民|多元|共融|移民|越南'),
+     {'g': 'linear-gradient(135deg,#6d28d9,#a78bfa)', 'e': '🤝', 'kw': 'diversity,multicultural,people,community'}),
+    (re.compile(r'身心障礙|漸凍|自閉症'),
+     {'g': 'linear-gradient(135deg,#1d4ed8,#93c5fd)', 'e': '💙', 'kw': 'disability,inclusion,support,care'}),
+    (re.compile(r'動物|流浪動物|貓|狗'),
+     {'g': 'linear-gradient(135deg,#92400e,#d97706)', 'e': '🐾', 'kw': 'animals,pets,cats,dogs'}),
+    (re.compile(r'島|離島|小琉球'),
+     {'g': 'linear-gradient(135deg,#0c4a6e,#38bdf8)', 'e': '🏝️', 'kw': 'island,beach,tropical,ocean'}),
+]
+_THEME_DEFAULT = {'g': 'linear-gradient(135deg,#1e40af,#3b82f6)', 'e': '🎓', 'kw': 'university,campus,taiwan'}
+
+def _get_theme(title: str) -> dict:
+    for pattern, theme in _THEME_RULES:
+        if pattern.search(title):
+            return theme
+    return _THEME_DEFAULT
+
 # 清理計畫編號與 _formatted 後綴
 _PLAN_CODE_RE = re.compile(r'\s*\(114USR-[^)]*\)|_formatted', re.IGNORECASE)
 
@@ -517,11 +563,14 @@ init_qa()
 def _load_plans(year: str = "114"):
     md_dir = MD_DIR if year == "114" else MD_DIR_113
     plans = []
-    for f in sorted(md_dir.glob("*.md")):
+    for i, f in enumerate(sorted(md_dir.glob("*.md"))):
         name = re.sub(r'\([^)]*\)', '', f.stem).replace('_formatted', '').strip('_').strip()
         parts = name.split('_', 1)
         if len(parts) == 2:
-            plans.append({"school": parts[0].strip(), "title": parts[1].strip()})
+            school = parts[0].strip()
+            title  = parts[1].strip()
+            plans.append({"school": school, "title": title,
+                          "theme": _get_theme(title), "idx": i})
     return plans
 
 @app.route("/")
