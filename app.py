@@ -749,7 +749,8 @@ def ask():
                     full_ans = "".join(answer_parts)
                     if chat_id:
                         hist = _chat_history.setdefault(chat_id, [])
-                        hist.append({"q": question, "a": full_ans[:5000]})
+                        hist.append({"q": question, "a": full_ans[:5000],
+                             "schools": _extract_listed_schools(full_ans)})
                         if len(hist) > _MAX_HISTORY:
                             hist.pop(0)
                     suggestions = _generate_suggestions(question, full_ans)
@@ -764,7 +765,8 @@ def ask():
             # ③ 多校清單追問：偵測「以上N間」，從歷史逐一搜尋每間學校
             _listed_schools: list[str] = []
             if _MULTI_REF_RE.search(question) and history:
-                _listed_schools = _extract_listed_schools(history[-1]['a'])
+                last_hist = history[-1]
+                _listed_schools = last_hist.get('schools') or _extract_listed_schools(last_hist['a'])
                 print(f"[ASK] 多校清單追問，偵測到 {len(_listed_schools)} 間：{_listed_schools}")
 
             if _listed_schools:
@@ -919,7 +921,8 @@ def ask():
             if chat_id:
                 full_ans = "".join(answer_parts)
                 hist = _chat_history.setdefault(chat_id, [])
-                hist.append({"q": question, "a": full_ans[:5000]})
+                hist.append({"q": question, "a": full_ans[:5000],
+                             "schools": _extract_listed_schools(full_ans)})
                 if len(hist) > _MAX_HISTORY:
                     hist.pop(0)
                 if len(_chat_history) > 1000:
