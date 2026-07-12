@@ -68,7 +68,6 @@ body{font-family:"Segoe UI","Noto Sans TC",sans-serif;background:#f5f7fa;height:
 .seg-btn{padding:5px 13px;border-radius:7px;border:none;background:none;color:#64748b;font-size:.8rem;font-weight:500;cursor:pointer;transition:all .15s;white-space:nowrap}
 .seg-btn:hover{background:#e2e8f0;color:#334155}
 .seg-btn.active{background:#fff;color:#1d4ed8;box-shadow:0 1px 4px rgba(0,0,0,.1);font-weight:600}
-.seg-btn.active.agent{color:#7c3aed}
 .seg-btn.active.subagent{color:#0891b2}
 .user-seg{display:none;background:#fef3c7;border-radius:9px;padding:3px;gap:2px}
 .user-seg.visible{display:flex}
@@ -346,7 +345,6 @@ body{font-family:"Segoe UI","Noto Sans TC",sans-serif;background:#f5f7fa;height:
     <div id="mode-toggle">
       <div class="mode-seg">
         <button class="seg-btn active" onclick="setMode('rag',this)">一般</button>
-        <button class="seg-btn agent" onclick="setMode('agent',this)">🤖 Agent</button>
         <button class="seg-btn subagent" onclick="setMode('subagent',this)">⚡ SubAgent</button>
       </div>
       <div class="user-seg">
@@ -501,7 +499,6 @@ function setYear(year, btn) {
 let pendingQuestion = null;  // stores original eval question waiting for user criteria
 const PLACEHOLDERS = {
   rag:      "請輸入問題，例如：有哪些計畫關注高齡照護？",
-  agent:    "請輸入複雜問題，例如：比較各校高齡照護計畫的特色與差異？",
   subagent: "請輸入跨面向問題，例如：有哪些學校同時關注高齡照護和數位科技？",
   reviewer: "委員模式：輸入學校名稱，例如：評估國立中正大學的計畫執行狀況與重點查核項目",
 };
@@ -612,8 +609,8 @@ async function askQuestion() {
   qEl.value = ""; qEl.style.height = "44px";
   document.getElementById("ask-btn").disabled = true;
 
-  const endpoint = currentMode === "agent" ? "/agent" : currentMode === "subagent" ? "/subagent" : "/ask";
-  const initMsg = {rag:"🤔 AI 分析中，請稍候…", agent:"🤖 Agent 分析中，正在多步推理…", subagent:"⚡ SubAgent 啟動，派出平行搜尋…"}[currentMode];
+  const endpoint = currentMode === "subagent" ? "/subagent" : "/ask";
+  const initMsg = {rag:"🤔 AI 分析中，請稍候…", subagent:"⚡ SubAgent 啟動，派出平行搜尋…"}[currentMode];
 
   const box = document.getElementById("messages");
   const botEl = appendMsg(initMsg, "loading");

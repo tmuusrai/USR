@@ -5,6 +5,7 @@ import json
 import time
 import queue as _queue
 import threading
+from concurrent.futures import ThreadPoolExecutor
 from collections import OrderedDict
 from pathlib import Path
 
@@ -573,6 +574,27 @@ def _extract_listed_schools(text: str) -> list[str]:
     return list(dict.fromkeys(schools))  # 去重、保順序
 
 
+def _define_and_expand_query(question: str) -> str | None:
+    """分析問題詞義，產生 USR 計畫書脈絡下的擴充搜尋 query。"""
+    prompt = (
+        "你是 USR（大學社會責任）計畫書搜尋專家。\n"
+        "分析以下問題，找出 1~3 個核心概念，列出在計畫書中可能出現的同義詞與相關詞，"
+        "產生一個空格分隔的擴充搜尋 query（不超過 60 字）。\n\n"
+        f"問題：{question}\n\n"
+        "只輸出搜尋 query，不要解釋或其他格式。"
+    )
+    try:
+        from langchain_core.messages import HumanMessage as _HM
+        res = llm.bind(temperature=0).invoke([_HM(content=prompt)])
+        expanded = res.content.strip()
+        if expanded and expanded != question:
+            print(f"[EXPAND] {question!r} → {expanded!r}")
+            return expanded
+    except Exception as e:
+        print(f"[EXPAND] 失敗：{e}")
+    return None
+
+
 def _rewrite_question(question: str, history: list) -> str:
     """
     用 LLM 兩步驟判斷追問意圖並改寫為完整獨立問題。
@@ -765,15 +787,25 @@ def ask():
                         yield f"data: {json.dumps({'type': 'suggested_questions', 'questions': suggestions}, ensure_ascii=False)}\n\n"
                     return
 
-            # ② Voyage AI：將問題向量化（未提早 return 時執行）
-            query_vec = embeddings.embed_query(search_question)
-            t_voyage = time.perf_counter()
+            # ② 本地預計算（不需 API call）
+            _school = _extract_school(search_question)
+            if not _school and history:
+                _school = _extract_school(history[-1]['q'])
+                if _school:
+                    print(f"[ASK] 從歷史補充學校：{_school}")
+            _list      = bool(_LIST_INTENT_RE.search(search_question)) and not _school
+            _personnel = bool(_PERSONNEL_RE.search(search_question))
+            _kw        = _extract_keywords(search_question)
+            _role      = _extract_role_term(question) if _personnel else None
+            _topic     = None
+            if _school:
+                _topic = question.replace(_school, "").strip()
+                _topic = re.sub(r'[的跟與和相關有關請問]+', ' ', _topic).strip() or None
+            _fetch = TOP_K * 5 if _school else (TOP_K * 4 if _personnel else (TOP_K * 3 if _list else TOP_K))
 
-            # ③ 多校清單追問：偵測「以上N間」，從歷史逐一搜尋每間學校
+            # ③ 多校清單追問偵測
             _listed_schools: list[str] = []
             if _MULTI_REF_RE.search(question) and history:
-                # 往回找最近一筆有學校清單的歷史（不只看最後一筆，避免清單被新答案覆蓋）
-                _listed_schools = []
                 for _h in reversed(history):
                     _candidate = _h.get('schools') or _extract_listed_schools(_h['a'])
                     if _candidate:
@@ -781,66 +813,76 @@ def ask():
                         break
                 print(f"[ASK] 多校清單追問，偵測到 {len(_listed_schools)} 間：{_listed_schools}")
 
+            # ④ Voyage AI 平行 embed
             if _listed_schools:
+                # 多校模式：各校 query 同時送出
                 _topic_q = re.sub(r'以上\S*間\S*計劃?|上述\S*計劃?|這些計劃?', '', question).strip()
+                with ThreadPoolExecutor() as ex:
+                    _sfuts = {s: ex.submit(embeddings.embed_query, f"{s} {_topic_q}")
+                              for s in _listed_schools}
+                    _svecs = {s: f.result() for s, f in _sfuts.items()}
+                t_voyage = time.perf_counter()
                 docs_all = []
                 for _s in _listed_schools:
-                    _s_vec = embeddings.embed_query(f"{_s} {_topic_q}")
-                    _s_docs = vs.similarity_search_by_vector(_s_vec, k=TOP_K * 3)
+                    _s_docs = vs.similarity_search_by_vector(_svecs[_s], k=TOP_K * 3)
                     _s_filtered = _school_filter_docs(_s_docs, _s, k=10)
                     docs_all = _merge_docs(docs_all, _s_filtered)
                     print(f"[ASK] 多校輪「{_s}」→ {len(_s_filtered)} 筆")
                 docs = docs_all
                 _school = None
+                expand_query = None
                 t_faiss = time.perf_counter()
             else:
-                # ③ FAISS：第一輪搜尋
-                _school    = _extract_school(search_question)
-                # 追問且改寫後仍無學校名稱：從歷史記錄補回（不限關鍵字）
-                if not _school and history:
-                    _school = _extract_school(history[-1]['q'])
-                    if _school:
-                        print(f"[ASK] 從歷史補充學校：{_school}")
-                _list      = bool(_LIST_INTENT_RE.search(search_question)) and not _school
-                _personnel = bool(_PERSONNEL_RE.search(search_question))
-                # 人員查詢需要跨多校 chunk，拉高 fetch 量
-                _fetch  = TOP_K * 5 if _school else (TOP_K * 4 if _personnel else (TOP_K * 3 if _list else TOP_K))
-                docs1 = vs.similarity_search_by_vector(query_vec, k=_fetch)
-
-                # ④ FAISS：第二輪（關鍵詞搜尋，補充第一輪漏掉的 chunk）
-                _kw = _extract_keywords(search_question)
+                # 一般模式：LLM 展開 + 所有已知 query 同時 embed
+                embed_tasks: dict[str, str] = {'main': search_question}
                 if _kw:
-                    kw_vec = embeddings.embed_query(_kw)
-                    docs2  = vs.similarity_search_by_vector(kw_vec, k=TOP_K)
+                    embed_tasks['kw'] = _kw
+                if _role:
+                    embed_tasks['role'] = _role
+                if _school:
+                    embed_tasks['school'] = _school
+                    if _topic:
+                        embed_tasks['topic'] = _topic
+
+                with ThreadPoolExecutor() as ex:
+                    expand_fut = ex.submit(_define_and_expand_query, search_question)
+                    embed_futs = {k: ex.submit(embeddings.embed_query, v)
+                                  for k, v in embed_tasks.items()}
+                    expand_query = expand_fut.result()
+                    vecs = {k: f.result() for k, f in embed_futs.items()}
+                t_voyage = time.perf_counter()
+
+                # expand_query 由 LLM 決定，結果出來後才能 embed
+                expand_vec = embeddings.embed_query(expand_query) if expand_query else None
+
+                # ⑤ FAISS 多輪搜尋
+                docs1 = vs.similarity_search_by_vector(vecs['main'], k=_fetch)
+
+                if _kw:
+                    docs2 = vs.similarity_search_by_vector(vecs['kw'], k=TOP_K)
                     docs_all = _merge_docs(docs1, docs2)
                     print(f"[ASK] 第二輪關鍵詞「{_kw}」→ 合併後 {len(docs_all)} 筆")
                 else:
                     docs_all = docs1
 
-                # ⑤ 人員查詢：額外以角色關鍵詞再搜一輪（抓「為X人員/X主任」等）
-                if _personnel:
-                    _role = _extract_role_term(question)
-                    if _role:
-                        role_vec = embeddings.embed_query(_role)
-                        docs3 = vs.similarity_search_by_vector(role_vec, k=TOP_K * 2)
-                        docs_all = _merge_docs(docs_all, docs3)
-                        print(f"[ASK] 人員角色輪「{_role}」→ 合併後 {len(docs_all)} 筆")
+                if _personnel and _role:
+                    docs3 = vs.similarity_search_by_vector(vecs['role'], k=TOP_K * 2)
+                    docs_all = _merge_docs(docs_all, docs3)
+                    print(f"[ASK] 人員角色輪「{_role}」→ 合併後 {len(docs_all)} 筆")
+
+                if expand_vec:
+                    docs_expand = vs.similarity_search_by_vector(expand_vec, k=TOP_K * 2)
+                    docs_all = _merge_docs(docs_all, docs_expand)
+                    print(f"[ASK] 詞義擴充輪 → 合併後 {len(docs_all)} 筆")
 
                 if _school:
-                    # 學校特定查詢：去掉學校名稱後以主題詞再搜一輪
-                    _topic = question.replace(_school, "").strip()
-                    _topic = re.sub(r'[的跟與和相關有關請問]+', ' ', _topic).strip()
                     if _topic:
-                        topic_vec = embeddings.embed_query(_topic)
-                        docs_topic = vs.similarity_search_by_vector(topic_vec, k=TOP_K * 3)
+                        docs_topic = vs.similarity_search_by_vector(vecs['topic'], k=TOP_K * 3)
                         docs_all = _merge_docs(docs_all, docs_topic)
                         print(f"[ASK] 學校主題輪「{_topic}」→ 合併後 {len(docs_all)} 筆")
-                    # 額外用學校名稱搜尋，確保該校敘述型 chunk 也被納入
-                    school_vec = embeddings.embed_query(_school)
-                    docs_school = vs.similarity_search_by_vector(school_vec, k=TOP_K * 10)
+                    docs_school = vs.similarity_search_by_vector(vecs['school'], k=TOP_K * 10)
                     docs_all = _merge_docs(docs_all, docs_school)
                     print(f"[ASK] 學校名稱輪「{_school}」→ 合併後 {len(docs_all)} 筆")
-                    # 單一學校查詢：取所有該校 chunk，不截斷（一份計畫書約 40 chunk）
                     docs = _school_filter_docs(docs_all, _school, k=9999)
                     print(f"[ASK] 學校過濾「{_school}」→ {len(docs)} 筆")
                 else:
@@ -959,23 +1001,12 @@ def ask():
     )
 
 
-# ── ReAct Agent ───────────────────────────────────────
 AGENT_PLAN_PROMPT = """針對以下問題，請列出 2~3 個最適合的繁體中文搜尋關鍵字，用來從 USR 計畫書資料庫中找到相關內容。
 
 問題：{question}
 
 只輸出 JSON 陣列，不要其他文字，例如：
 ["高齡照護 USR 計畫", "青銀共創 大學社會責任", "失智症 照護"]"""
-
-AGENT_ANSWER_PROMPT = """你是 USR 計畫書研究助理，請根據以下資料回答問題。
-
-問題：{question}
-
-搜尋到的資料：
-{context}
-
-請用繁體中文給出完整、有條理的分析回答，整合所有資料內容。
-凡提及任何學校或計畫，必須同時寫出完整的學校名稱與計畫名稱，不得只寫縮寫或簡稱。"""
 
 SUGGEST_PROMPT = """根據以下 USR 計畫書問答，生成 3 個使用者可能想繼續追問的問題。
 要求：具體、繁體中文、每題 25 字以內，圍繞原始問題的延伸或深化方向。
@@ -1160,137 +1191,6 @@ def _normalize_content(content):
             for block in content
         )
     return content
-
-
-def react_agent_stream(question: str, max_steps: int = 5, year: str = "114"):
-    """固定 2 步架構：Gemini 規劃搜尋詞 → 執行搜尋 → Gemini 整合回答。"""
-    import re
-    from langchain_core.messages import HumanMessage
-
-    # ── 結構化 QA 短路：列舉型問題直接回傳，不呼叫 FAISS ──
-    structured_ctx = try_structured_answer(question, year=year)
-    if structured_ctx:
-        yield "sources", []
-        yield "answer", structured_ctx
-        return
-
-    all_sources = []
-    seen_sources = set()
-
-    # ── 步驟 1：讓 Gemini 決定要搜尋什麼 ──
-    yield "heartbeat", None
-    try:
-        plan_res = llm.bind(temperature=0).invoke([HumanMessage(content=AGENT_PLAN_PROMPT.format(question=question))])
-        plan_text = _normalize_content(plan_res.content).strip()
-        print(f"[AGENT] 搜尋計畫：{plan_text}")
-        match = re.search(r'\[.*?\]', plan_text, re.DOTALL)
-        queries = json.loads(match.group()) if match else [question]
-        if not isinstance(queries, list) or not queries:
-            queries = [question]
-    except Exception as e:
-        print(f"[AGENT] 搜尋計畫失敗：{e}")
-        queries = [question]
-
-    # ── 步驟 2：執行搜尋 ──
-    all_context = []
-    for i, query in enumerate(queries[:3]):
-        yield "step", {"step": i + 1, "preview": f"搜尋：{str(query)[:80]}"}
-        try:
-            observation, sources = tool_search_rag(str(query), k=10, year=year)
-            all_context.append(f"【搜尋 {i+1}：{query}】\n{observation}")
-            for s in sources:
-                key = (s["source"], s["page"])
-                if key not in seen_sources:
-                    seen_sources.add(key)
-                    all_sources.append(s)
-        except Exception as e:
-            import traceback
-            print(f"[AGENT] 搜尋失敗 {query}：{e}\n{traceback.format_exc()}")
-
-    yield "sources", all_sources
-
-    # ── 步驟 3：Gemini 整合回答 ──
-    yield "heartbeat", None
-    try:
-        context = "\n\n".join(all_context) if all_context else "查無相關資料"
-        answer_res = llm.invoke([HumanMessage(content=AGENT_ANSWER_PROMPT.format(
-            question=question, context=context
-        ))])
-        final = _normalize_content(answer_res.content).strip()
-        if not final:
-            final = "抱歉，無法完成分析，請重新提問。"
-    except Exception as e:
-        print(f"[AGENT] 整合回答失敗：{e}")
-        final = f"分析過程發生錯誤，請重新提問。（{e}）"
-
-    yield "answer", final
-
-
-@app.route("/agent", methods=["POST"])
-def agent_ask():
-    if SITE_PASSWORD and not session.get("authenticated"):
-        return jsonify({"error": "請先登入。"}), 401
-
-    data = request.get_json(silent=True) or {}
-    year = (data.get("year") or "114").strip()
-    if year not in ("113", "114"):
-        year = "114"
-    vs = vectorstores.get(year) or vectorstores.get("114")
-
-    if vs is None:
-        return jsonify({"error": "索引尚未建立。"}), 503
-
-    question = (data.get("question") or "").strip()
-    original_question = (data.get("original_question") or "").strip()
-    skip_eval = bool(original_question)
-    if original_question:
-        question = f"{original_question}（請依以下標準評估：{question}）"
-    if not question:
-        return jsonify({"error": "請輸入問題。"}), 400
-    if len(question) > 500:
-        return jsonify({"error": "問題不得超過 500 字。"}), 400
-
-    def generate():
-        try:
-            t_agent_start = time.perf_counter()
-
-            # ✦ 主觀評量問題攔截
-            if not skip_eval and _is_evaluation_question(question):
-                yield f"data: {json.dumps({'type': 'sources', 'sources': []}, ensure_ascii=False)}\n\n"
-                yield f"data: {json.dumps({'type': 'chunk', 'text': _CLARIFY_MSG}, ensure_ascii=False)}\n\n"
-                total_ms = round((time.perf_counter() - t_agent_start) * 1000)
-                yield f"data: {json.dumps({'type': 'done', 'timing': {'total_ms': total_ms}, 'mode': 'clarify', 'original_question': question}, ensure_ascii=False)}\n\n"
-                return
-
-            yield f"data: {json.dumps({'type': 'status', 'text': '🤖 Agent 模式啟動，第一步：分析問題（約 5-10 秒）...'}, ensure_ascii=False)}\n\n"
-            step_count = 0
-            for event_type, data in react_agent_stream(question, year=year):
-                if event_type == "heartbeat":
-                    yield ": keepalive\n\n"  # SSE comment，保持連線不斷
-                elif event_type == "step":
-                    step_count += 1
-                    yield f"data: {json.dumps({'type': 'step', 'step': data['step'], 'preview': data['preview']}, ensure_ascii=False)}\n\n"
-                elif event_type == "sources":
-                    yield f"data: {json.dumps({'type': 'sources', 'sources': data}, ensure_ascii=False)}\n\n"
-                elif event_type == "answer":
-                    t_agent_end = time.perf_counter()
-                    total_ms = round((t_agent_end - t_agent_start) * 1000)
-                    timing = {"total_ms": total_ms, "agent_steps": step_count}
-                    yield f"data: {json.dumps({'type': 'chunk', 'text': data}, ensure_ascii=False)}\n\n"
-                    yield f"data: {json.dumps({'type': 'done', 'timing': timing, 'steps': step_count})}\n\n"
-                    suggestions = _generate_suggestions(question, data)
-                    if suggestions:
-                        yield f"data: {json.dumps({'type': 'suggested_questions', 'questions': suggestions}, ensure_ascii=False)}\n\n"
-        except Exception as e:
-            import traceback
-            print(f"[ERROR] /agent：{e}\n{traceback.format_exc()}")
-            yield f"data: {json.dumps({'type': 'error', 'error': '分析時發生錯誤，請稍後再試。'}, ensure_ascii=False)}\n\n"
-
-    return Response(
-        stream_with_context(generate()),
-        mimetype="text/event-stream",
-        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
-    )
 
 
 @app.route("/subagent", methods=["POST"])
