@@ -594,66 +594,55 @@ def _keyword_lookup(question: str, year: str = "114") -> list[str]:
     return ranked
 
 
-def _define_and_expand_query(question: str) -> str | None:
-    """分析問題詞義，產生 USR 計畫書脈絡下的擴充搜尋 query。"""
-    prompt = (
-        "你是 USR（大學社會責任）計畫書搜尋專家。\n"
-        "分析以下問題，找出 1~3 個核心概念，列出在計畫書中可能出現的同義詞與相關詞，"
-        "產生一個空格分隔的擴充搜尋 query（不超過 60 字）。\n\n"
-        f"問題：{question}\n\n"
-        "只輸出搜尋 query，不要解釋或其他格式。"
-    )
-    try:
-        from langchain_core.messages import HumanMessage as _HM
-        res = llm.bind(temperature=0).invoke([_HM(content=prompt)])
-        expanded = res.content.strip()
-        if expanded and expanded != question:
-            print(f"[EXPAND] {question!r} → {expanded!r}")
-            return expanded
-    except Exception as e:
-        print(f"[EXPAND] 失敗：{e}")
-    return None
-
-
-def _rewrite_question(question: str, history: list) -> str:
+def _prepare_search_query(question: str, history: list) -> tuple[str, str | None]:
     """
-    用 LLM 兩步驟判斷追問意圖並改寫為完整獨立問題。
-    前驗：舊問題 × 新問題 初步判斷是否為追問
-    後驗：舊問題 × 舊回答 × 新問題 確認指涉對象並改寫
-    非追問時直接回傳原問題。
+    單次 LLM call 同時完成：
+    1. 追問判斷與改寫（有 history 時）
+    2. 詞義展開 → 擴充搜尋 query
+    回傳 (search_question, expand_query)
     """
-    if not history:
-        return question
-    last = history[-1]
-    prompt = (
-        "你是對話理解專家。判斷「新問題」是否為追問，並輸出最終搜尋用問題。\n\n"
-        f"【前一輪問題】\n{last['q']}\n\n"
-        f"【前一輪回答摘要】\n{last['a'][:5000]}\n\n"
-        f"【新問題】\n{question}\n\n"
-        "判斷步驟：\n"
-        "步驟一（前驗）：僅看「前一輪問題」與「新問題」——新問題是否在延伸前一輪的主題、"
-        "或含有代名詞／省略指涉而無法獨立理解？\n"
-        "步驟二（後驗）：再看「前一輪回答」——回答所提及的具體對象，"
-        "是否讓新問題的指涉更明確？\n\n"
-        "輸出規則：\n"
-        "・若是追問：將代名詞與隱含指涉替換為具體名稱，輸出完整獨立問題\n"
-        "・若非追問（全新主題）：原樣輸出新問題，不作任何修改\n\n"
-        "只輸出最終問題，不要解釋，不要加引號。"
-    )
+    from langchain_core.messages import HumanMessage as _HM
+    if history:
+        last = history[-1]
+        prompt = (
+            "你是 USR 計畫書搜尋助理。請同時完成兩件事，輸出 JSON。\n\n"
+            f"【前一輪問題】\n{last['q']}\n\n"
+            f"【前一輪回答摘要】\n{last['a'][:3000]}\n\n"
+            f"【新問題】\n{question}\n\n"
+            "任務一（追問改寫）：\n"
+            "・若新問題是追問（含代名詞/省略指涉/延伸前一輪主題），替換為具體名稱，輸出改寫後的完整問題\n"
+            "・若非追問（全新主題），原樣輸出新問題\n\n"
+            "任務二（詞義展開）：\n"
+            "・找出 search_q 的 1~3 個核心概念\n"
+            "・列出在 USR 計畫書中可能出現的同義詞與相關詞\n"
+            "・輸出空格分隔的擴充 query（不超過 60 字）\n\n"
+            '只輸出 JSON，不要其他文字：{"search_q": "最終問題", "expand_q": "擴充query"}'
+        )
+    else:
+        prompt = (
+            "你是 USR 計畫書搜尋助理。請展開問題的詞義，輸出 JSON。\n\n"
+            f"問題：{question}\n\n"
+            "找出 1~3 個核心概念，列出在 USR 計畫書中可能出現的同義詞與相關詞，"
+            "輸出空格分隔的擴充 query（不超過 60 字）。\n\n"
+            '只輸出 JSON，不要其他文字：{"search_q": "原問題照抄", "expand_q": "擴充query"}'
+        )
     try:
-        from langchain_core.messages import HumanMessage as _HM
         res = llm.bind(temperature=0).invoke([_HM(content=prompt)])
-        rewritten = res.content.strip()
-        if rewritten:
-            # 若前一輪有明確學校名，確保改寫後仍保留
-            prev_school = _extract_school(last['q'])
-            if prev_school and prev_school not in rewritten:
-                rewritten = f"{prev_school}：{rewritten}"
-            print(f"[REWRITE] {question!r} → {rewritten!r}")
-            return rewritten
+        text = res.content.strip()
+        m = re.search(r'\{.*?\}', text, re.DOTALL)
+        if m:
+            data = json.loads(m.group())
+            search_q  = (data.get("search_q") or question).strip() or question
+            expand_q  = (data.get("expand_q") or "").strip() or None
+            if history and search_q != question:
+                prev_school = _extract_school(history[-1]['q'])
+                if prev_school and prev_school not in search_q:
+                    search_q = f"{prev_school}：{search_q}"
+            print(f"[PREP] search={search_q!r} expand={expand_q!r}")
+            return search_q, expand_q
     except Exception as e:
-        print(f"[REWRITE] 失敗：{e}")
-    return question
+        print(f"[PREP] 失敗：{e}")
+    return question, None
 
 
 # ── 啟動時初始化 ──────────────────────────────────────
@@ -766,11 +755,9 @@ def ask():
         try:
             t0 = time.perf_counter()
 
-            # ── 對話記憶：取得 history，必要時改寫問題 ──
+            # ── 對話記憶 + 搜尋問題準備（單次 LLM call）──
             history = _chat_history.get(chat_id, []) if chat_id else []
-            search_question = question
-            if chat_id and history:
-                search_question = _rewrite_question(question, history)
+            search_question, expand_query = _prepare_search_query(question, history)
 
             # ✦ 主觀評量問題攔截：反問使用者定義判斷準則
             if not skip_eval and _is_evaluation_question(question):
@@ -886,10 +873,8 @@ def ask():
                         embed_tasks['topic'] = _topic
 
                 with ThreadPoolExecutor() as ex:
-                    expand_fut = ex.submit(_define_and_expand_query, search_question)
                     embed_futs = {k: ex.submit(embeddings.embed_query, v)
                                   for k, v in embed_tasks.items()}
-                    expand_query = expand_fut.result()
                     vecs = {k: f.result() for k, f in embed_futs.items()}
                 t_voyage = time.perf_counter()
 
