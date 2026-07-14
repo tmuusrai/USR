@@ -755,9 +755,12 @@ def ask():
         try:
             t0 = time.perf_counter()
 
-            # ── 對話記憶 + 搜尋問題準備（單次 LLM call）──
+            # ── 對話記憶 + 搜尋問題準備 ──
             history = _chat_history.get(chat_id, []) if chat_id else []
-            search_question, expand_query = _prepare_search_query(question, history)
+            if history:
+                search_question, expand_query = _prepare_search_query(question, history)
+            else:
+                search_question, expand_query = question, None
 
             # ✦ 主觀評量問題攔截：反問使用者定義判斷準則
             if not skip_eval and _is_evaluation_question(question):
