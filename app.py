@@ -574,6 +574,26 @@ def _extract_listed_schools(text: str) -> list[str]:
     return list(dict.fromkeys(schools))  # 去重、保順序
 
 
+_KW_THRESHOLD = 15  # 命中學校數超過此值就退回 FAISS
+
+def _keyword_lookup(question: str, year: str = "114") -> list[str]:
+    """從 keyword_index 找與問題相關的學校，超過門檻回傳空清單（退回 FAISS）。"""
+    idx = _keyword_index.get(year, {})
+    if not idx:
+        return []
+    matched: dict[str, int] = {}
+    q_tokens = set(re.findall(r'[一-鿿]{3,}', question))
+    for kw, schools in idx.items():
+        hit = kw in question or any(t in kw for t in q_tokens)
+        if hit:
+            for s in schools:
+                matched[s] = matched.get(s, 0) + 1
+    ranked = [s for s, _ in sorted(matched.items(), key=lambda x: -x[1])]
+    if not ranked or len(ranked) > _KW_THRESHOLD:
+        return []
+    return ranked
+
+
 def _define_and_expand_query(question: str) -> str | None:
     """分析問題詞義，產生 USR 計畫書脈絡下的擴充搜尋 query。"""
     prompt = (
@@ -659,6 +679,20 @@ for _yr in ("114", "113"):
 vectorstore = vectorstores.get("114")  # backwards-compat alias
 
 init_qa()
+
+# ── 關鍵字索引（build_keyword_index.py 產出）──────────
+_keyword_index: dict[str, dict[str, list[str]]] = {}
+_KW_INDEX_PATH = Path("keyword_index.json")
+if _KW_INDEX_PATH.exists():
+    try:
+        with open(_KW_INDEX_PATH, encoding="utf-8") as _f:
+            _kw_data = json.load(_f)
+            _keyword_index = {yr: _kw_data.get(yr, {}) for yr in ("114", "113")}
+        print(f"[APP] 關鍵字索引就緒：{sum(len(v) for v in _keyword_index.values())} 個關鍵字")
+    except Exception as _e:
+        print(f"[APP] 關鍵字索引載入失敗：{_e}")
+else:
+    print("[APP] 未找到 keyword_index.json，跳過關鍵字索引。")
 
 
 # ── 路由 ──────────────────────────────────────────────
@@ -812,6 +846,13 @@ def ask():
                         _listed_schools = _candidate
                         break
                 print(f"[ASK] 多校清單追問，偵測到 {len(_listed_schools)} 間：{_listed_schools}")
+
+            # ③-b 關鍵字索引快速過濾（歷史追問未命中時才跑）
+            if not _listed_schools and not _school:
+                _kw_hit = _keyword_lookup(search_question, year)
+                if _kw_hit:
+                    _listed_schools = _kw_hit
+                    print(f"[KW] 關鍵字索引命中 {len(_listed_schools)} 間：{_listed_schools}")
 
             # ④ Voyage AI 平行 embed
             if _listed_schools:
