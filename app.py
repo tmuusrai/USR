@@ -399,6 +399,63 @@ USR_TOPIC_KEYWORDS: dict[str, list[str]] = {
     ],
 }
 
+USR_TOPIC_QUESTIONS: dict[str, list[str]] = {
+    "在地關懷": [
+        "如何盤點社區的實際需求",
+        "與社區居民建立長期合作關係",
+        "高齡照護計畫可以設計哪些活動",
+        "偏鄉教育計畫如何訂定成效指標",
+        "如何提升居民參與計畫的意願",
+        "社區合作夥伴退出時應如何處理",
+        "如何與地方連結情況",
+        "如何與地方解決什麼問題",
+    ],
+    "環境永續": [
+        "如何結合淨零碳排",
+        "如何將環境教育融入正式課程",
+        "循環經濟計畫可以採用哪些績效指標",
+        "如何評估社區節能減碳的成果",
+        "生態保育計畫如何與居民合作",
+        "氣候變遷調適可設計哪些社區行動",
+    ],
+    "健康促進與食品安全": [
+        "如何設計社區健康促進活動",
+        "食品安全計畫可以結合哪些課程",
+        "如何評估居民健康識能是否提升",
+        "食農教育計畫可以與哪些單位合作",
+        "高齡健康促進計畫應設定哪些KPI",
+        "如何建立在地農產品的食品溯源機制",
+        "長照具體實踐作法",
+        "食品相關產出與設計",
+    ],
+    "產業鏈結與經濟永續": [
+        "如何與在地企業合作",
+        "地方創生計畫如何吸引青年返鄉",
+        "如何協助地方產業進行數位轉型",
+        "在地品牌應如何建立行銷通路",
+        "如何評估計畫帶來的經濟效益",
+        "補助結束後地方產業如何持續經營",
+        "如何與產業連結程度",
+        "經濟永續具體實踐方式",
+    ],
+    "文化永續": [
+        "如何進行地方文史調查",
+        "如何保存逐漸消失的傳統技藝",
+        "文化資產保存計畫如何與居民合作",
+        "如何建立地方文化數位典藏",
+        "如何培養青年參與文化傳承",
+        "文化觀光如何兼顧保存與經濟發展",
+    ],
+    "其他社會實踐": [
+        "如何透過計畫改善數位落差",
+        "社會創新計畫應如何進行需求調查",
+        "如何提升弱勢族群的社會參與",
+        "科技導入社區時應注意哪些倫理問題",
+        "如何設計防災教育與社區韌性方案",
+        "如何評估社會共融計畫的影響",
+    ],
+}
+
 _THEME_RULES = [
     (re.compile(r'海洋|漁|里海|海岸|海鄉|蔚藍|水產|鯤鯓|澎湖|金門|石滬|濱海'),
      {'g': 'linear-gradient(135deg,#0369a1,#38bdf8)', 'e': '🌊', 'kw': 'ocean,fishing,coastal,sea'}),
@@ -689,19 +746,30 @@ def _keyword_lookup(question: str, year: str = "114") -> list[str]:
 
 def _detect_usr_topic(question: str) -> tuple[str | None, list[str]]:
     """
-    偵測問題是否命中 USR 議題關鍵字清單。
+    偵測問題是否命中 USR 議題關鍵字清單或常見提問句型。
     回傳 (議題類別, 該類別所有關鍵字)；無命中回傳 (None, [])。
-    命中最多關鍵字的類別優先。
+    分數 = 關鍵字命中數×2 + 句型命中數×1，取最高分類別。
     """
-    topic_hits: dict[str, list[str]] = {}
+    topic_scores: dict[str, int] = {}
+    kw_hits: dict[str, list[str]] = {}
+
     for topic, kws in USR_TOPIC_KEYWORDS.items():
         matched = [kw for kw in kws if kw in question]
         if matched:
-            topic_hits[topic] = matched
-    if not topic_hits:
+            kw_hits[topic] = matched
+            topic_scores[topic] = topic_scores.get(topic, 0) + len(matched) * 2
+
+    for topic, patterns in USR_TOPIC_QUESTIONS.items():
+        for pattern in patterns:
+            for i in range(len(pattern) - 4):
+                if pattern[i:i+5] in question:
+                    topic_scores[topic] = topic_scores.get(topic, 0) + 1
+                    break
+
+    if not topic_scores:
         return None, []
-    best = max(topic_hits, key=lambda t: len(topic_hits[t]))
-    print(f"[TOPIC] 偵測議題：{best}，命中關鍵字：{topic_hits[best]}")
+    best = max(topic_scores, key=lambda t: topic_scores[t])
+    print(f"[TOPIC] 偵測議題：{best}，分數：{topic_scores[best]}，關鍵字：{kw_hits.get(best, [])}")
     return best, USR_TOPIC_KEYWORDS[best]
 
 
