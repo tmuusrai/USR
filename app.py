@@ -660,6 +660,40 @@ def _detect_usr_topic(question: str) -> tuple[str | None, list[str]]:
     return best, USR_TOPIC_KEYWORDS[best]
 
 
+def _count_kw_hits(text: str, kws: list[str]) -> dict[str, int]:
+    """計算每個關鍵字在文件中的出現次數，只回傳次數 > 0 的。"""
+    return {kw: cnt for kw in kws if (cnt := text.count(kw)) > 0}
+
+
+def _annotate_docs_by_topic(docs, topic: str, kws: list[str]) -> list[str]:
+    """
+    Sequential 掃描所有文件，依關鍵字命中次數標記相關程度：
+      5+  次 → 【高度相關】完整內容送入 context
+      3-4 次 → 【部分相關】加標記說明命中的關鍵字，再送完整內容
+      <3  次 → 跳過（不納入 context）
+
+    回傳已排序、已標記的 context 字串清單（高度相關排前面）。
+    """
+    high, mid = [], []
+
+    for doc in docs:
+        text = _clean_plan_code(doc.page_content)
+        hits = _count_kw_hits(text, kws)
+        total = sum(hits.values())
+        if total < 3:
+            continue
+        hit_summary = "、".join(f"{kw}×{cnt}" for kw, cnt in hits.items())
+        if total >= 5:
+            label = f"【高度相關｜{topic}｜命中：{hit_summary}】"
+            high.append(f"{label}\n{text}")
+        else:
+            label = f"【部分相關｜{topic}｜命中：{hit_summary}】"
+            mid.append(f"{label}\n{text}")
+
+    print(f"[SEQ] 高度相關 {len(high)} 篇，部分相關 {len(mid)} 篇")
+    return high + mid
+
+
 def _prepare_search_query(question: str, history: list) -> tuple[str, str | None]:
     """
     單次 LLM call 同時完成：
@@ -996,7 +1030,17 @@ def ask():
                     docs = docs_all[:TOP_K]
                 t_faiss = time.perf_counter()
 
-            context = "\n\n".join(_clean_plan_code(doc.page_content) for doc in docs)
+            # ── USR 議題 Sequential 處理 ──
+            # 議題偵測有命中時，逐篇計算關鍵字次數，標記相關程度後送 LLM
+            # 強制不漏：3+ 次全部納入（高度相關5+、部分相關3-4），<3 次才排除
+            if _usr_topic and _usr_topic_kws:
+                annotated = _annotate_docs_by_topic(docs, _usr_topic, _usr_topic_kws)
+                if annotated:
+                    context = "\n\n".join(annotated)
+                else:
+                    context = "\n\n".join(_clean_plan_code(doc.page_content) for doc in docs)
+            else:
+                context = "\n\n".join(_clean_plan_code(doc.page_content) for doc in docs)
 
             # ── 委員模式：同儕比較（同類型計畫 2~3 所其他學校）──
             if user_type == "reviewer" and _school:
