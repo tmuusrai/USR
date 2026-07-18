@@ -306,6 +306,54 @@ _PLAN_TYPE_RE = re.compile(
     r'(大學特色類(?:萌芽型|深耕型)|永續發展類(?:國際合作型|特色永續型))'
 )
 
+# ── USR 議題關鍵字分類表（來源：USR議題關鍵字調查整合表）──────────────
+# 用途：偵測使用者問題屬於哪個議題類別，再用該類別關鍵字展開 FAISS 搜尋
+USR_TOPIC_KEYWORDS: dict[str, list[str]] = {
+    "在地關懷": [
+        "高齡照護", "偏鄉教育", "社區營造", "弱勢扶助", "在地關懷", "社區關懷",
+        "社區培力", "青銀共創", "新住民關懷", "原住民族關懷", "偏鄉照顧", "弱勢關懷",
+        "場域合作", "在地認同", "在地需求", "韌性社區", "地方特色", "區域發展",
+        "在地化經濟", "在地產業", "青年就業", "城市轉型", "共學共創", "部落共學",
+        "世代共融",
+    ],
+    "環境永續": [
+        "淨零碳排", "循環經濟", "環境教育", "生態保育", "永續環境", "環境永續",
+        "節能減碳", "氣候變遷", "生物多樣性", "水資源", "廢棄物減量", "永續校園",
+        "防災韌性", "再生能源", "綠色生活", "碳足跡", "碳中和", "環境治理",
+        "水資源管理",
+    ],
+    "健康促進與食品安全": [
+        "社區健康促進", "食品安全", "食農教育", "健康識能", "健康促進", "身心健康",
+        "社區健康", "營養教育", "高齡健康", "慢性病預防", "心理健康", "樸門農法",
+        "永續農業", "運動促進", "在地食材", "食品溯源", "農產品安全", "健康飲食",
+        "預防保健", "社區共餐", "疾病防治",
+    ],
+    "產業鏈結與經濟永續": [
+        "地方創生", "產學合作", "青年返鄉", "產業升級", "產業鏈結", "在地產業",
+        "數位轉型", "社會企業", "微型創業", "品牌行銷", "農業加值", "創新創業",
+        "永續商業模式", "人才培育", "就業媒合", "區域經濟", "在地經濟", "技術轉移",
+        "在地產品", "產業活化", "就業輔導", "產業轉型",
+    ],
+    "文化永續": [
+        "文化保存", "文化傳承", "地方文史", "數位典藏", "文化永續", "文化資產",
+        "傳統技藝", "無形文化資產", "原住民族文化", "地方語言", "社區記憶",
+        "口述歷史", "文化創意", "文化觀光", "歷史建築活化", "跨世代傳承", "老街活化",
+        "宮廟文化", "地方走讀", "文創設計",
+    ],
+    "其他社會實踐": [
+        "社會創新", "教育平權", "數位平權", "公民參與", "多元文化", "性別平等",
+        "防災教育", "社區安全", "法律扶助", "科技導入", "智慧社區", "新住民支持",
+        "身心障礙者支持", "動物保護", "人權教育", "社會共融", "政策倡議",
+        "減少不平等",
+    ],
+    "計畫行政": [
+        "計畫申請", "經費核銷", "績效指標", "成果報告", "配合款", "SIG", "SROI",
+        "ESG", "SDGs", "助理經費", "協同主持人", "場域變更", "經費變更",
+        "IRB", "計畫執行策略", "聯繫窗口", "訪視", "委員", "成效評估",
+        "資料填報", "計畫書撰寫", "經費編列",
+    ],
+}
+
 _THEME_RULES = [
     (re.compile(r'海洋|漁|里海|海岸|海鄉|蔚藍|水產|鯤鯓|澎湖|金門|石滬|濱海'),
      {'g': 'linear-gradient(135deg,#0369a1,#38bdf8)', 'e': '🌊', 'kw': 'ocean,fishing,coastal,sea'}),
@@ -594,6 +642,24 @@ def _keyword_lookup(question: str, year: str = "114") -> list[str]:
     return ranked
 
 
+def _detect_usr_topic(question: str) -> tuple[str | None, list[str]]:
+    """
+    偵測問題是否命中 USR 議題關鍵字清單。
+    回傳 (議題類別, 該類別所有關鍵字)；無命中回傳 (None, [])。
+    命中最多關鍵字的類別優先。
+    """
+    topic_hits: dict[str, list[str]] = {}
+    for topic, kws in USR_TOPIC_KEYWORDS.items():
+        matched = [kw for kw in kws if kw in question]
+        if matched:
+            topic_hits[topic] = matched
+    if not topic_hits:
+        return None, []
+    best = max(topic_hits, key=lambda t: len(topic_hits[t]))
+    print(f"[TOPIC] 偵測議題：{best}，命中關鍵字：{topic_hits[best]}")
+    return best, USR_TOPIC_KEYWORDS[best]
+
+
 def _prepare_search_query(question: str, history: list) -> tuple[str, str | None]:
     """
     單次 LLM call 同時完成：
@@ -761,6 +827,18 @@ def ask():
                 search_question, expand_query = _prepare_search_query(question, history)
             else:
                 search_question, expand_query = question, None
+
+            # ── USR 議題關鍵字偵測：補強 expand_query ──
+            # 若問題含有 USR 議題關鍵字，將整個議題類別的關鍵字加入 FAISS 展開搜尋
+            # 解決「使用者問的詞在計畫書裡找不到，但同議題的其他詞有」的問題
+            _usr_topic, _usr_topic_kws = _detect_usr_topic(question)
+            if _usr_topic and _usr_topic_kws:
+                topic_expand = " ".join(_usr_topic_kws[:10])
+                if expand_query:
+                    expand_query = f"{expand_query} {topic_expand}"
+                else:
+                    expand_query = topic_expand
+                print(f"[TOPIC] 議題展開 query（前60字）：{expand_query[:60]}")
 
             # ✦ 主觀評量問題攔截：反問使用者定義判斷準則
             if not skip_eval and _is_evaluation_question(question):
