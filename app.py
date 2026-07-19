@@ -860,7 +860,7 @@ def _prepare_search_query(question: str, history: list) -> tuple[str, str | None
 
 # ── 啟動時初始化 ──────────────────────────────────────
 llm = ChatGoogleGenerativeAI(
-    model=os.getenv("LLM_MODEL", "gemini-2.5-pro-preview"),
+    model=os.environ["LLM_MODEL"],
     google_api_key=GOOGLE_API_KEY,
     temperature=0.2,
 )
