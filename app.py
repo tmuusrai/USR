@@ -840,7 +840,7 @@ def _prepare_search_query(question: str, history: list) -> tuple[str, str | None
             '只輸出 JSON，不要其他文字：{"search_q": "原問題照抄", "expand_q": "擴充query"}'
         )
     try:
-        res = llm.bind(temperature=0).invoke([_HM(content=prompt)])
+        res = llm.bind(temperature=0, thinking_budget=0).invoke([_HM(content=prompt)])
         text = res.content.strip()
         m = re.search(r'\{.*?\}', text, re.DOTALL)
         if m:
@@ -1291,7 +1291,7 @@ def _generate_suggestions(question: str, answer: str) -> list[str]:
     try:
         from langchain_core.messages import HumanMessage
         prompt = SUGGEST_PROMPT.format(question=question, answer=answer[:600])
-        res = llm.bind(temperature=0.4).invoke([HumanMessage(content=prompt)])
+        res = llm.bind(temperature=0.4, thinking_budget=0).invoke([HumanMessage(content=prompt)])
         text = _normalize_content(res.content).strip()
         m = re.search(r'\[.*?\]', text, re.DOTALL)
         if m:
@@ -1525,7 +1525,7 @@ def subagent_ask():
             _plan_msg = HumanMessage(content=_plan_prompt.format(question=question))
             def _plan_worker():
                 try:
-                    res = llm.bind(temperature=0).invoke([_plan_msg])
+                    res = llm.bind(temperature=0, thinking_budget=0).invoke([_plan_msg])
                     plan_q.put(('done', _normalize_content(res.content).strip()))
                 except Exception as exc:
                     plan_q.put(('error', str(exc)))
