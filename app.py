@@ -1091,7 +1091,7 @@ def ask():
                 expand_query = None
                 t_faiss = time.perf_counter()
             else:
-                # 一般模式：LLM 展開 + 所有已知 query 同時 embed
+                # 一般模式：所有已知 query（含 expand）同時 embed
                 embed_tasks: dict[str, str] = {'main': search_question}
                 if _kw:
                     embed_tasks['kw'] = _kw
@@ -1101,6 +1101,8 @@ def ask():
                     embed_tasks['school'] = _school
                     if _topic:
                         embed_tasks['topic'] = _topic
+                if expand_query:
+                    embed_tasks['expand'] = expand_query
 
                 with ThreadPoolExecutor() as ex:
                     embed_futs = {k: ex.submit(embeddings.embed_query, v)
@@ -1108,8 +1110,7 @@ def ask():
                     vecs = {k: f.result() for k, f in embed_futs.items()}
                 t_voyage = time.perf_counter()
 
-                # expand_query 由 LLM 決定，結果出來後才能 embed
-                expand_vec = embeddings.embed_query(expand_query) if expand_query else None
+                expand_vec = vecs.get('expand')
 
                 # ⑤ FAISS 多輪搜尋
                 docs1 = vs.similarity_search_by_vector(vecs['main'], k=_fetch)
