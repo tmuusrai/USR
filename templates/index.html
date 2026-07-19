@@ -664,6 +664,21 @@ async function askQuestion() {
         if (evt.mode === "clarify" && evt.original_question) {
           pendingQuestion = evt.original_question;
         }
+        if (evt.timing && botEl) {
+          const t = evt.timing;
+          const parts = [];
+          if (t.prepare_ms > 50)  parts.push(`改寫 ${t.prepare_ms}ms`);
+          if (t.voyage_ms)        parts.push(`嵌入 ${t.voyage_ms}ms`);
+          if (t.faiss_ms)         parts.push(`搜尋 ${t.faiss_ms}ms`);
+          if (t.llm_first_ms)     parts.push(`LLM首字 ${t.llm_first_ms}ms`);
+          if (t.total_ms)         parts.push(`總計 ${(t.total_ms/1000).toFixed(1)}s`);
+          if (parts.length) {
+            const tag = document.createElement("div");
+            tag.style.cssText = "font-size:11px;color:#888;margin-top:6px;";
+            tag.textContent = "⏱ " + parts.join(" · ");
+            botEl.appendChild(tag);
+          }
+        }
       } else if (evt.type === "suggested_questions") {
         renderSuggestions(evt.questions, botEl);
       } else if (evt.type === "error") {
