@@ -863,7 +863,7 @@ llm = ChatGoogleGenerativeAI(
     model=os.environ["LLM_MODEL"],
     google_api_key=GOOGLE_API_KEY,
     temperature=0.2,
-    thinking_budget=512,
+    thinking_budget=4096,
 )
 
 vectorstores: dict = {}
