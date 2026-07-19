@@ -970,10 +970,12 @@ def ask():
 
             # ── 對話記憶 + 搜尋問題準備 ──
             history = _chat_history.get(chat_id, []) if chat_id else []
+            t_prepare_start = time.perf_counter()
             if history:
                 search_question, expand_query = _prepare_search_query(question, history)
             else:
                 search_question, expand_query = question, None
+            t_prepare_end = time.perf_counter()
 
             # ── USR 議題關鍵字偵測：補強 expand_query ──
             # 若問題含有 USR 議題關鍵字，將整個議題類別的關鍵字加入 FAISS 展開搜尋
@@ -1219,15 +1221,17 @@ def ask():
             print(f"[TOKEN] 輸入={prompt_chars}字元(~{prompt_chars//2}tokens) 輸出={answer_chars}字元(~{answer_chars//2}tokens) 合計~{total_chars//2}tokens")
 
             timing = {
-                "voyage_ms":      round((t_voyage - t0) * 1000),
+                "prepare_ms":     round((t_prepare_end - t_prepare_start) * 1000),
+                "voyage_ms":      round((t_voyage - t_prepare_end) * 1000),
                 "faiss_ms":       round((t_faiss - t_voyage) * 1000),
-                "llm_first_ms":   round((t_first_chunk - t_faiss) * 1000),
-                "llm_total_ms":   round((t_end - t_faiss) * 1000),
+                "llm_first_ms":   round((t_first_chunk - t_gemini_start) * 1000),
+                "llm_total_ms":   round((t_end - t_gemini_start) * 1000),
                 "total_ms":       round((t_end - t0) * 1000),
             }
             print(
-                f"[TIMING] Voyage={timing['voyage_ms']}ms"
-                f" | FAISS={timing['faiss_ms']}ms"
+                f"[TIMING] 查詢改寫={timing['prepare_ms']}ms"
+                f" | Voyage嵌入={timing['voyage_ms']}ms"
+                f" | FAISS搜尋={timing['faiss_ms']}ms"
                 f" | LLM首字={timing['llm_first_ms']}ms"
                 f" | LLM完成={timing['llm_total_ms']}ms"
                 f" | 總計={timing['total_ms']}ms"
