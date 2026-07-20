@@ -1408,9 +1408,11 @@ def api_suggest():
     data = request.get_json(force=True, silent=True) or {}
     question = (data.get("question") or "").strip()
     answer   = (data.get("answer") or "").strip()
+    print(f"[SUGGEST API] 收到請求：{question[:40]!r}")
     if not question:
         return jsonify({"questions": []})
     suggestions = _generate_suggestions(question, answer)
+    print(f"[SUGGEST API] 回傳 {len(suggestions)} 個建議")
     return jsonify({"questions": suggestions})
 
 
