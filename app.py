@@ -1394,15 +1394,20 @@ SUGGEST_PROMPT = """根據以下 USR 計畫書問答，生成 3 個使用者可�
 
 
 def _generate_suggestions(question: str, answer: str) -> list[str]:
+    print(f"[SUGGEST] 開始生成，問題：{question[:30]!r}，答案長度：{len(answer)}")
     try:
         from langchain_core.messages import HumanMessage
         prompt = SUGGEST_PROMPT.format(question=question, answer=answer[:600])
         res = llm.bind(temperature=0.4, thinking_budget=0).invoke([HumanMessage(content=prompt)])
         text = _normalize_content(res.content).strip()
+        print(f"[SUGGEST] LLM 原始回傳：{text[:200]!r}")
         m = re.search(r'\[.*?\]', text, re.DOTALL)
         if m:
             items = json.loads(m.group())
-            return [s for s in items if isinstance(s, str)][:3]
+            result = [s for s in items if isinstance(s, str)][:3]
+            print(f"[SUGGEST] 成功生成 {len(result)} 個建議")
+            return result
+        print("[SUGGEST] 找不到 JSON 陣列")
     except Exception as e:
         print(f"[SUGGEST] 生成失敗：{e}")
     return []
