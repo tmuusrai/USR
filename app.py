@@ -802,6 +802,8 @@ def _build_inverted_index(vs) -> dict[str, list]:
     return index
 
 
+_SEQ_MAX_CHUNKS = 60  # Sequential Query 最多送給 LLM 的 chunk 數
+
 def _seq_query_by_index(kws: list[str], topic: str, index: dict) -> list[str]:
     """用倒排索引快速查詢命中關鍵字的 chunk，不需全表掃描。"""
     doc_scores: dict[int, list] = {}  # id(doc) → [doc, total, {kw: cnt}]
@@ -813,10 +815,14 @@ def _seq_query_by_index(kws: list[str], topic: str, index: dict) -> list[str]:
             doc_scores[did][1] += cnt
             doc_scores[did][2][kw] = doc_scores[did][2].get(kw, 0) + cnt
 
+    # 按命中次數排序，只取前 _SEQ_MAX_CHUNKS 篇
+    ranked = sorted(doc_scores.values(), key=lambda x: -x[1])
     high, mid = [], []
-    for doc, total, hits in doc_scores.values():
+    for doc, total, hits in ranked:
         if total < 3:
             continue
+        if len(high) + len(mid) >= _SEQ_MAX_CHUNKS:
+            break
         text = _clean_plan_code(doc.page_content)
         hit_summary = "、".join(f"{kw}×{cnt}" for kw, cnt in hits.items())
         if total >= 5:
@@ -824,7 +830,7 @@ def _seq_query_by_index(kws: list[str], topic: str, index: dict) -> list[str]:
         else:
             mid.append(f"【部分相關｜{topic}｜命中：{hit_summary}】\n{text}")
 
-    print(f"[SEQ] 高度相關 {len(high)} 篇，部分相關 {len(mid)} 篇")
+    print(f"[SEQ] 高度相關 {len(high)} 篇，部分相關 {len(mid)} 篇（上限 {_SEQ_MAX_CHUNKS}）")
     return high + mid
 
 
