@@ -1144,18 +1144,20 @@ def ask():
                     docs = _school_filter_docs(docs_all, _school, k=9999)
                     print(f"[ASK] 學校過濾「{_school}」→ {len(docs)} 筆")
                 else:
-                    docs = docs_all[:TOP_K]
+                    docs = docs_all[:_fetch]
                 t_faiss = time.perf_counter()
 
-            # ── USR 議題 Sequential 處理 ──
-            # 議題偵測有命中時，逐篇計算關鍵字次數，標記相關程度後送 LLM
+            # ── Sequential 處理：所有問題都跑，逐篇計算關鍵字次數後送 LLM ──
+            # 有 USR 議題 → 用議題關鍵字；無議題 → 用問題本身的詞
             # 強制不漏：3+ 次全部納入（高度相關5+、部分相關3-4），<3 次才排除
             if _usr_topic and _usr_topic_kws:
                 annotated = _annotate_docs_by_topic(docs, _usr_topic, _usr_topic_kws)
-                if annotated:
-                    context = "\n\n".join(annotated)
-                else:
-                    context = "\n\n".join(_clean_plan_code(doc.page_content) for doc in docs)
+            else:
+                q_kws = [t for t in re.findall(r'[一-鿿]{2,}', question) if len(t) >= 2]
+                annotated = _annotate_docs_by_topic(docs, "一般", q_kws) if q_kws else None
+
+            if annotated:
+                context = "\n\n".join(annotated)
             else:
                 context = "\n\n".join(_clean_plan_code(doc.page_content) for doc in docs)
 
