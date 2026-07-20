@@ -680,17 +680,17 @@ async function askQuestion() {
           }
         }
         // 主串流結束後，另外非同步取建議問題
-        const _answerText = botEl ? botEl.innerText : "";
         const _capturedBotEl = botEl;
         fetch("/api/suggest", {
           method: "POST",
           headers: {"Content-Type": "application/json"},
-          body: JSON.stringify({question: question, answer: _answerText.slice(0, 600)})
+          body: JSON.stringify({question: question, answer: answerText.slice(0, 600)})
         }).then(r => r.json()).then(d => {
+          console.log("[SUGGEST]", d);
           if (d.questions && d.questions.length && _capturedBotEl) {
             renderSuggestions(d.questions, _capturedBotEl);
           }
-        }).catch(() => {});
+        }).catch(e => console.error("[SUGGEST] 失敗", e));
       } else if (evt.type === "suggested_questions") {
         renderSuggestions(evt.questions, botEl);
       } else if (evt.type === "error") {
