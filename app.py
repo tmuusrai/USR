@@ -924,6 +924,12 @@ llm = ChatGoogleGenerativeAI(
     temperature=0.2,
     thinking_budget=2048,
 )
+llm_fast = ChatGoogleGenerativeAI(
+    model=os.environ.get("LLM_MODEL_FAST", os.environ["LLM_MODEL"]),
+    google_api_key=GOOGLE_API_KEY,
+    temperature=0.2,
+    thinking_budget=512,
+)
 
 vectorstores: dict = {}
 retriever = None
@@ -1267,11 +1273,14 @@ def ask():
             yield f"data: {json.dumps({'type': 'sources', 'sources': sources}, ensure_ascii=False)}\n\n"
 
             # ③ LLM：串流生成
+            # 學校明確 + 非列舉 + 非 USR 議題 → 事實查詢，用 Flash；其餘 → Pro
+            _use_fast = bool(_school) and not _list and not _usr_topic
+            _active_llm = llm_fast if _use_fast else llm
             answer_chars = 0
             answer_parts = []
             t_first_chunk = None
             t_gemini_start = time.perf_counter()
-            for chunk in llm.stream(prompt_value):
+            for chunk in _active_llm.stream(prompt_value):
                 content = chunk.content
                 if isinstance(content, list):
                     content = "".join(
