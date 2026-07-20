@@ -802,10 +802,11 @@ def _build_inverted_index(vs) -> dict[str, list]:
     return index
 
 
-_SEQ_MAX_CHUNKS = 60  # Sequential Query 最多送給 LLM 的 chunk 數
-
-def _seq_query_by_index(kws: list[str], topic: str, index: dict) -> list[str]:
-    """用倒排索引快速查詢命中關鍵字的 chunk，不需全表掃描。"""
+def _seq_query_by_index(kws: list[str], topic: str, index: dict,
+                        dedup_by_source: bool = False) -> list[str]:
+    """用倒排索引快速查詢命中關鍵字的 chunk，不需全表掃描。
+    dedup_by_source=True 時每個來源檔案只保留命中最高的一個 chunk（列舉型用）。
+    """
     doc_scores: dict[int, list] = {}  # id(doc) → [doc, total, {kw: cnt}]
     for kw in kws:
         for doc, cnt in index.get(kw, []):
@@ -815,14 +816,23 @@ def _seq_query_by_index(kws: list[str], topic: str, index: dict) -> list[str]:
             doc_scores[did][1] += cnt
             doc_scores[did][2][kw] = doc_scores[did][2].get(kw, 0) + cnt
 
-    # 按命中次數排序，只取前 _SEQ_MAX_CHUNKS 篇
     ranked = sorted(doc_scores.values(), key=lambda x: -x[1])
+
+    # 列舉型：同一來源只取命中最高的 chunk，讓每所學校只出現一次
+    if dedup_by_source:
+        seen_src: set[str] = set()
+        deduped = []
+        for entry in ranked:
+            src = entry[0].metadata.get("source", "")
+            if src not in seen_src:
+                seen_src.add(src)
+                deduped.append(entry)
+        ranked = deduped
+
     high, mid = [], []
     for doc, total, hits in ranked:
         if total < 3:
             continue
-        if len(high) + len(mid) >= _SEQ_MAX_CHUNKS:
-            break
         text = _clean_plan_code(doc.page_content)
         hit_summary = "、".join(f"{kw}×{cnt}" for kw, cnt in hits.items())
         if total >= 5:
@@ -830,7 +840,8 @@ def _seq_query_by_index(kws: list[str], topic: str, index: dict) -> list[str]:
         else:
             mid.append(f"【部分相關｜{topic}｜命中：{hit_summary}】\n{text}")
 
-    print(f"[SEQ] 高度相關 {len(high)} 篇，部分相關 {len(mid)} 篇（上限 {_SEQ_MAX_CHUNKS}）")
+    print(f"[SEQ] 高度相關 {len(high)} 篇，部分相關 {len(mid)} 篇"
+          + ("（已去重複）" if dedup_by_source else ""))
     return high + mid
 
 
@@ -1233,7 +1244,8 @@ def ask():
 
             inv = _inv_indexes.get(year) or _inv_indexes.get("114")
             if seq_kws and inv and _count_inv_matches(seq_kws, inv) > _KW_THRESHOLD:
-                annotated = _seq_query_by_index(seq_kws, seq_topic, inv)
+                annotated = _seq_query_by_index(seq_kws, seq_topic, inv,
+                                                dedup_by_source=_list)
             else:
                 annotated = None
 
