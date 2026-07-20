@@ -1295,10 +1295,12 @@ def ask():
             yield f"data: {json.dumps({'type': 'sources', 'sources': sources}, ensure_ascii=False)}\n\n"
 
             # ③ LLM：串流生成
-            # 學校明確 + 非列舉 + 非 USR 議題 → 事實查詢，用 Flash；其餘 → Pro
-            # 列舉型 or (有學校 + 無 USR 議題) → Flash；其餘 → Pro
-            _use_fast = _list or (bool(_school) and not _usr_topic)
-            _active_llm = llm_fast if _use_fast else llm
+            if _list:
+                _active_llm = llm_fast.bind(thinking_budget=0)  # 列舉型：Flash 無思考最快
+            elif bool(_school) and not _usr_topic:
+                _active_llm = llm_fast  # 事實查詢：Flash 有思考
+            else:
+                _active_llm = llm  # 分析／推理：Pro
             answer_chars = 0
             answer_parts = []
             t_first_chunk = None
