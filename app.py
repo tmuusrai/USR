@@ -778,6 +778,56 @@ def _count_kw_hits(text: str, kws: list[str]) -> dict[str, int]:
     return {kw: cnt for kw in kws if (cnt := text.count(kw)) > 0}
 
 
+def _build_inverted_index(vs) -> dict[str, list]:
+    """
+    啟動時掃整個 docstore 一次，建立 {關鍵字: [(doc, 出現次數), ...]} 的倒排索引。
+    只涵蓋 USR_TOPIC_KEYWORDS 的所有關鍵字。
+    """
+    all_kws: set[str] = set()
+    for kws in USR_TOPIC_KEYWORDS.values():
+        all_kws.update(kws)
+
+    index: dict[str, list] = {kw: [] for kw in all_kws}
+    docs = list(vs.docstore._dict.values())
+    t0 = time.perf_counter()
+    for doc in docs:
+        text = _clean_plan_code(doc.page_content)
+        for kw in all_kws:
+            cnt = text.count(kw)
+            if cnt:
+                index[kw].append((doc, cnt))
+    elapsed = round((time.perf_counter() - t0) * 1000)
+    total = sum(len(v) for v in index.values())
+    print(f"[INV] 倒排索引建立：{len(all_kws)} 個關鍵字，{total} 筆對應，耗時 {elapsed}ms")
+    return index
+
+
+def _seq_query_by_index(kws: list[str], topic: str, index: dict) -> list[str]:
+    """用倒排索引快速查詢命中關鍵字的 chunk，不需全表掃描。"""
+    doc_scores: dict[int, list] = {}  # id(doc) → [doc, total, {kw: cnt}]
+    for kw in kws:
+        for doc, cnt in index.get(kw, []):
+            did = id(doc)
+            if did not in doc_scores:
+                doc_scores[did] = [doc, 0, {}]
+            doc_scores[did][1] += cnt
+            doc_scores[did][2][kw] = doc_scores[did][2].get(kw, 0) + cnt
+
+    high, mid = [], []
+    for doc, total, hits in doc_scores.values():
+        if total < 3:
+            continue
+        text = _clean_plan_code(doc.page_content)
+        hit_summary = "、".join(f"{kw}×{cnt}" for kw, cnt in hits.items())
+        if total >= 5:
+            high.append(f"【高度相關｜{topic}｜命中：{hit_summary}】\n{text}")
+        else:
+            mid.append(f"【部分相關｜{topic}｜命中：{hit_summary}】\n{text}")
+
+    print(f"[SEQ] 高度相關 {len(high)} 篇，部分相關 {len(mid)} 篇")
+    return high + mid
+
+
 def _annotate_docs_by_topic(docs, topic: str, kws: list[str]) -> list[str]:
     """
     Sequential 掃描所有文件，依關鍵字命中次數標記相關程度：
@@ -880,6 +930,12 @@ for _yr in ("114", "113"):
         print(f"[APP] 警告 {_yr}：{e}")
 
 vectorstore = vectorstores.get("114")  # backwards-compat alias
+
+# ── 倒排索引（啟動時建立，涵蓋所有 USR_TOPIC_KEYWORDS）──
+_inv_indexes: dict[str, dict] = {}
+for _yr, _vs in vectorstores.items():
+    if _vs is not None:
+        _inv_indexes[_yr] = _build_inverted_index(_vs)
 
 init_qa()
 
@@ -1147,18 +1203,11 @@ def ask():
                     docs = docs_all[:_fetch]
                 t_faiss = time.perf_counter()
 
-            # ── Sequential 掃描整個 docstore（不只是 FAISS 回傳的 docs）──
-            # 有 USR 議題 → 用議題關鍵字；無議題 → 用問題本身的詞
-            # 強制不漏：3+ 次全部納入（高度相關5+、部分相關3-4），<3 次才排除
+            # ── Sequential Query：USR 議題用倒排索引，非議題用 FAISS 結果 ──
+            # 倒排索引涵蓋所有 USR_TOPIC_KEYWORDS，查詢 O(1)，不需掃 docstore
             if _usr_topic and _usr_topic_kws:
-                seq_kws, seq_topic = _usr_topic_kws, _usr_topic
-            else:
-                seq_kws = [t for t in re.findall(r'[一-鿿]{2,}', question) if len(t) >= 2]
-                seq_topic = "一般"
-
-            if seq_kws and vs and hasattr(vs, 'docstore'):
-                all_chunks = vs.docstore._dict.values()
-                annotated = _annotate_docs_by_topic(all_chunks, seq_topic, seq_kws)
+                inv = _inv_indexes.get(year) or _inv_indexes.get("114")
+                annotated = _seq_query_by_index(_usr_topic_kws, _usr_topic, inv) if inv else None
             else:
                 annotated = None
 
