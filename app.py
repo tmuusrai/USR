@@ -1237,10 +1237,13 @@ def ask():
             else:
                 annotated = None
 
+            _CTX_CHAR_LIMIT = 30000
             if annotated:
                 context = "\n\n".join(annotated)
             else:
                 context = "\n\n".join(_clean_plan_code(doc.page_content) for doc in docs)
+            if len(context) > _CTX_CHAR_LIMIT:
+                context = context[:_CTX_CHAR_LIMIT]
 
             # ── 委員模式：同儕比較（同類型計畫 2~3 所其他學校）──
             if user_type == "reviewer" and _school:
@@ -1280,7 +1283,8 @@ def ask():
 
             # ③ LLM：串流生成
             # 學校明確 + 非列舉 + 非 USR 議題 → 事實查詢，用 Flash；其餘 → Pro
-            _use_fast = bool(_school) and not _list and not _usr_topic
+            # 列舉型 or (有學校 + 無 USR 議題) → Flash；其餘 → Pro
+            _use_fast = _list or (bool(_school) and not _usr_topic)
             _active_llm = llm_fast if _use_fast else llm
             answer_chars = 0
             answer_parts = []
