@@ -1147,14 +1147,20 @@ def ask():
                     docs = docs_all[:_fetch]
                 t_faiss = time.perf_counter()
 
-            # ── Sequential 處理：所有問題都跑，逐篇計算關鍵字次數後送 LLM ──
+            # ── Sequential 掃描整個 docstore（不只是 FAISS 回傳的 docs）──
             # 有 USR 議題 → 用議題關鍵字；無議題 → 用問題本身的詞
             # 強制不漏：3+ 次全部納入（高度相關5+、部分相關3-4），<3 次才排除
             if _usr_topic and _usr_topic_kws:
-                annotated = _annotate_docs_by_topic(docs, _usr_topic, _usr_topic_kws)
+                seq_kws, seq_topic = _usr_topic_kws, _usr_topic
             else:
-                q_kws = [t for t in re.findall(r'[一-鿿]{2,}', question) if len(t) >= 2]
-                annotated = _annotate_docs_by_topic(docs, "一般", q_kws) if q_kws else None
+                seq_kws = [t for t in re.findall(r'[一-鿿]{2,}', question) if len(t) >= 2]
+                seq_topic = "一般"
+
+            if seq_kws and vs and hasattr(vs, 'docstore'):
+                all_chunks = vs.docstore._dict.values()
+                annotated = _annotate_docs_by_topic(all_chunks, seq_topic, seq_kws)
+            else:
+                annotated = None
 
             if annotated:
                 context = "\n\n".join(annotated)
