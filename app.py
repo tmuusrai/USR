@@ -1357,9 +1357,7 @@ def ask():
                     for k in list(_chat_history.keys())[:200]:
                         del _chat_history[k]
 
-            suggestions = _generate_suggestions(question, "".join(answer_parts))
-            if suggestions:
-                yield f"data: {json.dumps({'type': 'suggested_questions', 'questions': suggestions}, ensure_ascii=False)}\n\n"
+            # 建議問題改由前端另外呼叫 /api/suggest，不在主串流裡生成
 
         except Exception as e:
             import traceback
@@ -1403,6 +1401,17 @@ def _generate_suggestions(question: str, answer: str) -> list[str]:
     except Exception as e:
         print(f"[SUGGEST] 生成失敗：{e}")
     return []
+
+
+@app.route("/api/suggest", methods=["POST"])
+def api_suggest():
+    data = request.get_json(force=True, silent=True) or {}
+    question = (data.get("question") or "").strip()
+    answer   = (data.get("answer") or "").strip()
+    if not question:
+        return jsonify({"questions": []})
+    suggestions = _generate_suggestions(question, answer)
+    return jsonify({"questions": suggestions})
 
 
 _PERSONNEL_RE = re.compile(
