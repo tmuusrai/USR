@@ -1342,6 +1342,11 @@ def ask():
                 f" | 總計={timing['total_ms']}ms"
             )
 
+            # ── 建議問題（在 done 之前送，確保串流還開著）──
+            suggestions = _generate_suggestions(question, "".join(answer_parts))
+            if suggestions:
+                yield f"data: {json.dumps({'type': 'suggested_questions', 'questions': suggestions}, ensure_ascii=False)}\n\n"
+
             yield f"data: {json.dumps({'type': 'done', 'timing': timing})}\n\n"
 
             # ── 儲存對話記憶 ──

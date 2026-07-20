@@ -616,6 +616,7 @@ async function askQuestion() {
   const botEl = appendMsg(initMsg, "loading");
   let started = false;
   let answerText = "";
+  let suggestionsReceived = false;
 
 
   try {
@@ -679,19 +680,21 @@ async function askQuestion() {
             botEl.appendChild(tag);
           }
         }
-        // 主串流結束後，另外非同步取建議問題
-        const _capturedBotEl = botEl;
-        fetch("/api/suggest", {
-          method: "POST",
-          headers: {"Content-Type": "application/json"},
-          body: JSON.stringify({question: question, answer: answerText.slice(0, 600)})
-        }).then(r => r.json()).then(d => {
-          console.log("[SUGGEST]", d);
-          if (d.questions && d.questions.length && _capturedBotEl) {
-            renderSuggestions(d.questions, _capturedBotEl);
-          }
-        }).catch(e => console.error("[SUGGEST] 失敗", e));
+        // 串流沒送過建議才 fallback 打 /api/suggest
+        if (!suggestionsReceived) {
+          const _capturedBotEl = botEl;
+          fetch("/api/suggest", {
+            method: "POST",
+            headers: {"Content-Type": "application/json"},
+            body: JSON.stringify({question: question, answer: answerText.slice(0, 600)})
+          }).then(r => r.json()).then(d => {
+            if (d.questions && d.questions.length && _capturedBotEl) {
+              renderSuggestions(d.questions, _capturedBotEl);
+            }
+          }).catch(() => {});
+        }
       } else if (evt.type === "suggested_questions") {
+        suggestionsReceived = true;
         renderSuggestions(evt.questions, botEl);
       } else if (evt.type === "error") {
         started = true;
