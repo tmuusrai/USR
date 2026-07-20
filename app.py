@@ -828,6 +828,15 @@ def _seq_query_by_index(kws: list[str], topic: str, index: dict) -> list[str]:
     return high + mid
 
 
+def _count_inv_matches(kws: list[str], inv: dict) -> int:
+    """用倒排索引快速計算命中任一關鍵字的不重複 doc 數量。"""
+    doc_ids: set[int] = set()
+    for kw in kws:
+        for doc, _ in inv.get(kw, []):
+            doc_ids.add(id(doc))
+    return len(doc_ids)
+
+
 def _annotate_docs_by_topic(docs, topic: str, kws: list[str]) -> list[str]:
     """
     Sequential 掃描所有文件，依關鍵字命中次數標記相關程度：
@@ -1203,11 +1212,16 @@ def ask():
                     docs = docs_all[:_fetch]
                 t_faiss = time.perf_counter()
 
-            # ── Sequential Query：USR 議題用倒排索引，非議題用 FAISS 結果 ──
-            # 倒排索引涵蓋所有 USR_TOPIC_KEYWORDS，查詢 O(1)，不需掃 docstore
+            # ── Sequential Query：關鍵字命中 >15 個檔案才走，否則用 FAISS 結果 ──
             if _usr_topic and _usr_topic_kws:
-                inv = _inv_indexes.get(year) or _inv_indexes.get("114")
-                annotated = _seq_query_by_index(_usr_topic_kws, _usr_topic, inv) if inv else None
+                seq_kws, seq_topic = _usr_topic_kws, _usr_topic
+            else:
+                seq_kws = [t for t in re.findall(r'[一-鿿]{2,}', question) if len(t) >= 2]
+                seq_topic = "一般"
+
+            inv = _inv_indexes.get(year) or _inv_indexes.get("114")
+            if seq_kws and inv and _count_inv_matches(seq_kws, inv) > _KW_THRESHOLD:
+                annotated = _seq_query_by_index(seq_kws, seq_topic, inv)
             else:
                 annotated = None
 
