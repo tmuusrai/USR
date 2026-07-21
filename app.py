@@ -705,6 +705,7 @@ def _read_plan_summary(school: str, year: str = "114") -> str | None:
 _MULTI_REF_RE = re.compile(
     r'以上\s*\d+\s*間|上述\s*\d+\s*間|這\s*\d+\s*間|那\s*\d+\s*間'
     r'|以上這些|上面這些|前面這些|上述計畫|以上計畫'
+    r'|這些\S{0,10}計畫|這些學校|這些大學|上述這些'
 )
 
 def _extract_listed_schools(text: str) -> list[str]:
@@ -1246,6 +1247,9 @@ def ask():
             if seq_kws and inv and _count_inv_matches(seq_kws, inv) > _KW_THRESHOLD:
                 annotated = _seq_query_by_index(seq_kws, seq_topic, inv,
                                                 dedup_by_source=_list)
+                # 若有前輪學校清單，只保留那些學校的 chunk
+                if _listed_schools and annotated:
+                    annotated = [a for a in annotated if any(s in a for s in _listed_schools)]
             else:
                 annotated = None
 
