@@ -1237,16 +1237,14 @@ def ask():
                     docs = docs_all[:_fetch]
                 t_faiss = time.perf_counter()
 
-            # ── Sequential Query：關鍵字命中 >15 個檔案才走，否則用 FAISS 結果 ──
-            if _usr_topic and _usr_topic_kws:
-                seq_kws, seq_topic = _usr_topic_kws, _usr_topic
-            else:
-                seq_kws = [t for t in re.findall(r'[一-鿿]{2,}', question) if len(t) >= 2]
-                seq_topic = "一般"
-
+            # ── Sequential Query：FAISS 命中 >15 個不同來源檔案 且偵測到議題 → 全庫掃描補足 TOP_K 限制 ──
+            # 觸發條件：FAISS 已命中很多檔案（廣義問題），代表 TOP_K 可能不夠，改掃全庫
+            # 掃描用議題關鍵詞（非使用者字眼），因為倒排索引涵蓋各議題的完整詞彙
+            _faiss_src_count = len({doc.metadata.get("source", "") for doc in docs})
             inv = _inv_indexes.get(year) or _inv_indexes.get("114")
-            if seq_kws and inv and _count_inv_matches(seq_kws, inv) > _KW_THRESHOLD:
-                annotated = _seq_query_by_index(seq_kws, seq_topic, inv,
+            if _usr_topic and _usr_topic_kws and inv and _faiss_src_count > _KW_THRESHOLD:
+                print(f"[SEQ] FAISS 命中 {_faiss_src_count} 個檔案 > {_KW_THRESHOLD}，啟動全庫掃描（議題：{_usr_topic}）")
+                annotated = _seq_query_by_index(_usr_topic_kws, _usr_topic, inv,
                                                 dedup_by_source=_list,
                                                 min_hits=1 if _list else 3)
                 # 若有前輪學校清單，只保留那些學校的 chunk
