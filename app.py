@@ -1237,13 +1237,17 @@ def ask():
                     docs = docs_all[:_fetch]
                 t_faiss = time.perf_counter()
 
-            # ── Sequential Query：FAISS 命中 >15 個不同來源檔案 且偵測到議題 → 全庫掃描補足 TOP_K 限制 ──
-            # 觸發條件：FAISS 已命中很多檔案（廣義問題），代表 TOP_K 可能不夠，改掃全庫
-            # 掃描用議題關鍵詞（非使用者字眼），因為倒排索引涵蓋各議題的完整詞彙
+            # ── Sequential Query：議題偵測到時全庫掃描補足 TOP_K 限制 ──
+            # 列舉型（_list）：偵測到議題就直接掃，不等 FAISS 檔案數（因為 list 本來就是廣義搜尋）
+            # 非列舉型：FAISS 命中 >15 個不同檔案才掃（窄義問題用 FAISS 即可）
             _faiss_src_count = len({doc.metadata.get("source", "") for doc in docs})
             inv = _inv_indexes.get(year) or _inv_indexes.get("114")
-            if _usr_topic and _usr_topic_kws and inv and _faiss_src_count > _KW_THRESHOLD:
-                print(f"[SEQ] FAISS 命中 {_faiss_src_count} 個檔案 > {_KW_THRESHOLD}，啟動全庫掃描（議題：{_usr_topic}）")
+            _seq_trigger = (
+                _usr_topic and _usr_topic_kws and inv and
+                (_list or _faiss_src_count > _KW_THRESHOLD)
+            )
+            if _seq_trigger:
+                print(f"[SEQ] 啟動全庫掃描（議題：{_usr_topic}，list={_list}，faiss_src={_faiss_src_count}）")
                 annotated = _seq_query_by_index(_usr_topic_kws, _usr_topic, inv,
                                                 dedup_by_source=_list,
                                                 min_hits=1 if _list else 3)
