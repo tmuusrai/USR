@@ -1257,10 +1257,16 @@ def ask():
 
             # 列舉型用 Flash 處理大 context 很快，給更多空間；其他問題截短避免拖慢 Pro
             _CTX_CHAR_LIMIT = 60000 if _list else 30000
-            if annotated:
+            faiss_texts = [_clean_plan_code(doc.page_content) for doc in docs]
+            if annotated and _list:
+                # 列舉型：SEQ（精確命中）+ FAISS（語意補充）合併，確保廣度
+                seen_heads = {a[:80] for a in annotated}
+                extra = [t for t in faiss_texts if t[:80] not in seen_heads]
+                context = "\n\n".join(annotated + extra)
+            elif annotated:
                 context = "\n\n".join(annotated)
             else:
-                context = "\n\n".join(_clean_plan_code(doc.page_content) for doc in docs)
+                context = "\n\n".join(faiss_texts)
             if len(context) > _CTX_CHAR_LIMIT:
                 context = context[:_CTX_CHAR_LIMIT]
 
