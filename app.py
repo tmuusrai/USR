@@ -804,7 +804,8 @@ def _build_inverted_index(vs) -> dict[str, list]:
 
 
 def _seq_query_by_index(kws: list[str], topic: str, index: dict,
-                        dedup_by_source: bool = False) -> list[str]:
+                        dedup_by_source: bool = False,
+                        min_hits: int = 3) -> list[str]:
     """用倒排索引快速查詢命中關鍵字的 chunk，不需全表掃描。
     dedup_by_source=True 時每個來源檔案只保留命中最高的一個 chunk（列舉型用）。
     """
@@ -832,7 +833,7 @@ def _seq_query_by_index(kws: list[str], topic: str, index: dict,
 
     high, mid = [], []
     for doc, total, hits in ranked:
-        if total < 3:
+        if total < min_hits:
             continue
         text = _clean_plan_code(doc.page_content)
         hit_summary = "、".join(f"{kw}×{cnt}" for kw, cnt in hits.items())
@@ -1246,7 +1247,8 @@ def ask():
             inv = _inv_indexes.get(year) or _inv_indexes.get("114")
             if seq_kws and inv and _count_inv_matches(seq_kws, inv) > _KW_THRESHOLD:
                 annotated = _seq_query_by_index(seq_kws, seq_topic, inv,
-                                                dedup_by_source=_list)
+                                                dedup_by_source=_list,
+                                                min_hits=1 if _list else 3)
                 # 若有前輪學校清單，只保留那些學校的 chunk
                 if _listed_schools and annotated:
                     annotated = [a for a in annotated if any(s in a for s in _listed_schools)]
