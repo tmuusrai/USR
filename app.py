@@ -1305,6 +1305,11 @@ def ask():
                     _listed_schools = _kw_hit
                     print(f"[KW] 關鍵字索引命中 {len(_listed_schools)} 間：{_listed_schools}")
 
+            # ③-c 多校追問（>5 間）自動切列舉型，讓 LLM 逐一列出不做摘要
+            if _listed_schools and len(_listed_schools) > 5 and not _list:
+                _list = True
+                print(f"[ASK] 多校追問({len(_listed_schools)}間) → 自動列舉型")
+
             # ④ Voyage AI 平行 embed
             if _listed_schools:
                 # 多校模式：各校 query 同時送出
