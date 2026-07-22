@@ -1235,13 +1235,25 @@ def ask():
                     expand_query = topic_expand
                 print(f"[TOPIC] 議題展開 query（前60字）：{expand_query[:60]}")
 
-            # ── LLM 動態關鍵詞擴充（僅列舉型）──
+            # ── LLM 平行：關鍵詞擴充（列舉型）+ 追問偵測（有歷史且非明確追問詞）──
             _llm_kw_list: list[str] = []
-            if _list_check:
-                _llm_kws = _expand_keywords_by_llm(question)
-                if _llm_kws:
-                    expand_query = f"{expand_query} {_llm_kws}" if expand_query else _llm_kws
-                    _llm_kw_list = [k for k in _llm_kws.split() if len(k) >= 2]
+            _explicit_followup = bool(_MULTI_REF_RE.search(question) and history)
+            _is_followup: bool = _explicit_followup
+
+            with ThreadPoolExecutor(max_workers=2) as _llm_ex:
+                _kw_fut = _llm_ex.submit(_expand_keywords_by_llm, question) if _list_check else None
+                _fu_fut = (
+                    _llm_ex.submit(_check_is_followup, question, history[-1])
+                    if history and not _explicit_followup
+                    else None
+                )
+                if _kw_fut:
+                    _llm_kws = _kw_fut.result()
+                    if _llm_kws:
+                        expand_query = f"{expand_query} {_llm_kws}" if expand_query else _llm_kws
+                        _llm_kw_list = [k for k in _llm_kws.split() if len(k) >= 2]
+                if _fu_fut:
+                    _is_followup = _fu_fut.result()
 
             # ✦ 主觀評量問題攔截：反問使用者定義判斷準則
             if not skip_eval and _is_evaluation_question(question):
@@ -1308,15 +1320,16 @@ def ask():
                 _topic = re.sub(r'[的跟與和相關有關請問]+', ' ', _topic).strip() or None
             _fetch = TOP_K * 5 if _school else (TOP_K * 4 if _personnel else (TOP_K * 3 if _list else TOP_K))
 
-            # ③ 多校清單追問偵測
+            # ③ 多校清單追問偵測（明確追問詞 or LLM 判斷為追問）
             _listed_schools: list[str] = []
-            if _MULTI_REF_RE.search(question) and history:
+            if _is_followup and history:
                 for _h in reversed(history):
                     _candidate = _h.get('plans') or _h.get('schools') or _extract_listed_plans(_h['a'])
                     if _candidate:
                         _listed_schools = _candidate
                         break
-                print(f"[ASK] 多校清單追問，偵測到 {len(_listed_schools)} 間：{_listed_schools}")
+                _src = "明確追問詞" if _explicit_followup else "LLM判斷"
+                print(f"[ASK] 追問偵測（{_src}），{len(_listed_schools)} 件：{_listed_schools[:3]}")
 
             # ③-b 關鍵字索引快速過濾（歷史追問未命中時才跑；列舉型已走 Sequential Query，不限縮）
             if not _listed_schools and not _school and not _list:
@@ -1661,6 +1674,30 @@ def _expand_keywords_by_llm(question: str) -> str:
     except Exception as e:
         print(f"[KW_EXPAND] 失敗：{e}")
     return ""
+
+
+FOLLOWUP_CHECK_PROMPT = """判斷目前問題是否在追問或延伸前一輪問題的查詢結果，只輸出「是」或「否」。
+
+前一輪問題：{prev_q}
+目前問題：{curr_q}"""
+
+
+def _check_is_followup(question: str, prev_turn: dict) -> bool:
+    """用 LLM 判斷目前問題是否追問前一輪結果。失敗時回傳 False（保守視為新問題）。"""
+    try:
+        from langchain_core.messages import HumanMessage
+        prev_q = (prev_turn.get('q') or '')[:120]
+        if not prev_q:
+            return False
+        prompt = FOLLOWUP_CHECK_PROMPT.format(prev_q=prev_q, curr_q=question[:120])
+        res = llm_fast.bind(temperature=0, thinking_budget=0).invoke([HumanMessage(content=prompt)])
+        text = _normalize_content(res.content).strip()
+        result = text.startswith('是')
+        print(f"[FOLLOWUP] {'追問' if result else '新問題'}（LLM）：{question[:40]!r}")
+        return result
+    except Exception as e:
+        print(f"[FOLLOWUP] 檢查失敗：{e}")
+        return False
 
 
 SUGGEST_PROMPT = """根據以下 USR 計畫書問答，生成 3 個使用者可能想繼續追問的問題。
