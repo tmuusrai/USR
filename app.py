@@ -731,10 +731,12 @@ def _extract_listed_plans(text: str) -> list[str]:
     plans = []
     # 主要格式：1. 學校名：計畫名  或  1. **學校名**：計畫名
     for m in re.finditer(
-        r'^\d+\.\s+\*{0,2}([^\*：:\n]{2,25}?)\*{0,2}\s*[：:]\s*([^\n]{4,50})',
+        r'^\d+\.\s+\*{0,2}([^\*：:\n]{2,50}?)\*{0,2}\s*[：:]\s*([^\n]{4,50})',
         text, re.MULTILINE
     ):
         school = m.group(1).strip()
+        # 剝掉括號內的更名說明，例如「經國管理學院(112.08.01更名...)」→「經國管理學院」
+        school = re.sub(r'[（(][^）)]*[）)]', '', school).strip()
         plan = m.group(2).strip().rstrip('。，、').split('（')[0].split('(')[0].strip()
         if school and 2 <= len(school) <= 25 and plan:
             plans.append(f"{school}：{plan[:30]}")
