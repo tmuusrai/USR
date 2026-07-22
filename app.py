@@ -1093,6 +1093,14 @@ def ask():
                     expand_query = topic_expand
                 print(f"[TOPIC] 議題展開 query（前60字）：{expand_query[:60]}")
 
+            # ── LLM 動態關鍵詞擴充（僅列舉型）──
+            # 列舉型問題需要廣度，讓 LLM 生成同義詞補足 FAISS 語意搜尋的盲點
+            _list_check = bool(_LIST_INTENT_RE.search(search_question))
+            if _list_check:
+                _llm_kws = _expand_keywords_by_llm(question)
+                if _llm_kws:
+                    expand_query = f"{expand_query} {_llm_kws}" if expand_query else _llm_kws
+
             # ✦ 主觀評量問題攔截：反問使用者定義判斷準則
             if not skip_eval and _is_evaluation_question(question):
                 yield f"data: {json.dumps({'type': 'sources', 'sources': []}, ensure_ascii=False)}\n\n"
@@ -1412,6 +1420,34 @@ AGENT_PLAN_PROMPT = """針對以下問題，請列出 2~3 個最適合的繁體�
 
 只輸出 JSON 陣列，不要其他文字，例如：
 ["高齡照護 USR 計畫", "青銀共創 大學社會責任", "失智症 照護"]"""
+
+KW_EXPAND_PROMPT = """你是台灣 USR（大學社會責任）計畫書的搜尋專家。
+針對以下使用者問題，生成 10～15 個台灣大學計畫書中可能出現的相關詞彙，用來擴大搜尋範圍。
+要求：涵蓋同義詞、常見說法、相關活動名稱，純繁體中文，每個詞 2～8 字。
+只輸出 JSON 陣列，不要其他文字。
+
+問題：{question}
+
+輸出範例：["高齡照護", "銀髮族健康", "長者陪伴", "失智預防"]"""
+
+
+def _expand_keywords_by_llm(question: str) -> str:
+    """呼叫 LLM 動態生成問題相關關鍵詞，回傳空白分隔的詞串。"""
+    try:
+        from langchain_core.messages import HumanMessage
+        prompt = KW_EXPAND_PROMPT.format(question=question)
+        res = llm_fast.bind(temperature=0.3, thinking_budget=0).invoke([HumanMessage(content=prompt)])
+        text = _normalize_content(res.content).strip()
+        m = re.search(r'\[.*?\]', text, re.DOTALL)
+        if m:
+            kws = json.loads(m.group())
+            result = " ".join(k for k in kws if isinstance(k, str))
+            print(f"[KW_EXPAND] 動態關鍵詞：{result[:100]}")
+            return result
+    except Exception as e:
+        print(f"[KW_EXPAND] 失敗：{e}")
+    return ""
+
 
 SUGGEST_PROMPT = """根據以下 USR 計畫書問答，生成 3 個使用者可能想繼續追問的問題。
 要求：具體、繁體中文、每題 25 字以內，圍繞原始問題的延伸或深化方向。
