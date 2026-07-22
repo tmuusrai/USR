@@ -787,6 +787,34 @@ def _detect_usr_topic(question: str) -> tuple[str | None, list[str]]:
     return best, USR_TOPIC_KEYWORDS[best]
 
 
+def _detect_all_usr_topics(question: str) -> tuple[str | None, list[str]]:
+    """列舉型專用：回傳所有有命中的議題類別，合併其關鍵字供 Sequential Query 廣搜。"""
+    topic_scores: dict[str, int] = {}
+    for topic, kws in USR_TOPIC_KEYWORDS.items():
+        matched = [kw for kw in kws if kw in question]
+        if matched:
+            topic_scores[topic] = len(matched) * 2
+    for topic, patterns in USR_TOPIC_QUESTIONS.items():
+        for pattern in patterns:
+            for i in range(len(pattern) - 4):
+                if pattern[i:i+5] in question:
+                    topic_scores[topic] = topic_scores.get(topic, 0) + 1
+                    break
+    if not topic_scores:
+        return None, []
+    best = max(topic_scores, key=lambda t: topic_scores[t])
+    # 合併所有命中類別的關鍵字（去重）
+    merged_kws: list[str] = []
+    seen: set[str] = set()
+    for topic in sorted(topic_scores, key=lambda t: -topic_scores[t]):
+        for kw in USR_TOPIC_KEYWORDS[topic]:
+            if kw not in seen:
+                seen.add(kw)
+                merged_kws.append(kw)
+    print(f"[TOPIC-ALL] 命中 {len(topic_scores)} 個類別：{list(topic_scores.keys())}，合併 {len(merged_kws)} 個關鍵字")
+    return best, merged_kws
+
+
 def _count_kw_hits(text: str, kws: list[str]) -> dict[str, int]:
     """計算每個關鍵字在文件中的出現次數，只回傳次數 > 0 的。"""
     return {kw: cnt for kw in kws if (cnt := text.count(kw)) > 0}
@@ -1082,11 +1110,14 @@ def ask():
             t_prepare_end = time.perf_counter()
 
             # ── USR 議題關鍵字偵測：補強 expand_query ──
-            # 若問題含有 USR 議題關鍵字，將整個議題類別的關鍵字加入 FAISS 展開搜尋
-            # 解決「使用者問的詞在計畫書裡找不到，但同議題的其他詞有」的問題
-            _usr_topic, _usr_topic_kws = _detect_usr_topic(question)
+            _list_check = bool(_LIST_INTENT_RE.search(search_question))
+            if _list_check:
+                # 列舉型：合併所有命中類別的關鍵字，廣度優先
+                _usr_topic, _usr_topic_kws = _detect_all_usr_topics(question)
+            else:
+                _usr_topic, _usr_topic_kws = _detect_usr_topic(question)
             if _usr_topic and _usr_topic_kws:
-                topic_expand = " ".join(_usr_topic_kws[:10])
+                topic_expand = " ".join(_usr_topic_kws[:20])
                 if expand_query:
                     expand_query = f"{expand_query} {topic_expand}"
                 else:
@@ -1094,8 +1125,6 @@ def ask():
                 print(f"[TOPIC] 議題展開 query（前60字）：{expand_query[:60]}")
 
             # ── LLM 動態關鍵詞擴充（僅列舉型）──
-            # 列舉型問題需要廣度，讓 LLM 生成同義詞補足 FAISS 語意搜尋的盲點
-            _list_check = bool(_LIST_INTENT_RE.search(search_question))
             if _list_check:
                 _llm_kws = _expand_keywords_by_llm(question)
                 if _llm_kws:
