@@ -888,7 +888,10 @@ def _seq_query_by_index(kws: list[str], topic: str, index: dict,
         hit_summary = "、".join(f"{kw}×{cnt}" for kw, cnt in hits.items())
         if condense:
             src_name = _clean_plan_code(Path(doc.metadata.get("source", "")).stem)
-            snippet = text[:150]
+            # 從第一個命中關鍵字的位置擷取，讓 LLM 看到相關內容而非文字開頭
+            first_pos = min((text.find(kw) for kw in hits if text.find(kw) >= 0), default=0)
+            start = max(0, first_pos - 30)
+            snippet = text[start:start + 250]
             entry = f"【{src_name}｜命中：{hit_summary}】\n{snippet}…"
             high.append(entry) if total >= 5 else mid.append(entry)
         else:
@@ -945,7 +948,9 @@ def _seq_query_live(kws: list[str], topic: str, vs,
         hit_summary = "、".join(f"{kw}×{cnt}" for kw, cnt in hits.items())
         if condense:
             src_name = _clean_plan_code(Path(doc.metadata.get("source", "")).stem)
-            snippet = text[:150]
+            first_pos = min((text.find(kw) for kw in hits if text.find(kw) >= 0), default=0)
+            start = max(0, first_pos - 30)
+            snippet = text[start:start + 250]
             result.append(f"【{src_name}｜命中：{hit_summary}】\n{snippet}…")
         else:
             label = "高度相關" if total >= 3 else "部分相關"
