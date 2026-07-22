@@ -740,7 +740,7 @@ def _extract_listed_plans(text: str) -> list[str]:
         school = m.group(1).strip()
         # 剝掉括號內的更名說明，例如「經國管理學院(112.08.01更名...)」→「經國管理學院」
         school = re.sub(r'[（(][^）)]*[）)]', '', school).strip()
-        plan = m.group(2).strip().rstrip('。，、').split('（')[0].split('(')[0].strip()
+        plan = m.group(2).strip().rstrip('。，、').split('（')[0].split('(')[0].split(' - ')[0].split(' – ')[0].strip()
         if school and 2 <= len(school) <= 25 and plan:
             plans.append(f"{school}：{plan[:30]}")
     if not plans:
