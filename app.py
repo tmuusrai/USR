@@ -1639,7 +1639,7 @@ def _expand_keywords_by_llm(question: str) -> str:
     try:
         from langchain_core.messages import HumanMessage
         prompt = KW_EXPAND_PROMPT.format(question=question)
-        res = llm_fast.bind(temperature=0, thinking_budget=0).invoke([HumanMessage(content=prompt)])
+        res = llm_fast.bind(temperature=0.1, thinking_budget=0).invoke([HumanMessage(content=prompt)])
         text = _normalize_content(res.content).strip()
         m = re.search(r'\[.*?\]', text, re.DOTALL)
         if m:
