@@ -1372,9 +1372,15 @@ def ask():
             )
             if _seq_trigger:
                 _seq_topic = _usr_topic or "列舉"
+                _q_terms = _extract_query_terms(question) if _list else []
                 if _list:
-                    # 列舉型：用議題關鍵字 + LLM 生成詞（精準找相關學校，不用全部關鍵字）
-                    _seq_kws = list(_usr_topic_kws) if _usr_topic_kws else []
+                    # 列舉型：先取問題中直接出現的議題關鍵字（精準），若無則退回全部
+                    query_matched_kws = [kw for kw in (_usr_topic_kws or []) if kw in question]
+                    _seq_kws = query_matched_kws if query_matched_kws else list(_usr_topic_kws) if _usr_topic_kws else []
+                    # 加入問題直接提取的詞（如「海洋」、「水資源」，即使不在 topic keywords 裡）
+                    for k in _q_terms:
+                        if k in inv and k not in _seq_kws:
+                            _seq_kws.append(k)
                     # 加入 LLM 生成詞中有在索引的詞（提升召回）
                     if _llm_kw_list:
                         _inv_kws_from_llm = [k for k in _llm_kw_list if k in inv]
@@ -1388,9 +1394,10 @@ def ask():
                                                 dedup_by_source=_list,
                                                 min_hits=1 if _list else 3,
                                                 condense=_list)
-                # 列舉型：LLM 生成詞即時掃描（補足索引沒有的詞，如「流浪動物」「收容所」）
-                if _list and _llm_kw_list:
-                    _live_results = _seq_query_live(_llm_kw_list, _seq_topic, vs,
+                # 列舉型：問題詞 + LLM 生成詞即時掃描（補足索引沒有的詞，如「海洋」「流浪動物」）
+                _live_scan_kws = _q_terms + [k for k in _llm_kw_list if k not in _q_terms]
+                if _list and _live_scan_kws:
+                    _live_results = _seq_query_live(_live_scan_kws, _seq_topic, vs,
                                                     condense=True)
                     if _live_results:
                         seen_heads = {a[:80] for a in annotated}
@@ -1567,6 +1574,18 @@ KW_EXPAND_PROMPT = """你是台灣 USR（大學社會責任）計畫書的搜尋
 問題：{question}
 
 輸出範例：["長照", "樂齡", "銀髮族", "失智症", "長者", "高齡"]"""
+
+_QUERY_FILLER_RE = re.compile(r'(相關|計畫|哪些|有哪|有幾|哪幾|多少|大學|學校|告訴|說明|介紹|如何|列出|請問|永續)')
+
+def _extract_query_terms(q: str) -> list[str]:
+    """從問題直接提取內容關鍵字（排除虛詞），補充 Sequential Query 掃描詞。"""
+    parts = re.split(r'[或及跟與和，、（）？！\s的等]+', q)
+    result = []
+    for p in parts:
+        p = _QUERY_FILLER_RE.sub('', p).strip().rstrip('有')
+        if 2 <= len(p) <= 6:
+            result.append(p)
+    return list(dict.fromkeys(result))
 
 
 def _expand_keywords_by_llm(question: str) -> str:
