@@ -101,7 +101,7 @@ RAG_PROMPT = PromptTemplate(
 - 請根據現有計畫書內容盡力回答，若部分細節不足，請說明「該部分資訊有限」並以現有資料補充說明，不要直接放棄回答。
 - 回答請使用繁體中文，條理清晰，內容完整，不要省略計畫書中的重要細節。
 - 凡提及計畫，格式必須為「學校全名：計畫全名」，例：國立成功大學：城鄉相伴健康永續生活，不得省略學校名稱或只寫縮寫。
-- 若問題為列舉型（哪些計畫、有哪些、列出等），請用編號列表列出所有計畫，有幾件就列幾件，不得自行判斷是否「符合條件」或省略任何一件。以「共X件計畫：」開頭（X = 實際列出件數），每條格式為「學校全名：計畫全名 - 相關內容說明」。若問題非列舉型，則跳過此步驟。
+- 若問題為列舉型（哪些計畫、有哪些、列出等），請用編號列表列出 context 中與問題核心主題**直接相關**的計畫。以「共X件計畫：」開頭（X = 實際列出件數），每條格式為「學校全名：計畫全名 - 相關內容說明」。判斷相關性時，請以問題提到的核心詞（如「食農教育」「食品安全」「海洋」「水資源」「淨零碳排」）為依據；若計畫與這些核心詞完全無關，可以省略。若問題非列舉型，則跳過此步驟。
 - 提及地名（縣市、鄉鎮、村里、社區、山川、場域等）或人名時，一律用〔〕標記，例：〔臺南市〕、〔永康區〕、〔萬年溪〕、〔陳明仁〕。學校名稱與計畫名稱不需標記。
 
 回答：""",
@@ -1422,18 +1422,9 @@ def ask():
                 _seq_topic = _usr_topic or "列舉"
                 _q_terms = _extract_query_terms(question) if _list else []
                 if _list:
-                    # 列舉型：先取問題中直接出現的議題關鍵字（精準），若無則退回全部
-                    query_matched_kws = [kw for kw in (_usr_topic_kws or []) if kw in question]
-                    _seq_kws = query_matched_kws if query_matched_kws else list(_usr_topic_kws) if _usr_topic_kws else []
-                    # 擴充：從同議題關鍵字中加入與問題詞共享字元的詞
-                    # 例："食農教育" → 也加入"食魚教育"、"在地食材"等（同屬食農範疇）
-                    # 但不會加入"心理健康"、"節能減碳"等不相關詞（無共享字元）
-                    if query_matched_kws and _usr_topic_kws:
-                        q_chars = set(''.join(query_matched_kws + _q_terms))
-                        for kw in _usr_topic_kws:
-                            if kw not in _seq_kws and any(c in q_chars for c in kw):
-                                _seq_kws.append(kw)
-                    # 加入問題直接提取的詞（如「海洋」，即使不在 topic keywords 裡）
+                    # 列舉型：用全部 topic 關鍵字廣掃，相關性過濾交由 LLM 判斷
+                    _seq_kws = list(_usr_topic_kws) if _usr_topic_kws else []
+                    # 加入問題直接提取的詞（補足 topic kws 沒有的問題詞，如「海洋」）
                     for k in _q_terms:
                         if k in inv and k not in _seq_kws:
                             _seq_kws.append(k)
