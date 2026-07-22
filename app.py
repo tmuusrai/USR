@@ -1221,7 +1221,7 @@ def ask():
             t_prepare_end = time.perf_counter()
 
             # ── USR 議題關鍵字偵測：補強 expand_query ──
-            _list_check = bool(_LIST_INTENT_RE.search(search_question))
+            _list_check = bool(_LIST_INTENT_RE.search(search_question)) and not _LIST_CONCEPT_RE.search(search_question)
             if _list_check:
                 # 列舉型：合併所有命中類別的關鍵字，廣度優先
                 _usr_topic, _usr_topic_kws = _detect_all_usr_topics(question)
@@ -1310,7 +1310,7 @@ def ask():
                 _school = _extract_school(history[-1]['q'])
                 if _school:
                     print(f"[ASK] 從歷史補充學校：{_school}")
-            _list      = bool(_LIST_INTENT_RE.search(search_question)) and not _school
+            _list      = bool(_LIST_INTENT_RE.search(search_question)) and not _school and not _LIST_CONCEPT_RE.search(search_question)
             _personnel = bool(_PERSONNEL_RE.search(search_question))
             _kw        = _extract_keywords(search_question)
             _role      = _extract_role_term(question) if _personnel else None
@@ -1751,6 +1751,10 @@ _LIST_INTENT_RE  = re.compile(
     r'|所有.{0,6}(?:學校|大學|院校|計畫|計画)'
     r'|各.{0,4}(?:學校|大學|院校|校|間)'
     r'|全部.{0,4}(?:學校|大學|院校|計畫)'
+)
+# 哪些後面跟概念詞（策略/方法/影響等）→ 不是列舉學校，不觸發列舉模式
+_LIST_CONCEPT_RE = re.compile(
+    r'哪些.{0,12}(?:策略|方法|做法|方式|方向|措施|途徑|建議|影響|成效|特色|問題|挑戰|困難|原因|因素|差異|優點|缺點|優缺)'
 )
 _QUESTION_WORDS  = {"哪些", "有哪", "哪幾", "什麼", "怎麼", "如何", "是否", "有沒有",
                     "請問", "告訴我", "介紹", "說明", "哪個", "哪裡", "為何", "為什麼",
