@@ -910,8 +910,8 @@ def _seq_query_by_index(kws: list[str], topic: str, index: dict,
             # 從第一個命中關鍵字的位置擷取，讓 LLM 看到相關內容而非文字開頭
             first_pos = min((text.find(kw) for kw in hits if text.find(kw) >= 0), default=0)
             start = max(0, first_pos - 30)
-            snippet = text[start:start + 250]
-            entry = f"【{src_name}｜命中：{hit_summary}】\n{snippet}…"
+            snippet = text[start:start + 400]
+            entry = f"【{src_name}】\n{snippet}…"
             high.append(entry) if total >= 5 else mid.append(entry)
         else:
             if total >= 5:
@@ -969,8 +969,8 @@ def _seq_query_live(kws: list[str], topic: str, vs,
             src_name = _clean_plan_code(Path(doc.metadata.get("source", "")).stem)
             first_pos = min((text.find(kw) for kw in hits if text.find(kw) >= 0), default=0)
             start = max(0, first_pos - 30)
-            snippet = text[start:start + 250]
-            result.append(f"【{src_name}｜命中：{hit_summary}】\n{snippet}…")
+            snippet = text[start:start + 400]
+            result.append(f"【{src_name}】\n{snippet}…")
         else:
             label = "高度相關" if total >= 3 else "部分相關"
             result.append(f"【{label}｜{topic}｜命中：{hit_summary}】\n{text}")
@@ -1422,8 +1422,15 @@ def ask():
                 _seq_topic = _usr_topic or "列舉"
                 _q_terms = _extract_query_terms(question) if _list else []
                 if _list:
-                    # 列舉型：用全部 topic 關鍵字廣掃，相關性過濾交由 LLM 判斷
-                    _seq_kws = list(_usr_topic_kws) if _usr_topic_kws else []
+                    # 列舉型：以問題直接匹配的 topic 詞為基底，字元共享擴充同族詞
+                    # 確保 context 只包含問題相關計畫，讓 LLM 無需自行過濾
+                    query_matched_kws = [kw for kw in (_usr_topic_kws or []) if kw in question]
+                    _seq_kws = list(query_matched_kws) if query_matched_kws else list(_usr_topic_kws) if _usr_topic_kws else []
+                    if query_matched_kws and _usr_topic_kws:
+                        q_chars = set(''.join(query_matched_kws))  # 只用確定詞，不用 _q_terms 避免雜詞干擾
+                        for kw in _usr_topic_kws:
+                            if kw not in _seq_kws and any(c in q_chars for c in kw):
+                                _seq_kws.append(kw)
                     # 加入問題直接提取的詞（補足 topic kws 沒有的問題詞，如「海洋」）
                     for k in _q_terms:
                         if k in inv and k not in _seq_kws:
