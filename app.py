@@ -1293,12 +1293,26 @@ def ask():
             _faiss_src_count = len({doc.metadata.get("source", "") for doc in docs})
             inv = _inv_indexes.get(year) or _inv_indexes.get("114")
             _seq_trigger = (
-                _usr_topic and _usr_topic_kws and inv and
-                (_list or _faiss_src_count > _KW_THRESHOLD)
+                inv and
+                (_list or (_usr_topic and _usr_topic_kws and _faiss_src_count > _KW_THRESHOLD))
             )
             if _seq_trigger:
-                print(f"[SEQ] 啟動全庫掃描（議題：{_usr_topic}，list={_list}，faiss_src={_faiss_src_count}）")
-                annotated = _seq_query_by_index(_usr_topic_kws, _usr_topic, inv,
+                if _list:
+                    # 列舉型：用全部類別關鍵字掃，排分機制決定相關性
+                    _all_kws: list[str] = []
+                    _seen_kws: set[str] = set()
+                    for _kws in USR_TOPIC_KEYWORDS.values():
+                        for _kw in _kws:
+                            if _kw not in _seen_kws:
+                                _seen_kws.add(_kw)
+                                _all_kws.append(_kw)
+                    _seq_kws = _all_kws
+                    _seq_topic = _usr_topic or "列舉"
+                else:
+                    _seq_kws = _usr_topic_kws
+                    _seq_topic = _usr_topic
+                print(f"[SEQ] 啟動全庫掃描（議題：{_seq_topic}，list={_list}，faiss_src={_faiss_src_count}，關鍵字數={len(_seq_kws)}）")
+                annotated = _seq_query_by_index(_seq_kws, _seq_topic, inv,
                                                 dedup_by_source=_list,
                                                 min_hits=1 if _list else 3)
                 # 若有前輪學校清單，只保留那些學校的 chunk
