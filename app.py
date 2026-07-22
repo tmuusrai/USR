@@ -888,6 +888,51 @@ def _seq_query_by_index(kws: list[str], topic: str, index: dict,
     return high + mid
 
 
+def _seq_query_live(kws: list[str], topic: str, vs,
+                    dedup_by_source: bool = True) -> list[str]:
+    """即時掃描所有文件找 LLM 生成的關鍵字（不依賴預建索引）。
+    用於預建索引未涵蓋的詞彙（如「流浪動物」、「收容所」）。
+    """
+    if not kws:
+        return []
+    all_docs = list(vs.docstore._dict.values())
+    doc_scores: dict[int, list] = {}
+    for doc in all_docs:
+        text = _clean_plan_code(doc.page_content)
+        total = 0
+        hits: dict[str, int] = {}
+        for kw in kws:
+            cnt = text.count(kw)
+            if cnt:
+                total += cnt
+                hits[kw] = cnt
+        if total > 0:
+            did = id(doc)
+            doc_scores[did] = [doc, total, hits]
+
+    ranked = sorted(doc_scores.values(), key=lambda x: -x[1])
+
+    if dedup_by_source:
+        seen_src: set[str] = set()
+        deduped = []
+        for entry in ranked:
+            src = entry[0].metadata.get("source", "")
+            if src not in seen_src:
+                seen_src.add(src)
+                deduped.append(entry)
+        ranked = deduped
+
+    result = []
+    for doc, total, hits in ranked:
+        text = _clean_plan_code(doc.page_content)
+        hit_summary = "、".join(f"{kw}×{cnt}" for kw, cnt in hits.items())
+        label = "高度相關" if total >= 3 else "部分相關"
+        result.append(f"【{label}｜{topic}｜命中：{hit_summary}】\n{text}")
+
+    print(f"[SEQ-LIVE] 即時掃描找到 {len(result)} 篇（關鍵字：{kws[:5]}...）")
+    return result
+
+
 def _count_inv_matches(kws: list[str], inv: dict) -> int:
     """用倒排索引快速計算命中任一關鍵字的不重複 doc 數量。"""
     doc_ids: set[int] = set()
@@ -1125,10 +1170,12 @@ def ask():
                 print(f"[TOPIC] 議題展開 query（前60字）：{expand_query[:60]}")
 
             # ── LLM 動態關鍵詞擴充（僅列舉型）──
+            _llm_kw_list: list[str] = []
             if _list_check:
                 _llm_kws = _expand_keywords_by_llm(question)
                 if _llm_kws:
                     expand_query = f"{expand_query} {_llm_kws}" if expand_query else _llm_kws
+                    _llm_kw_list = [k for k in _llm_kws.split() if len(k) >= 2]
 
             # ✦ 主觀評量問題攔截：反問使用者定義判斷準則
             if not skip_eval and _is_evaluation_question(question):
@@ -1315,6 +1362,13 @@ def ask():
                 annotated = _seq_query_by_index(_seq_kws, _seq_topic, inv,
                                                 dedup_by_source=_list,
                                                 min_hits=1 if _list else 3)
+                # 列舉型：LLM 生成的詞也即時掃描（補足索引未涵蓋的詞彙）
+                if _list and _llm_kw_list:
+                    _live_results = _seq_query_live(_llm_kw_list, _seq_topic, vs)
+                    if _live_results:
+                        seen_heads = {a[:80] for a in annotated}
+                        annotated += [r for r in _live_results if r[:80] not in seen_heads]
+                        print(f"[SEQ-LIVE] 合併後共 {len(annotated)} 篇")
                 # 若有前輪學校清單，只保留那些學校的 chunk
                 if _listed_schools and annotated:
                     annotated = [a for a in annotated if any(s in a for s in _listed_schools)]
