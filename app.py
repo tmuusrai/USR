@@ -1422,7 +1422,15 @@ def ask():
                     # 列舉型：先取問題中直接出現的議題關鍵字（精準），若無則退回全部
                     query_matched_kws = [kw for kw in (_usr_topic_kws or []) if kw in question]
                     _seq_kws = query_matched_kws if query_matched_kws else list(_usr_topic_kws) if _usr_topic_kws else []
-                    # 加入問題直接提取的詞（如「海洋」、「水資源」，即使不在 topic keywords 裡）
+                    # 擴充：從同議題關鍵字中加入與問題詞共享字元的詞
+                    # 例："食農教育" → 也加入"食魚教育"、"在地食材"等（同屬食農範疇）
+                    # 但不會加入"心理健康"、"節能減碳"等不相關詞（無共享字元）
+                    if query_matched_kws and _usr_topic_kws:
+                        q_chars = set(''.join(query_matched_kws + _q_terms))
+                        for kw in _usr_topic_kws:
+                            if kw not in _seq_kws and any(c in q_chars for c in kw):
+                                _seq_kws.append(kw)
+                    # 加入問題直接提取的詞（如「海洋」，即使不在 topic keywords 裡）
                     for k in _q_terms:
                         if k in inv and k not in _seq_kws:
                             _seq_kws.append(k)
