@@ -1305,10 +1305,10 @@ def ask():
                     _listed_schools = _kw_hit
                     print(f"[KW] 關鍵字索引命中 {len(_listed_schools)} 間：{_listed_schools}")
 
-            # ③-c 多校追問（>5 間）自動切列舉型，讓 LLM 逐一列出不做摘要
-            if _listed_schools and len(_listed_schools) > 5 and not _list:
-                _list = True
-                print(f"[ASK] 多校追問({len(_listed_schools)}間) → 自動列舉型")
+            # ③-c 多校追問（>5 間）→ 標記需逐一列出，但不改 _list（避免影響壓縮和 Seq Query）
+            _multi_enumerate = bool(_listed_schools and len(_listed_schools) > 5 and not _list)
+            if _multi_enumerate:
+                print(f"[ASK] 多校追問({len(_listed_schools)}間) → 逐一列出模式")
 
             # ④ Voyage AI 平行 embed
             if _listed_schools:
@@ -1458,6 +1458,9 @@ def ask():
             # 列舉型：在 context 前加提示，讓 LLM 直接列出所有計畫，不再自行過濾
             if _list and annotated:
                 context = "【以下計畫均已通過關鍵字相關性篩選，請將所有出現的計畫全部列出，不得自行判斷過濾。】\n\n" + context
+            # 多校追問：提示 LLM 針對每間學校分別回答，不得合併或省略
+            if _multi_enumerate:
+                context = f"【本問題涉及前一輪列出的 {len(_listed_schools)} 間學校，請在回答中針對 context 中每間學校分別說明，不得合併舉例或省略任何一間。】\n\n" + context
 
             # ── 委員模式：同儕比較（同類型計畫 2~3 所其他學校）──
             if user_type == "reviewer" and _school:
