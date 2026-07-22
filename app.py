@@ -726,21 +726,36 @@ _MULTI_REF_RE = re.compile(
     r'|這些\S{0,10}計畫|這些學校|這些大學|上述這些'
 )
 
-def _extract_listed_schools(text: str) -> list[str]:
-    """從前一輪編號清單（1. 學校名：...）提取學校名稱。"""
-    schools = []
-    # 主要格式：1. 學校名：  或  1. **學校名**：
-    for m in re.finditer(r'^\d+\.\s+\*{0,2}([^\*：:\n]{2,25}?)\*{0,2}\s*[：:]', text, re.MULTILINE):
+def _extract_listed_plans(text: str) -> list[str]:
+    """從前一輪編號清單提取「學校：計畫名」字串，同校多計畫各自獨立保留。"""
+    plans = []
+    # 主要格式：1. 學校名：計畫名  或  1. **學校名**：計畫名
+    for m in re.finditer(
+        r'^\d+\.\s+\*{0,2}([^\*：:\n]{2,25}?)\*{0,2}\s*[：:]\s*([^\n]{4,50})',
+        text, re.MULTILINE
+    ):
         school = m.group(1).strip()
-        if school and 2 <= len(school) <= 25:
-            schools.append(school)
-    # 備援格式：若上面沒抓到，嘗試「數字. 學校名（不含：）」行首
-    if not schools:
+        plan = m.group(2).strip().rstrip('。，、').split('（')[0].split('(')[0].strip()
+        if school and 2 <= len(school) <= 25 and plan:
+            plans.append(f"{school}：{plan[:30]}")
+    if not plans:
+        # 備援：只抓學校名（與舊行為相同）
         for m in re.finditer(r'^\d+\.\s+([^\n：:]{2,25})\n', text, re.MULTILINE):
             school = m.group(1).strip().rstrip('。，、')
             if school and 2 <= len(school) <= 25:
-                schools.append(school)
-    return list(dict.fromkeys(schools))  # 去重、保順序
+                plans.append(school)
+    return list(dict.fromkeys(plans))  # 去重、保順序
+
+def _extract_listed_schools(text: str) -> list[str]:
+    """向下相容：回傳不重複學校名稱（從 _extract_listed_plans 取學校部分）。"""
+    plans = _extract_listed_plans(text)
+    seen, schools = set(), []
+    for p in plans:
+        s = p.split('：')[0]
+        if s not in seen:
+            seen.add(s)
+            schools.append(s)
+    return schools
 
 
 _KW_THRESHOLD = 15  # 命中學校數超過此值就退回 FAISS
@@ -1264,7 +1279,7 @@ def ask():
                     if chat_id:
                         hist = _chat_history.setdefault(chat_id, [])
                         hist.append({"q": question, "a": full_ans[:5000],
-                             "schools": _extract_listed_schools(full_ans)})
+                             "plans": _extract_listed_plans(full_ans)})
                         if len(hist) > _MAX_HISTORY:
                             hist.pop(0)
                     suggestions = _generate_suggestions(question, full_ans)
@@ -1292,7 +1307,7 @@ def ask():
             _listed_schools: list[str] = []
             if _MULTI_REF_RE.search(question) and history:
                 for _h in reversed(history):
-                    _candidate = _h.get('schools') or _extract_listed_schools(_h['a'])
+                    _candidate = _h.get('plans') or _h.get('schools') or _extract_listed_plans(_h['a'])
                     if _candidate:
                         _listed_schools = _candidate
                         break
@@ -1313,11 +1328,13 @@ def ask():
 
             # ④ Voyage AI 平行 embed
             if _listed_schools:
-                # 多校模式：各校 query 同時送出
+                # 多校模式：各計畫 query 同時送出（entry 可為「學校：計畫名」或「學校名」）
                 _topic_q = re.sub(r'以上\S*間\S*計劃?|上述\S*計劃?|這些計劃?', '', question).strip()
                 with ThreadPoolExecutor() as ex:
-                    _sfuts = {s: ex.submit(embeddings.embed_query, f"{s} {_topic_q}")
-                              for s in _listed_schools}
+                    _sfuts = {s: ex.submit(
+                        embeddings.embed_query,
+                        f"{s.replace('：', ' ')} {_topic_q}"  # 把計畫名也放進 query 提升精準度
+                    ) for s in _listed_schools}
                     _svecs = {s: f.result() for s, f in _sfuts.items()}
                 t_voyage = time.perf_counter()
                 docs_all = []
@@ -1431,7 +1448,7 @@ def ask():
                         print(f"[SEQ-LIVE] 合併後共 {len(annotated)} 篇")
                 # 若有前輪學校清單，只保留那些學校的 chunk
                 if _listed_schools and annotated:
-                    annotated = [a for a in annotated if any(s in a for s in _listed_schools)]
+                    annotated = [a for a in annotated if any(s.split('：')[0] in a for s in _listed_schools)]
             else:
                 annotated = None
 
@@ -1462,7 +1479,7 @@ def ask():
                 context = "【以下計畫均已通過關鍵字相關性篩選，請將所有出現的計畫全部列出，不得自行判斷過濾。】\n\n" + context
             # 多校追問：提示 LLM 針對每間學校分別回答，不得合併或省略
             if _multi_enumerate:
-                context = f"【本問題涉及前一輪列出的 {len(_listed_schools)} 間學校，請在回答中針對 context 中每間學校分別說明，不得合併舉例或省略任何一間。】\n\n" + context
+                context = f"【本問題涉及前一輪列出的 {len(_listed_schools)} 件計畫，請在回答中針對 context 中每件計畫分別說明，不得合併舉例或省略任何一件。】\n\n" + context
 
             # ── 委員模式：同儕比較（同類型計畫 2~3 所其他學校）──
             if user_type == "reviewer" and _school:
@@ -1562,8 +1579,8 @@ def ask():
                 full_ans = "".join(answer_parts)
                 hist = _chat_history.setdefault(chat_id, [])
                 # 多校追問時保留原始清單（而非從新答案重新提取，避免清單縮水）
-                saved_schools = _listed_schools if _listed_schools else _extract_listed_schools(full_ans)
-                hist.append({"q": question, "a": full_ans[:5000], "schools": saved_schools})
+                saved_plans = _listed_schools if _listed_schools else _extract_listed_plans(full_ans)
+                hist.append({"q": question, "a": full_ans[:5000], "plans": saved_plans})
                 if len(hist) > _MAX_HISTORY:
                     hist.pop(0)
                 if len(_chat_history) > 1000:
@@ -1741,9 +1758,20 @@ def _extract_school(text: str) -> str | None:
     return None
 
 
-def _school_filter_docs(docs, school: str, k: int):
-    """過濾含學校名稱的 chunk，無結果則退回全部。"""
-    filtered = [d for d in docs if school in d.metadata.get("source", "")]
+def _school_filter_docs(docs, entry: str, k: int):
+    """過濾含學校名稱（及計畫名前綴）的 chunk，無結果則退回全部。
+    entry 可以是 '學校名' 或 '學校名：計畫名' 格式。
+    """
+    parts = entry.split('：', 1)
+    school = parts[0]
+    plan_prefix = parts[1][:8] if len(parts) > 1 else ""
+    src = lambda d: d.metadata.get("source", "")
+    if plan_prefix:
+        filtered = [d for d in docs if school in src(d) and plan_prefix in src(d)]
+        if not filtered:  # plan 前綴比對失敗則退回學校名比對
+            filtered = [d for d in docs if school in src(d)]
+    else:
+        filtered = [d for d in docs if school in src(d)]
     return filtered[:k] if filtered else docs[:k]
 
 
