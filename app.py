@@ -846,9 +846,11 @@ def _build_inverted_index(vs) -> dict[str, list]:
 
 def _seq_query_by_index(kws: list[str], topic: str, index: dict,
                         dedup_by_source: bool = False,
-                        min_hits: int = 3) -> list[str]:
+                        min_hits: int = 3,
+                        condense: bool = False) -> list[str]:
     """用倒排索引快速查詢命中關鍵字的 chunk，不需全表掃描。
     dedup_by_source=True 時每個來源檔案只保留命中最高的一個 chunk（列舉型用）。
+    condense=True 時每筆只輸出學校名稱 + 150 字摘要（列舉型用，節省 context 空間）。
     """
     doc_scores: dict[int, list] = {}  # id(doc) → [doc, total, {kw: cnt}]
     for kw in kws:
@@ -878,20 +880,29 @@ def _seq_query_by_index(kws: list[str], topic: str, index: dict,
             continue
         text = _clean_plan_code(doc.page_content)
         hit_summary = "、".join(f"{kw}×{cnt}" for kw, cnt in hits.items())
-        if total >= 5:
-            high.append(f"【高度相關｜{topic}｜命中：{hit_summary}】\n{text}")
+        if condense:
+            src_name = _clean_plan_code(Path(doc.metadata.get("source", "")).stem)
+            snippet = text[:150]
+            entry = f"【{src_name}｜命中：{hit_summary}】\n{snippet}…"
+            high.append(entry) if total >= 5 else mid.append(entry)
         else:
-            mid.append(f"【部分相關｜{topic}｜命中：{hit_summary}】\n{text}")
+            if total >= 5:
+                high.append(f"【高度相關｜{topic}｜命中：{hit_summary}】\n{text}")
+            else:
+                mid.append(f"【部分相關｜{topic}｜命中：{hit_summary}】\n{text}")
 
     print(f"[SEQ] 高度相關 {len(high)} 篇，部分相關 {len(mid)} 篇"
-          + ("（已去重複）" if dedup_by_source else ""))
+          + ("（已去重複）" if dedup_by_source else "")
+          + ("（精簡模式）" if condense else ""))
     return high + mid
 
 
 def _seq_query_live(kws: list[str], topic: str, vs,
-                    dedup_by_source: bool = True) -> list[str]:
+                    dedup_by_source: bool = True,
+                    condense: bool = False) -> list[str]:
     """即時掃描所有文件找 LLM 生成的關鍵字（不依賴預建索引）。
     用於預建索引未涵蓋的詞彙（如「流浪動物」、「收容所」）。
+    condense=True 時每筆只輸出學校名稱 + 150 字摘要（列舉型用）。
     """
     if not kws:
         return []
@@ -926,10 +937,16 @@ def _seq_query_live(kws: list[str], topic: str, vs,
     for doc, total, hits in ranked:
         text = _clean_plan_code(doc.page_content)
         hit_summary = "、".join(f"{kw}×{cnt}" for kw, cnt in hits.items())
-        label = "高度相關" if total >= 3 else "部分相關"
-        result.append(f"【{label}｜{topic}｜命中：{hit_summary}】\n{text}")
+        if condense:
+            src_name = _clean_plan_code(Path(doc.metadata.get("source", "")).stem)
+            snippet = text[:150]
+            result.append(f"【{src_name}｜命中：{hit_summary}】\n{snippet}…")
+        else:
+            label = "高度相關" if total >= 3 else "部分相關"
+            result.append(f"【{label}｜{topic}｜命中：{hit_summary}】\n{text}")
 
-    print(f"[SEQ-LIVE] 即時掃描找到 {len(result)} 篇（關鍵字：{kws[:5]}...）")
+    print(f"[SEQ-LIVE] 即時掃描找到 {len(result)} 篇（關鍵字：{kws[:5]}...）"
+          + ("（精簡模式）" if condense else ""))
     return result
 
 
@@ -1359,10 +1376,12 @@ def ask():
                 print(f"[SEQ] 啟動全庫掃描（議題：{_seq_topic}，list={_list}，faiss_src={_faiss_src_count}，關鍵字數={len(_seq_kws)}）")
                 annotated = _seq_query_by_index(_seq_kws, _seq_topic, inv,
                                                 dedup_by_source=_list,
-                                                min_hits=1 if _list else 3)
+                                                min_hits=1 if _list else 3,
+                                                condense=_list)
                 # 列舉型：LLM 生成詞即時掃描（補足索引沒有的詞，如「流浪動物」「收容所」）
                 if _list and _llm_kw_list:
-                    _live_results = _seq_query_live(_llm_kw_list, _seq_topic, vs)
+                    _live_results = _seq_query_live(_llm_kw_list, _seq_topic, vs,
+                                                    condense=True)
                     if _live_results:
                         seen_heads = {a[:80] for a in annotated}
                         annotated += [r for r in _live_results if r[:80] not in seen_heads]
@@ -1375,7 +1394,15 @@ def ask():
 
             # 列舉型用 Flash 處理大 context 很快，給更多空間；其他問題截短避免拖慢 Pro
             _CTX_CHAR_LIMIT = 60000 if _list else 30000
-            faiss_texts = [_clean_plan_code(doc.page_content) for doc in docs]
+            if _list:
+                # 列舉型：FAISS 結果也精簡，每筆只保留學校名稱 + 150 字摘要
+                faiss_texts = [
+                    f"【{_clean_plan_code(Path(doc.metadata.get('source','')).stem)}】\n"
+                    f"{_clean_plan_code(doc.page_content)[:150]}…"
+                    for doc in docs
+                ]
+            else:
+                faiss_texts = [_clean_plan_code(doc.page_content) for doc in docs]
             if annotated and _list:
                 # 列舉型：SEQ（精確命中）+ FAISS（語意補充）合併，確保廣度
                 seen_heads = {a[:80] for a in annotated}
