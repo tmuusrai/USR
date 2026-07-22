@@ -1419,7 +1419,11 @@ def ask():
                     docs = _school_filter_docs(docs_all, _school, k=9999)
                     print(f"[ASK] 學校過濾「{_school}」→ {len(docs)} 筆")
                 else:
-                    docs = docs_all[:_fetch]
+                    if _list:
+                        docs = docs_all[:_fetch]
+                    else:
+                        # 非列舉非單校：每間學校只保留最相關一個 chunk，避免一間壟斷 context
+                        docs = _dedup_by_school(docs_all, k=_fetch)
                 t_faiss = time.perf_counter()
 
             # ── Sequential Query：議題偵測到時全庫掃描補足 TOP_K 限制 ──
