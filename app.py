@@ -324,6 +324,8 @@ USR_TOPIC_KEYWORDS: dict[str, list[str]] = {
         "防災韌性", "再生能源", "綠色生活", "臺南濕地", "碳足跡", "碳中和",
         "環境治理", "水資源管理",
         "碳盤查", "里山倡議", "農業廢棄物", "能源轉型", "綠色消費", "生態旅遊", "友善農業", "棲地復育", "永續發展", "碳匯", "海洋保育", "綠能", "資源循環", "綠色經濟", "零廢棄", "氣候調適", "里海倡議", "森林碳匯", "ESG", "SDGs",
+        "減碳", "低碳", "節能", "溫室氣體", "SDG", "永續發展目標", "碳排", "淨零",
+        "碳排放", "生態", "環保", "綠建築", "廢棄物", "資源再生", "氣候",
     ],
     "健康促進與食品安全": [
         "社區健康促進", "食品安全", "食農教育", "食魚教育", "健康識能", "健康促進",
@@ -1273,8 +1275,8 @@ def ask():
                         break
                 print(f"[ASK] 多校清單追問，偵測到 {len(_listed_schools)} 間：{_listed_schools}")
 
-            # ③-b 關鍵字索引快速過濾（歷史追問未命中時才跑；列舉型問題跳過，改用 Sequential Query 廣搜）
-            if not _listed_schools and not _school and not _list:
+            # ③-b 關鍵字索引快速過濾（歷史追問未命中時才跑）
+            if not _listed_schools and not _school:
                 _kw_hit = _keyword_lookup(search_question, year)
                 if _kw_hit:
                     _listed_schools = _kw_hit
