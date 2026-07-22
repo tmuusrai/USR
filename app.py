@@ -1305,10 +1305,11 @@ def ask():
                     _listed_schools = _kw_hit
                     print(f"[KW] 關鍵字索引命中 {len(_listed_schools)} 間：{_listed_schools}")
 
-            # ③-c 多校追問（>5 間）→ 標記需逐一列出，但不改 _list（避免影響壓縮和 Seq Query）
+            # ③-c 多校追問（>5 間）→ 強制列舉型（壓縮+60k limit），但跳過 Seq Query
             _multi_enumerate = bool(_listed_schools and len(_listed_schools) > 5 and not _list)
             if _multi_enumerate:
-                print(f"[ASK] 多校追問({len(_listed_schools)}間) → 逐一列出模式")
+                _list = True
+                print(f"[ASK] 多校追問({len(_listed_schools)}間) → 強制列舉型（跳過SeqQuery）")
 
             # ④ Voyage AI 平行 embed
             if _listed_schools:
@@ -1392,6 +1393,7 @@ def ask():
             inv = _inv_indexes.get(year) or _inv_indexes.get("114")
             _seq_trigger = (
                 inv and
+                not _multi_enumerate and  # 多校追問不跑 Seq Query（_q_terms 無效）
                 (_list or (_usr_topic and _usr_topic_kws and _faiss_src_count > _KW_THRESHOLD))
             )
             if _seq_trigger:
