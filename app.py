@@ -1425,6 +1425,9 @@ def ask():
                 context = "\n\n".join(faiss_texts)
             if len(context) > _CTX_CHAR_LIMIT:
                 context = context[:_CTX_CHAR_LIMIT]
+            # 列舉型：在 context 前加提示，讓 LLM 直接列出所有計畫，不再自行過濾
+            if _list and annotated:
+                context = "【以下計畫均已通過關鍵字相關性篩選，請將所有出現的計畫全部列出，不得自行判斷過濾。】\n\n" + context
 
             # ── 委員模式：同儕比較（同類型計畫 2~3 所其他學校）──
             if user_type == "reviewer" and _school:
