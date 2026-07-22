@@ -1344,25 +1344,23 @@ def ask():
                 (_list or (_usr_topic and _usr_topic_kws and _faiss_src_count > _KW_THRESHOLD))
             )
             if _seq_trigger:
+                _seq_topic = _usr_topic or "列舉"
                 if _list:
-                    # 列舉型：用全部類別關鍵字掃，排分機制決定相關性
-                    _all_kws: list[str] = []
-                    _seen_kws: set[str] = set()
-                    for _kws in USR_TOPIC_KEYWORDS.values():
-                        for _kw in _kws:
-                            if _kw not in _seen_kws:
-                                _seen_kws.add(_kw)
-                                _all_kws.append(_kw)
-                    _seq_kws = _all_kws
-                    _seq_topic = _usr_topic or "列舉"
+                    # 列舉型：用議題關鍵字 + LLM 生成詞（精準找相關學校，不用全部關鍵字）
+                    _seq_kws = list(_usr_topic_kws) if _usr_topic_kws else []
+                    # 加入 LLM 生成詞中有在索引的詞（提升召回）
+                    if _llm_kw_list:
+                        _inv_kws_from_llm = [k for k in _llm_kw_list if k in inv]
+                        for k in _inv_kws_from_llm:
+                            if k not in _seq_kws:
+                                _seq_kws.append(k)
                 else:
                     _seq_kws = _usr_topic_kws
-                    _seq_topic = _usr_topic
                 print(f"[SEQ] 啟動全庫掃描（議題：{_seq_topic}，list={_list}，faiss_src={_faiss_src_count}，關鍵字數={len(_seq_kws)}）")
                 annotated = _seq_query_by_index(_seq_kws, _seq_topic, inv,
                                                 dedup_by_source=_list,
                                                 min_hits=1 if _list else 3)
-                # 列舉型：LLM 生成的詞也即時掃描（補足索引未涵蓋的詞彙）
+                # 列舉型：LLM 生成詞即時掃描（補足索引沒有的詞，如「流浪動物」「收容所」）
                 if _list and _llm_kw_list:
                     _live_results = _seq_query_live(_llm_kw_list, _seq_topic, vs)
                     if _live_results:
