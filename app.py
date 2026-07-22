@@ -1065,24 +1065,42 @@ llm_fast = ChatGoogleGenerativeAI(
 
 vectorstores: dict = {}
 retriever = None
-for _yr in ("114", "113"):
-    try:
-        vs = load_or_build_index(_yr)
-        vectorstores[_yr] = vs
-        if _yr == "114":
-            retriever = vs.as_retriever(search_type="similarity", search_kwargs={"k": TOP_K})
-        print(f"[APP] RAG {_yr} 就緒。")
-    except FileNotFoundError as e:
-        vectorstores[_yr] = None
-        print(f"[APP] 警告 {_yr}：{e}")
+try:
+    vs = load_or_build_index("114")
+    vectorstores["114"] = vs
+    retriever = vs.as_retriever(search_type="similarity", search_kwargs={"k": TOP_K})
+    print("[APP] RAG 114 就緒。")
+except FileNotFoundError as e:
+    vectorstores["114"] = None
+    print(f"[APP] 警告 114：{e}")
 
 vectorstore = vectorstores.get("114")  # backwards-compat alias
 
 # ── 倒排索引（啟動時建立，涵蓋所有 USR_TOPIC_KEYWORDS）──
 _inv_indexes: dict[str, dict] = {}
-for _yr, _vs in vectorstores.items():
-    if _vs is not None:
-        _inv_indexes[_yr] = _build_inverted_index(_vs)
+if vectorstores.get("114"):
+    _inv_indexes["114"] = _build_inverted_index(vectorstores["114"])
+
+# ── 懶載入鎖（113 年首次請求時才載）──
+import threading
+_lazy_load_lock = threading.Lock()
+
+def _ensure_year_loaded(year: str) -> None:
+    """113 年索引懶載入，只有第一次被請求時才從磁碟載入並建倒排索引。"""
+    if year == "114" or vectorstores.get(year) is not None:
+        return
+    with _lazy_load_lock:
+        if vectorstores.get(year) is not None:
+            return
+        print(f"[APP] 懶載入 {year} 年索引...")
+        try:
+            _vs = load_or_build_index(year)
+            vectorstores[year] = _vs
+            _inv_indexes[year] = _build_inverted_index(_vs)
+            print(f"[APP] {year} 年索引就緒。")
+        except FileNotFoundError as e:
+            vectorstores[year] = None
+            print(f"[APP] 警告 {year}：{e}")
 
 init_qa()
 
@@ -1161,6 +1179,7 @@ def ask():
     year = (data.get("year") or "114").strip()
     if year not in ("113", "114"):
         year = "114"
+    _ensure_year_loaded(year)
     vs = vectorstores.get(year) or vectorstores.get("114")
 
     if not question:
@@ -1770,6 +1789,7 @@ def _dedup_by_school(docs, k: int):
 
 def tool_search_rag(query: str, k: int = 5, year: str = "114"):
     """回傳 (觀察文字, sources列表)"""
+    _ensure_year_loaded(year)
     _vs = vectorstores.get(year, vectorstores.get("114"))
     print(f"[TOOL] 搜尋（{year}年）：{query[:60]}  vectorstore={'OK' if _vs else 'None'}")
     vec = embeddings.embed_query(query)
@@ -1818,6 +1838,7 @@ def subagent_ask():
     year = (data.get("year") or "114").strip()
     if year not in ("113", "114"):
         year = "114"
+    _ensure_year_loaded(year)
     vs = vectorstores.get(year) or vectorstores.get("114")
 
     if vs is None:
