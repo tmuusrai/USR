@@ -1521,7 +1521,7 @@ def ask():
 
             # ③ LLM：串流生成
             if _list:
-                _active_llm = llm_fast.bind(thinking_budget=0)  # 列舉型：Flash 無思考最快
+                _active_llm = llm_fast.bind(thinking_budget=0, temperature=0)  # 列舉型：固定輸出，避免件數飄移
             elif bool(_school) and not _usr_topic:
                 _active_llm = llm_fast  # 事實查詢：Flash 有思考
             else:
