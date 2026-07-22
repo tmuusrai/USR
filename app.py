@@ -1273,8 +1273,8 @@ def ask():
                         break
                 print(f"[ASK] 多校清單追問，偵測到 {len(_listed_schools)} 間：{_listed_schools}")
 
-            # ③-b 關鍵字索引快速過濾（歷史追問未命中時才跑）
-            if not _listed_schools and not _school:
+            # ③-b 關鍵字索引快速過濾（歷史追問未命中時才跑；列舉型問題跳過，改用 Sequential Query 廣搜）
+            if not _listed_schools and not _school and not _list:
                 _kw_hit = _keyword_lookup(search_question, year)
                 if _kw_hit:
                     _listed_schools = _kw_hit
