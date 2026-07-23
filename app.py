@@ -39,7 +39,7 @@ GOOGLE_API_KEY  = os.getenv("GOOGLE_API_KEY")
 SITE_USERNAME   = os.getenv("SITE_USERNAME", "")
 SITE_PASSWORD   = os.getenv("SITE_PASSWORD", "")
 
-_SITE_USERS_FILE = Path("/etc/site_users.json")
+_SITE_USERS_FILE = Path("site_users.json")
 def _load_site_users() -> dict:
     if _SITE_USERS_FILE.exists():
         try:
