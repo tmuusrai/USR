@@ -1658,7 +1658,7 @@ def _extract_query_terms(q: str) -> list[str]:
     result = []
     for p in parts:
         p = _QUERY_FILLER_RE.sub('', p).strip().rstrip('有')
-        if 2 <= len(p) <= 6:
+        if 2 <= len(p) <= 10:
             result.append(p)
     return list(dict.fromkeys(result))
 
