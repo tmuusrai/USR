@@ -38,6 +38,18 @@ app.config["PERMANENT_SESSION_LIFETIME"] = __import__("datetime").timedelta(days
 GOOGLE_API_KEY  = os.getenv("GOOGLE_API_KEY")
 SITE_USERNAME   = os.getenv("SITE_USERNAME", "")
 SITE_PASSWORD   = os.getenv("SITE_PASSWORD", "")
+
+_SITE_USERS_FILE = Path("/etc/site_users.json")
+def _load_site_users() -> dict:
+    if _SITE_USERS_FILE.exists():
+        try:
+            return json.loads(_SITE_USERS_FILE.read_text(encoding="utf-8"))
+        except Exception:
+            pass
+    if SITE_USERNAME and SITE_PASSWORD:
+        return {SITE_USERNAME: [SITE_PASSWORD]}
+    return {}
+SITE_USERS = _load_site_users()
 VOYAGE_API_KEY  = os.getenv("VOYAGE_API_KEY")
 CHUNK_SIZE      = int(os.getenv("CHUNK_SIZE", 800))
 CHUNK_OVERLAP   = int(os.getenv("CHUNK_OVERLAP", 100))
@@ -1164,9 +1176,13 @@ def index():
 @app.route("/login", methods=["POST"])
 def login():
     data = request.get_json(silent=True) or {}
-    username_ok = not SITE_USERNAME or data.get("username") == SITE_USERNAME
-    password_ok = not SITE_PASSWORD or data.get("password") == SITE_PASSWORD
-    if username_ok and password_ok:
+    if not SITE_USERS:
+        valid = True
+    else:
+        u = data.get("username", "")
+        p = data.get("password", "")
+        valid = u in SITE_USERS and p in SITE_USERS[u]
+    if valid:
         session.permanent = True
         session["authenticated"] = True
         return jsonify({"ok": True})
