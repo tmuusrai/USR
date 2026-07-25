@@ -5,6 +5,8 @@ import json
 import time
 import queue as _queue
 import threading
+import sqlite3
+import uuid as _uuid
 from concurrent.futures import ThreadPoolExecutor
 from collections import OrderedDict
 from pathlib import Path
@@ -50,6 +52,37 @@ def _load_site_users() -> dict:
         return {SITE_USERNAME: [SITE_PASSWORD]}
     return {}
 SITE_USERS = _load_site_users()
+
+def _get_db():
+    conn = sqlite3.connect(str(CONV_DB_PATH))
+    conn.row_factory = sqlite3.Row
+    conn.execute("PRAGMA foreign_keys = ON")
+    return conn
+
+def _init_conv_db():
+    with _get_db() as conn:
+        conn.executescript("""
+            CREATE TABLE IF NOT EXISTS conversations (
+                id TEXT PRIMARY KEY,
+                user_id TEXT NOT NULL,
+                title TEXT NOT NULL DEFAULT '新對話',
+                created_at REAL NOT NULL,
+                updated_at REAL NOT NULL
+            );
+            CREATE TABLE IF NOT EXISTS conv_messages (
+                id TEXT PRIMARY KEY,
+                conversation_id TEXT NOT NULL,
+                role TEXT NOT NULL,
+                content TEXT NOT NULL,
+                timestamp REAL NOT NULL,
+                FOREIGN KEY (conversation_id) REFERENCES conversations(id) ON DELETE CASCADE
+            );
+            CREATE INDEX IF NOT EXISTS idx_conv_user ON conversations(user_id, updated_at DESC);
+            CREATE INDEX IF NOT EXISTS idx_msg_conv ON conv_messages(conversation_id, timestamp ASC);
+        """)
+
+_init_conv_db()
+
 VOYAGE_API_KEY  = os.getenv("VOYAGE_API_KEY")
 CHUNK_SIZE      = int(os.getenv("CHUNK_SIZE", 800))
 CHUNK_OVERLAP   = int(os.getenv("CHUNK_OVERLAP", 100))
@@ -64,6 +97,8 @@ INDEX_DIR       = Path("faiss_index")
 
 MD_DIR_113      = Path("113md")
 INDEX_DIR_113   = Path("faiss_index_113")
+
+CONV_DB_PATH    = Path(os.getenv("CONV_DB_PATH", "conversations.db"))
 
 # ── Embedding 模型（全域共用，避免重複初始化）──────────
 class _CachedEmbeddings(Embeddings):
@@ -1185,6 +1220,7 @@ def login():
     if valid:
         session.permanent = True
         session["authenticated"] = True
+        session["username"] = data.get("username", "") if SITE_USERS else ""
         return jsonify({"ok": True})
     return jsonify({"ok": False, "error": "帳號或密碼錯誤，請再試一次。"}), 401
 
@@ -1193,6 +1229,76 @@ def login():
 def logout():
     session.pop("authenticated", None)
     return redirect(url_for("index"))
+
+
+@app.route("/api/conversations", methods=["GET"])
+def api_list_conversations():
+    if not session.get("authenticated"):
+        return jsonify({"error": "unauthorized"}), 401
+    user_id = session.get("username", "")
+    with _get_db() as conn:
+        rows = conn.execute(
+            "SELECT id, title, created_at, updated_at FROM conversations WHERE user_id=? ORDER BY updated_at DESC LIMIT 100",
+            (user_id,)
+        ).fetchall()
+    return jsonify([dict(r) for r in rows])
+
+@app.route("/api/conversations", methods=["POST"])
+def api_create_conversation():
+    if not session.get("authenticated"):
+        return jsonify({"error": "unauthorized"}), 401
+    user_id = session.get("username", "")
+    data = request.get_json() or {}
+    conv_id = data.get("id") or str(_uuid.uuid4())
+    title = data.get("title", "新對話")
+    now = time.time()
+    with _get_db() as conn:
+        conn.execute(
+            "INSERT OR IGNORE INTO conversations (id, user_id, title, created_at, updated_at) VALUES (?,?,?,?,?)",
+            (conv_id, user_id, title, now, now)
+        )
+    return jsonify({"id": conv_id})
+
+@app.route("/api/conversations/<conv_id>", methods=["GET"])
+def api_get_conversation(conv_id):
+    if not session.get("authenticated"):
+        return jsonify({"error": "unauthorized"}), 401
+    user_id = session.get("username", "")
+    with _get_db() as conn:
+        conv = conn.execute("SELECT id, title, user_id FROM conversations WHERE id=?", (conv_id,)).fetchone()
+        if not conv or conv["user_id"] != user_id:
+            return jsonify({"error": "not found"}), 404
+        messages = conn.execute(
+            "SELECT role, content, timestamp FROM conv_messages WHERE conversation_id=? ORDER BY timestamp ASC",
+            (conv_id,)
+        ).fetchall()
+    return jsonify({"id": conv_id, "title": conv["title"], "messages": [dict(m) for m in messages]})
+
+@app.route("/api/conversations/<conv_id>", methods=["DELETE"])
+def api_delete_conversation(conv_id):
+    if not session.get("authenticated"):
+        return jsonify({"error": "unauthorized"}), 401
+    user_id = session.get("username", "")
+    with _get_db() as conn:
+        conv = conn.execute("SELECT user_id FROM conversations WHERE id=?", (conv_id,)).fetchone()
+        if not conv or conv["user_id"] != user_id:
+            return jsonify({"error": "not found"}), 404
+        conn.execute("DELETE FROM conversations WHERE id=?", (conv_id,))
+    return jsonify({"ok": True})
+
+@app.route("/api/conversations/<conv_id>/title", methods=["PATCH"])
+def api_update_title(conv_id):
+    if not session.get("authenticated"):
+        return jsonify({"error": "unauthorized"}), 401
+    user_id = session.get("username", "")
+    data = request.get_json() or {}
+    title = (data.get("title") or "").strip()[:50] or "新對話"
+    with _get_db() as conn:
+        conv = conn.execute("SELECT user_id FROM conversations WHERE id=?", (conv_id,)).fetchone()
+        if not conv or conv["user_id"] != user_id:
+            return jsonify({"error": "not found"}), 404
+        conn.execute("UPDATE conversations SET title=?, updated_at=? WHERE id=?", (title, time.time(), conv_id))
+    return jsonify({"ok": True})
 
 
 @app.route("/ask", methods=["POST"])
@@ -1206,6 +1312,8 @@ def ask():
     data = request.get_json(silent=True) or {}
     question = (data.get("question") or "").strip()
     chat_id   = (data.get("chat_id") or "").strip()
+    conv_id   = (data.get("conv_id") or "").strip()
+    user_id   = session.get("username", "")
     user_type = (data.get("user_type") or "applicant").strip()
     if user_type not in ("applicant", "reviewer"):
         user_type = "applicant"
@@ -1277,6 +1385,25 @@ def ask():
                 yield f"data: {json.dumps({'type': 'sources', 'sources': []}, ensure_ascii=False)}\n\n"
                 yield f"data: {json.dumps({'type': 'chunk', 'text': _CLARIFY_MSG}, ensure_ascii=False)}\n\n"
                 total_ms = round((time.perf_counter() - t0) * 1000)
+                if conv_id and user_id:
+                    try:
+                        _now = time.time()
+                        with _get_db() as _conn:
+                            _conn.execute(
+                                "INSERT OR IGNORE INTO conversations (id, user_id, title, created_at, updated_at) VALUES (?,?,?,?,?)",
+                                (conv_id, user_id, question[:30] if question else "新對話", _now, _now)
+                            )
+                            _conn.execute(
+                                "INSERT OR IGNORE INTO conv_messages (id, conversation_id, role, content, timestamp) VALUES (?,?,?,?,?)",
+                                (str(_uuid.uuid4()), conv_id, "user", question, _now - 0.001)
+                            )
+                            _conn.execute(
+                                "INSERT OR IGNORE INTO conv_messages (id, conversation_id, role, content, timestamp) VALUES (?,?,?,?,?)",
+                                (str(_uuid.uuid4()), conv_id, "assistant", _CLARIFY_MSG, _now)
+                            )
+                            _conn.execute("UPDATE conversations SET updated_at=? WHERE id=?", (_now, conv_id))
+                    except Exception as _e:
+                        print(f"[CONV] 儲存對話失敗: {_e}")
                 yield f"data: {json.dumps({'type': 'done', 'timing': {'total_ms': total_ms}, 'mode': 'clarify', 'original_question': question}, ensure_ascii=False)}\n\n"
                 return
 
@@ -1286,6 +1413,28 @@ def ask():
                 yield f"data: {json.dumps({'type': 'sources', 'sources': []}, ensure_ascii=False)}\n\n"
                 yield f"data: {json.dumps({'type': 'chunk', 'text': structured_ctx}, ensure_ascii=False)}\n\n"
                 total_ms = round((time.perf_counter() - t0) * 1000)
+                if conv_id and user_id:
+                    try:
+                        _now = time.time()
+                        with _get_db() as _conn:
+                            _conn.execute(
+                                "INSERT OR IGNORE INTO conversations (id, user_id, title, created_at, updated_at) VALUES (?,?,?,?,?)",
+                                (conv_id, user_id, question[:30] if question else "新對話", _now, _now)
+                            )
+                            _existing = _conn.execute("SELECT title FROM conversations WHERE id=?", (conv_id,)).fetchone()
+                            if _existing and _existing["title"] == "新對話" and question:
+                                _conn.execute("UPDATE conversations SET title=? WHERE id=?", (question[:30], conv_id))
+                            _conn.execute(
+                                "INSERT OR IGNORE INTO conv_messages (id, conversation_id, role, content, timestamp) VALUES (?,?,?,?,?)",
+                                (str(_uuid.uuid4()), conv_id, "user", question, _now - 0.001)
+                            )
+                            _conn.execute(
+                                "INSERT OR IGNORE INTO conv_messages (id, conversation_id, role, content, timestamp) VALUES (?,?,?,?,?)",
+                                (str(_uuid.uuid4()), conv_id, "assistant", structured_ctx, _now)
+                            )
+                            _conn.execute("UPDATE conversations SET updated_at=? WHERE id=?", (_now, conv_id))
+                    except Exception as _e:
+                        print(f"[CONV] 儲存對話失敗: {_e}")
                 yield f"data: {json.dumps({'type': 'done', 'timing': {'total_ms': total_ms}, 'mode': 'structured'})}\n\n"
                 suggestions = _generate_suggestions(question, structured_ctx)
                 if suggestions:
@@ -1308,14 +1457,36 @@ def ask():
                             answer_parts.append(piece)
                             yield f"data: {json.dumps({'type': 'chunk', 'text': piece}, ensure_ascii=False)}\n\n"
                     total_ms = round((time.perf_counter() - t0) * 1000)
-                    yield f"data: {json.dumps({'type': 'done', 'timing': {'total_ms': total_ms}, 'mode': 'full_plan'})}\n\n"
                     full_ans = "".join(answer_parts)
+                    if conv_id and user_id:
+                        try:
+                            _now = time.time()
+                            with _get_db() as _conn:
+                                _conn.execute(
+                                    "INSERT OR IGNORE INTO conversations (id, user_id, title, created_at, updated_at) VALUES (?,?,?,?,?)",
+                                    (conv_id, user_id, question[:30] if question else "新對話", _now, _now)
+                                )
+                                _existing = _conn.execute("SELECT title FROM conversations WHERE id=?", (conv_id,)).fetchone()
+                                if _existing and _existing["title"] == "新對話" and question:
+                                    _conn.execute("UPDATE conversations SET title=? WHERE id=?", (question[:30], conv_id))
+                                _conn.execute(
+                                    "INSERT OR IGNORE INTO conv_messages (id, conversation_id, role, content, timestamp) VALUES (?,?,?,?,?)",
+                                    (str(_uuid.uuid4()), conv_id, "user", question, _now - 0.001)
+                                )
+                                _conn.execute(
+                                    "INSERT OR IGNORE INTO conv_messages (id, conversation_id, role, content, timestamp) VALUES (?,?,?,?,?)",
+                                    (str(_uuid.uuid4()), conv_id, "assistant", full_ans, _now)
+                                )
+                                _conn.execute("UPDATE conversations SET updated_at=? WHERE id=?", (_now, conv_id))
+                        except Exception as _e:
+                            print(f"[CONV] 儲存對話失敗: {_e}")
                     if chat_id:
                         hist = _chat_history.setdefault(chat_id, [])
                         hist.append({"q": question, "a": full_ans[:5000],
                              "plans": _extract_listed_plans(full_ans)})
                         if len(hist) > _MAX_HISTORY:
                             hist.pop(0)
+                    yield f"data: {json.dumps({'type': 'done', 'timing': {'total_ms': total_ms}, 'mode': 'full_plan'})}\n\n"
                     suggestions = _generate_suggestions(question, full_ans)
                     if suggestions:
                         yield f"data: {json.dumps({'type': 'suggested_questions', 'questions': suggestions}, ensure_ascii=False)}\n\n"
@@ -1617,11 +1788,36 @@ def ask():
             if suggestions:
                 yield f"data: {json.dumps({'type': 'suggested_questions', 'questions': suggestions}, ensure_ascii=False)}\n\n"
 
+            # ── 儲存對話到 SQLite ──
+            _full_answer = "".join(answer_parts)
+            if conv_id and user_id:
+                try:
+                    _now = time.time()
+                    with _get_db() as _conn:
+                        _conn.execute(
+                            "INSERT OR IGNORE INTO conversations (id, user_id, title, created_at, updated_at) VALUES (?,?,?,?,?)",
+                            (conv_id, user_id, question[:30] if question else "新對話", _now, _now)
+                        )
+                        _existing = _conn.execute("SELECT title FROM conversations WHERE id=?", (conv_id,)).fetchone()
+                        if _existing and _existing["title"] == "新對話" and question:
+                            _conn.execute("UPDATE conversations SET title=? WHERE id=?", (question[:30], conv_id))
+                        _conn.execute(
+                            "INSERT OR IGNORE INTO conv_messages (id, conversation_id, role, content, timestamp) VALUES (?,?,?,?,?)",
+                            (str(_uuid.uuid4()), conv_id, "user", question, _now - 0.001)
+                        )
+                        _conn.execute(
+                            "INSERT OR IGNORE INTO conv_messages (id, conversation_id, role, content, timestamp) VALUES (?,?,?,?,?)",
+                            (str(_uuid.uuid4()), conv_id, "assistant", _full_answer, _now)
+                        )
+                        _conn.execute("UPDATE conversations SET updated_at=? WHERE id=?", (_now, conv_id))
+                except Exception as _e:
+                    print(f"[CONV] 儲存對話失敗: {_e}")
+
             yield f"data: {json.dumps({'type': 'done', 'timing': timing})}\n\n"
 
             # ── 儲存對話記憶 ──
             if chat_id:
-                full_ans = "".join(answer_parts)
+                full_ans = _full_answer
                 hist = _chat_history.setdefault(chat_id, [])
                 # 多校追問時保留原始清單（而非從新答案重新提取，避免清單縮水）
                 saved_plans = _listed_schools if _listed_schools else _extract_listed_plans(full_ans)

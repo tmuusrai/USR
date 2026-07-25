@@ -13,7 +13,7 @@ body{font-family:"Segoe UI","Noto Sans TC",sans-serif;background:#f5f7fa;height:
 #layout{display:flex;flex:1;overflow:hidden}
 
 /* SIDEBAR */
-#sidebar{width:252px;background:#fff;border-right:1px solid #e2e8f0;display:flex;flex-direction:column;flex-shrink:0;overflow-y:auto}
+#sidebar{width:252px;background:#fff;border-right:1px solid #e2e8f0;display:flex;flex-direction:column;flex-shrink:0;overflow-y:hidden}
 #sidebar::-webkit-scrollbar{width:4px}
 #sidebar::-webkit-scrollbar-thumb{background:#e2e8f0;border-radius:4px}
 .sb-title{padding:16px 18px 8px;font-size:.67rem;color:#94a3b8;text-transform:uppercase;letter-spacing:.12em;font-weight:700}
@@ -103,6 +103,73 @@ body{font-family:"Segoe UI","Noto Sans TC",sans-serif;background:#f5f7fa;height:
 .rag-src{font-size:.71rem;color:#64748b;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .rag-text{font-size:.74rem;color:#475569;line-height:1.55;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
 .rag-page{font-size:.67rem;color:#94a3b8;margin-top:4px}
+
+/* ── CONVERSATION SIDEBAR ── */
+.new-conv-btn {
+  display: block;
+  width: calc(100% - 24px);
+  margin: 12px;
+  padding: 10px 16px;
+  background: #1e40af;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 0.88rem;
+  font-weight: 600;
+  cursor: pointer;
+  text-align: left;
+}
+.new-conv-btn:hover { background: #1e3a8a; }
+
+#conv-list { padding: 0 8px; flex: 1; overflow-y: auto; }
+.conv-date-label {
+  font-size: 0.72rem;
+  color: #6b7280;
+  font-weight: 600;
+  padding: 8px 8px 4px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+.conv-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 10px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 0.84rem;
+  color: #374151;
+  margin-bottom: 2px;
+}
+.conv-item:hover { background: #f3f4f6; }
+.conv-item.active { background: #dbeafe; color: #1e40af; font-weight: 600; }
+.conv-item-title { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.conv-del-btn {
+  opacity: 0;
+  background: none;
+  border: none;
+  color: #9ca3af;
+  cursor: pointer;
+  font-size: 0.9rem;
+  padding: 2px 4px;
+  border-radius: 4px;
+  flex-shrink: 0;
+}
+.conv-item:hover .conv-del-btn { opacity: 1; }
+.conv-del-btn:hover { color: #ef4444; background: #fee2e2; }
+.sb-section-toggle {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 16px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: #6b7280;
+  cursor: pointer;
+  border-top: 1px solid #f3f4f6;
+  margin-top: 8px;
+}
+.sb-section-toggle:hover { color: #374151; }
 
 /* ── LOGIN OVERLAY ── */
 #login-overlay{position:fixed;inset:0;z-index:999;background:linear-gradient(135deg,#1e3a8a 0%,#1e40af 50%,#2563eb 100%);display:flex;align-items:center;justify-content:center}
@@ -196,7 +263,19 @@ body{font-family:"Segoe UI","Noto Sans TC",sans-serif;background:#f5f7fa;height:
 <div id="layout">
 
 <div id="sidebar">
-  <div class="sb-title">功能導覽</div>
+  <!-- New conversation button -->
+  <button class="new-conv-btn" onclick="newConversation()">✏️ 新對話</button>
+
+  <!-- Conversation history -->
+  <div id="conv-list">
+    <!-- Populated by JS -->
+  </div>
+
+  <!-- Feature nav (collapsible) -->
+  <div class="sb-section-toggle" onclick="toggleFuncNav(this)">
+    <span>功能導覽</span><span class="nav-arrow">▶</span>
+  </div>
+  <div id="func-nav" style="display:none">
 
   <div class="nav-item open" onclick="toggleNav(this)">
     <div class="nav-header active">
@@ -331,6 +410,7 @@ body{font-family:"Segoe UI","Noto Sans TC",sans-serif;background:#f5f7fa;height:
       <div class="sub-q" onclick="submitQ('國際合作的志願服務計畫有哪些？')">國際合作志願服務計畫</div>
     </div>
   </div>
+  </div><!-- /#func-nav -->
 </div>
 
 <!-- MAIN -->
@@ -420,7 +500,107 @@ body{font-family:"Segoe UI","Noto Sans TC",sans-serif;background:#f5f7fa;height:
 </div>
 
 <script>
-const chatId = crypto.randomUUID();
+let chatId = crypto.randomUUID();
+
+// ── Conversation management ──
+let currentConvId = null;
+let convIsNew = true;
+
+async function loadConversations() {
+  try {
+    const res = await fetch("/api/conversations");
+    if (!res.ok) return;
+    const convs = await res.json();
+    renderConvList(convs);
+  } catch(e) {}
+}
+
+function renderConvList(convs) {
+  const el = document.getElementById("conv-list");
+  if (!convs.length) {
+    el.innerHTML = '<div style="padding:16px 12px;font-size:0.82rem;color:#9ca3af;">尚無對話紀錄</div>';
+    return;
+  }
+  const now = Date.now() / 1000;
+  const groups = { "今天": [], "昨天": [], "本週": [], "更早": [] };
+  convs.forEach(c => {
+    const age = now - c.updated_at;
+    if (age < 86400) groups["今天"].push(c);
+    else if (age < 172800) groups["昨天"].push(c);
+    else if (age < 604800) groups["本週"].push(c);
+    else groups["更早"].push(c);
+  });
+  let html = "";
+  for (const [label, items] of Object.entries(groups)) {
+    if (!items.length) continue;
+    html += `<div class="conv-date-label">${label}</div>`;
+    items.forEach(c => {
+      const active = c.id === currentConvId ? " active" : "";
+      html += `<div class="conv-item${active}" onclick="loadConversation('${c.id}')" data-id="${c.id}">
+        <span class="conv-item-title">${escHtml(c.title)}</span>
+        <button class="conv-del-btn" onclick="event.stopPropagation();deleteConversation('${c.id}')" title="刪除">✕</button>
+      </div>`;
+    });
+  }
+  el.innerHTML = html;
+}
+
+function escHtml(s) {
+  return s.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
+}
+
+async function newConversation() {
+  currentConvId = crypto.randomUUID();
+  convIsNew = true;
+  chatId = crypto.randomUUID();
+  document.getElementById("messages").innerHTML = "";
+  const ragContent = document.getElementById("rag-body");
+  if (ragContent) ragContent.innerHTML = '<div class="rag-empty"><span class="ico">🔍</span>提問後將顯示<br>引用的計畫書段落</div>';
+  document.querySelectorAll(".conv-item").forEach(el => el.classList.remove("active"));
+}
+
+async function loadConversation(convId) {
+  try {
+    const res = await fetch(`/api/conversations/${convId}`);
+    if (!res.ok) return;
+    const data = await res.json();
+    currentConvId = convId;
+    convIsNew = false;
+    chatId = crypto.randomUUID();
+
+    const box = document.getElementById("messages");
+    box.innerHTML = "";
+    data.messages.forEach(m => {
+      const el = appendMsg(m.content, m.role === "user" ? "user" : "bot");
+      if (m.role === "assistant") el.innerHTML = renderAnswer(m.content);
+    });
+    box.scrollTop = box.scrollHeight;
+
+    document.querySelectorAll(".conv-item").forEach(el => {
+      el.classList.toggle("active", el.dataset.id === convId);
+    });
+
+    if (window.innerWidth <= 768) closePanels();
+  } catch(e) { console.error(e); }
+}
+
+async function deleteConversation(convId) {
+  if (!confirm("確定刪除這個對話？")) return;
+  await fetch(`/api/conversations/${convId}`, {method: "DELETE"});
+  if (currentConvId === convId) {
+    currentConvId = null;
+    document.getElementById("messages").innerHTML = "";
+  }
+  loadConversations();
+}
+
+function toggleFuncNav(el) {
+  const nav = document.getElementById("func-nav");
+  const arrow = el.querySelector(".nav-arrow");
+  const hidden = nav.style.display === "none";
+  nav.style.display = hidden ? "block" : "none";
+  arrow.textContent = hidden ? "▼" : "▶";
+}
 
 // 從計畫總覽頁點卡片跳回時，自動帶入問題
 (function(){
@@ -495,6 +675,8 @@ function setYear(year, btn) {
     msgs.innerHTML = `<div id="year-switch-notice" style="text-align:center;color:#94a3b8;font-size:0.85rem;padding:24px 0">已切換至 ${year} 年度，對話已清空</div>`;
   }
   chatId = null;
+  currentConvId = null;
+  convIsNew = true;
 }
 let pendingQuestion = null;  // stores original eval question waiting for user criteria
 const PLACEHOLDERS = {
@@ -603,6 +785,13 @@ async function askQuestion() {
   const qEl = document.getElementById("question");
   const question = qEl.value.trim();
   if (!question) return;
+
+  // Ensure we have a conversation ID
+  if (!currentConvId) {
+    currentConvId = crypto.randomUUID();
+    convIsNew = true;
+  }
+
   const notice = document.getElementById("year-switch-notice");
   if (notice) notice.remove();
   appendMsg(question, "user");
@@ -620,7 +809,7 @@ async function askQuestion() {
 
 
   try {
-    const body = { question, chat_id: chatId, user_type: currentUserType, reviewer_subtype: currentReviewerSubtype, year: currentYear };
+    const body = { question, chat_id: chatId, conv_id: currentConvId, user_type: currentUserType, reviewer_subtype: currentReviewerSubtype, year: currentYear };
     if (pendingQuestion) {
       body.original_question = pendingQuestion;
       pendingQuestion = null;
@@ -693,6 +882,8 @@ async function askQuestion() {
             }
           }).catch(() => {});
         }
+        // Refresh conversation sidebar
+        loadConversations();
       } else if (evt.type === "suggested_questions") {
         suggestionsReceived = true;
         renderSuggestions(evt.questions, botEl);
@@ -1168,6 +1359,7 @@ async function doLogin() {
 
 checkStatus();
 fetch("/warmup").catch(() => {});
+loadConversations();
 
 function setFontSize(size, btn) {
   const sizes = {small:'16px', medium:'19px', large:'22px'};
