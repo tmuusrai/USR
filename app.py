@@ -1458,6 +1458,13 @@ def ask():
                 if _list:
                     # 列舉型：直接用整個議題的所有關鍵字廣搜，同議題都算相關
                     _seq_kws = list(_usr_topic_kws) if _usr_topic_kws else []
+                    # 問題提取詞 + LLM生成詞，只要有在分類表裡 → 觸發整個分類擴充
+                    for kw in (_q_terms + _llm_kw_list):
+                        for topic_kws in USR_TOPIC_KEYWORDS.values():
+                            if kw in topic_kws:
+                                for tk in topic_kws:
+                                    if tk not in _seq_kws:
+                                        _seq_kws.append(tk)
                     # 加入問題直接提取的詞（補足 topic kws 沒有的問題詞，如「海洋」）
                     for k in _q_terms:
                         if k in inv and k not in _seq_kws:
