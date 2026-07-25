@@ -1456,15 +1456,8 @@ def ask():
                 _seq_topic = _usr_topic or "列舉"
                 _q_terms = _extract_query_terms(question) if _list else []
                 if _list:
-                    # 列舉型：以問題直接匹配的 topic 詞為基底，字元共享擴充同族詞
-                    # 確保 context 只包含問題相關計畫，讓 LLM 無需自行過濾
-                    query_matched_kws = [kw for kw in (_usr_topic_kws or []) if kw in question]
-                    _seq_kws = list(query_matched_kws) if query_matched_kws else list(_usr_topic_kws) if _usr_topic_kws else []
-                    if query_matched_kws and _usr_topic_kws:
-                        q_chars = set(''.join(query_matched_kws))  # 只用確定詞，不用 _q_terms 避免雜詞干擾
-                        for kw in _usr_topic_kws:
-                            if kw not in _seq_kws and any(c in q_chars for c in kw):
-                                _seq_kws.append(kw)
+                    # 列舉型：直接用整個議題的所有關鍵字廣搜，同議題都算相關
+                    _seq_kws = list(_usr_topic_kws) if _usr_topic_kws else []
                     # 加入問題直接提取的詞（補足 topic kws 沒有的問題詞，如「海洋」）
                     for k in _q_terms:
                         if k in inv and k not in _seq_kws:
