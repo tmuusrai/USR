@@ -1313,7 +1313,7 @@ def ask():
     question = (data.get("question") or "").strip()
     chat_id   = (data.get("chat_id") or "").strip()
     conv_id   = (data.get("conv_id") or "").strip()
-    user_id   = session.get("username", "")
+    user_id   = session.get("username") or "user"
     user_type = (data.get("user_type") or "applicant").strip()
     if user_type not in ("applicant", "reviewer"):
         user_type = "applicant"
@@ -1385,7 +1385,7 @@ def ask():
                 yield f"data: {json.dumps({'type': 'sources', 'sources': []}, ensure_ascii=False)}\n\n"
                 yield f"data: {json.dumps({'type': 'chunk', 'text': _CLARIFY_MSG}, ensure_ascii=False)}\n\n"
                 total_ms = round((time.perf_counter() - t0) * 1000)
-                if conv_id and user_id:
+                if conv_id:
                     try:
                         _now = time.time()
                         with _get_db() as _conn:
@@ -1413,7 +1413,7 @@ def ask():
                 yield f"data: {json.dumps({'type': 'sources', 'sources': []}, ensure_ascii=False)}\n\n"
                 yield f"data: {json.dumps({'type': 'chunk', 'text': structured_ctx}, ensure_ascii=False)}\n\n"
                 total_ms = round((time.perf_counter() - t0) * 1000)
-                if conv_id and user_id:
+                if conv_id:
                     try:
                         _now = time.time()
                         with _get_db() as _conn:
@@ -1458,7 +1458,7 @@ def ask():
                             yield f"data: {json.dumps({'type': 'chunk', 'text': piece}, ensure_ascii=False)}\n\n"
                     total_ms = round((time.perf_counter() - t0) * 1000)
                     full_ans = "".join(answer_parts)
-                    if conv_id and user_id:
+                    if conv_id:
                         try:
                             _now = time.time()
                             with _get_db() as _conn:

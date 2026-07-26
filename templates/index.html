@@ -1349,6 +1349,7 @@ async function doLogin() {
     const data = await res.json();
     if (data.ok) {
       document.getElementById("login-overlay").remove();
+      loadConversations();
     } else {
       errEl.textContent = data.error || "帳號或密碼錯誤，請再試一次。";
       document.getElementById("pw-input").value = "";
