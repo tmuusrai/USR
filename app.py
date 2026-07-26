@@ -1235,7 +1235,7 @@ def logout():
 def api_list_conversations():
     if not session.get("authenticated"):
         return jsonify({"error": "unauthorized"}), 401
-    user_id = session.get("username", "")
+    user_id = session.get("username") or "user"
     with _get_db() as conn:
         rows = conn.execute(
             "SELECT id, title, created_at, updated_at FROM conversations WHERE user_id=? ORDER BY updated_at DESC LIMIT 100",
@@ -1247,7 +1247,7 @@ def api_list_conversations():
 def api_create_conversation():
     if not session.get("authenticated"):
         return jsonify({"error": "unauthorized"}), 401
-    user_id = session.get("username", "")
+    user_id = session.get("username") or "user"
     data = request.get_json() or {}
     conv_id = data.get("id") or str(_uuid.uuid4())
     title = data.get("title", "新對話")
@@ -1263,7 +1263,7 @@ def api_create_conversation():
 def api_get_conversation(conv_id):
     if not session.get("authenticated"):
         return jsonify({"error": "unauthorized"}), 401
-    user_id = session.get("username", "")
+    user_id = session.get("username") or "user"
     with _get_db() as conn:
         conv = conn.execute("SELECT id, title, user_id FROM conversations WHERE id=?", (conv_id,)).fetchone()
         if not conv or conv["user_id"] != user_id:
@@ -1278,7 +1278,7 @@ def api_get_conversation(conv_id):
 def api_delete_conversation(conv_id):
     if not session.get("authenticated"):
         return jsonify({"error": "unauthorized"}), 401
-    user_id = session.get("username", "")
+    user_id = session.get("username") or "user"
     with _get_db() as conn:
         conv = conn.execute("SELECT user_id FROM conversations WHERE id=?", (conv_id,)).fetchone()
         if not conv or conv["user_id"] != user_id:
@@ -1290,7 +1290,7 @@ def api_delete_conversation(conv_id):
 def api_update_title(conv_id):
     if not session.get("authenticated"):
         return jsonify({"error": "unauthorized"}), 401
-    user_id = session.get("username", "")
+    user_id = session.get("username") or "user"
     data = request.get_json() or {}
     title = (data.get("title") or "").strip()[:50] or "新對話"
     with _get_db() as conn:
