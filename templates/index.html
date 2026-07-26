@@ -520,7 +520,7 @@ function _extractHighlightTerms(q) {
   const parts = q.split(/[\s，。？！、「」『』【】（）()：:；;,\.…]+/)
     .map(s => s.trim()).filter(s => s.length >= 2 && !_KW_STOPS.has(s));
   // 對每段用虛詞再切一次（應對無空格中文）
-  const _FILLER = /相關|計畫|哪些|有哪|有幾|哪幾|多少|大學|學校|告訴|說明|介紹|如何|列出|請問|永續|的|等/g;
+  const _FILLER = /相關|計畫|哪些|有哪|有幾|哪幾|多少|大學|學校|告訴|說明|介紹|如何|列出|請問|永續|的|等|USR/g;
   const result = [];
   parts.forEach(p => {
     const sub = p.replace(_FILLER, ' ').split(/\s+/).map(s => s.trim()).filter(s => s.length >= 2 && !_KW_STOPS.has(s));

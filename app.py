@@ -884,6 +884,17 @@ def _keyword_lookup(question: str, year: str = "114") -> list[str]:
     return ranked
 
 
+def _kw_in_question(kw: str, question: str) -> bool:
+    """關鍵字比對：精確子字串 OR 拆 bigram 全命中（處理順序顛倒，如 永續農業 ↔ 農業永續）。"""
+    if kw in question:
+        return True
+    if len(kw) >= 4:
+        parts = [kw[i:i+2] for i in range(0, len(kw) - 1, 2)]
+        if all(p in question for p in parts):
+            return True
+    return False
+
+
 def _detect_usr_topic(question: str) -> tuple[str | None, list[str]]:
     """
     偵測問題是否命中 USR 議題關鍵字清單或常見提問句型。
@@ -894,7 +905,7 @@ def _detect_usr_topic(question: str) -> tuple[str | None, list[str]]:
     kw_hits: dict[str, list[str]] = {}
 
     for topic, kws in USR_TOPIC_KEYWORDS.items():
-        matched = [kw for kw in kws if kw in question]
+        matched = [kw for kw in kws if _kw_in_question(kw, question)]
         if matched:
             kw_hits[topic] = matched
             topic_scores[topic] = topic_scores.get(topic, 0) + len(matched) * 2
@@ -917,7 +928,7 @@ def _detect_all_usr_topics(question: str) -> tuple[str | None, list[str]]:
     """列舉型專用：回傳所有有命中的議題類別，合併其關鍵字供 Sequential Query 廣搜。"""
     topic_scores: dict[str, int] = {}
     for topic, kws in USR_TOPIC_KEYWORDS.items():
-        matched = [kw for kw in kws if kw in question]
+        matched = [kw for kw in kws if _kw_in_question(kw, question)]
         if matched:
             topic_scores[topic] = len(matched) * 2
     for topic, patterns in USR_TOPIC_QUESTIONS.items():
@@ -1008,13 +1019,20 @@ def _seq_query_by_index(kws: list[str], topic: str, index: dict,
             continue
         text = _clean_plan_code(doc.page_content)
         src_name = _clean_plan_code(Path(doc.metadata.get("source", "")).stem)
-        sentences = [s.strip() for s in re.split(r'[。！？\n]', text) if len(s.strip()) > 10]
-        # 優先取使用者查詢詞出現的句子，再補其他命中詞的句子，合計最多 2 句
-        pri = [s for s in sentences if priority_kws and any(kw in s for kw in priority_kws)]
-        rest = [s for s in sentences if s not in pri and any(kw in s for kw in hits)]
-        selected = (pri[:2] + rest)[:2] if pri else rest[:2]
-        snippet = "。".join(selected) + "。" if selected else text[:120]
-        entry = f"【{src_name}】\n{snippet}"
+        if condense:
+            # 列舉型：400 字 snippet，從最近的命中關鍵字位置截取，讓 LLM 看到足夠內容
+            first_pos = min((text.find(kw) for kw in hits if text.find(kw) >= 0), default=0)
+            start = max(0, first_pos - 30)
+            snippet = text[start:start + 400]
+            entry = f"【{src_name}】\n{snippet}…"
+        else:
+            # 非列舉型：優先取使用者查詢詞的句子，再補其他命中詞句子，最多 2 句
+            sentences = [s.strip() for s in re.split(r'[。！？\n]', text) if len(s.strip()) > 10]
+            pri = [s for s in sentences if priority_kws and any(kw in s for kw in priority_kws)]
+            rest = [s for s in sentences if s not in pri and any(kw in s for kw in hits)]
+            selected = (pri[:2] + rest)[:2] if pri else rest[:2]
+            snippet = "。".join(selected) + "。" if selected else text[:120]
+            entry = f"【{src_name}】\n{snippet}"
         high.append(entry) if total >= 5 else mid.append(entry)
 
     print(f"[SEQ] 高度相關 {len(high)} 篇，部分相關 {len(mid)} 篇"
@@ -1493,7 +1511,13 @@ def ask():
             t0 = time.perf_counter()
 
             # ── 送出 highlight 詞彙供前端標記 ──
-            _hl_terms = _extract_query_terms(question)
+            # 優先：問題裡出現的 USR 議題關鍵字（確定會在文件/答案裡出現）
+            _hl_topic, _hl_topic_kws = _detect_usr_topic(question)
+            _hl_terms = [kw for kw in (_hl_topic_kws or []) if kw in question]
+            # 退回：一般抽詞，但過濾掉泛用詞（USR 每句都有，highlight 沒意義）
+            _HL_GENERIC = {"USR", "計畫", "學校", "大學"}
+            if not _hl_terms:
+                _hl_terms = [t for t in _extract_query_terms(question) if t not in _HL_GENERIC]
             if _hl_terms:
                 yield f"data: {json.dumps({'type': 'highlight_terms', 'terms': _hl_terms}, ensure_ascii=False)}\n\n"
 
