@@ -557,6 +557,7 @@ async function newConversation() {
   const ragContent = document.getElementById("rag-body");
   if (ragContent) ragContent.innerHTML = '<div class="rag-empty"><span class="ico">🔍</span>提問後將顯示<br>引用的計畫書段落</div>';
   document.querySelectorAll(".conv-item").forEach(el => el.classList.remove("active"));
+  loadConversations();
 }
 
 async function loadConversation(convId) {
