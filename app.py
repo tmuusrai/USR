@@ -867,7 +867,7 @@ def _extract_listed_schools(text: str) -> list[str]:
 _KW_THRESHOLD = 15  # 命中學校數超過此值就退回 FAISS
 
 def _keyword_lookup(question: str, year: str = "114") -> list[str]:
-    """從 keyword_index 找與問題相關的學校，超過門檻回傳空清單（退回 FAISS）。"""
+    """直接關鍵字比對：問題詞 → keyword_index → 學校清單（命中 >_KW_THRESHOLD 間則退 FAISS）。"""
     idx = _keyword_index.get(year, {})
     if not idx:
         return []
@@ -971,9 +971,10 @@ def _build_inverted_index(vs) -> dict[str, list]:
 
 
 def _seq_query_by_index(kws: list[str], topic: str, index: dict,
-                        dedup_by_source: bool = False,
+                        dedup_by_source: int = 0,
                         min_hits: int = 3,
-                        condense: bool = False) -> list[str]:
+                        condense: bool = False,
+                        priority_kws: list[str] | None = None) -> list[str]:
     """用倒排索引快速查詢命中關鍵字的 chunk，不需全表掃描。
     dedup_by_source=True 時每個來源檔案只保留命中最高的一個 chunk（列舉型用）。
     condense=True 時每筆只輸出學校名稱 + 150 字摘要（列舉型用，節省 context 空間）。
@@ -989,14 +990,15 @@ def _seq_query_by_index(kws: list[str], topic: str, index: dict,
 
     ranked = sorted(doc_scores.values(), key=lambda x: -x[1])
 
-    # 列舉型：同一來源只取命中最高的 chunk，讓每所學校只出現一次
+    # 同一來源只取命中最高的前 N 個 chunk（dedup_by_source=N，0 表示不限）
     if dedup_by_source:
-        seen_src: set[str] = set()
+        seen_src: dict[str, int] = {}
         deduped = []
         for entry in ranked:
             src = entry[0].metadata.get("source", "")
-            if src not in seen_src:
-                seen_src.add(src)
+            cnt = seen_src.get(src, 0)
+            if cnt < dedup_by_source:
+                seen_src[src] = cnt + 1
                 deduped.append(entry)
         ranked = deduped
 
@@ -1005,20 +1007,15 @@ def _seq_query_by_index(kws: list[str], topic: str, index: dict,
         if total < min_hits:
             continue
         text = _clean_plan_code(doc.page_content)
-        hit_summary = "、".join(f"{kw}×{cnt}" for kw, cnt in hits.items())
-        if condense:
-            src_name = _clean_plan_code(Path(doc.metadata.get("source", "")).stem)
-            # 從第一個命中關鍵字的位置擷取，讓 LLM 看到相關內容而非文字開頭
-            first_pos = min((text.find(kw) for kw in hits if text.find(kw) >= 0), default=0)
-            start = max(0, first_pos - 30)
-            snippet = text[start:start + 400]
-            entry = f"【{src_name}】\n{snippet}…"
-            high.append(entry) if total >= 5 else mid.append(entry)
-        else:
-            if total >= 5:
-                high.append(f"【高度相關｜{topic}｜命中：{hit_summary}】\n{text}")
-            else:
-                mid.append(f"【部分相關｜{topic}｜命中：{hit_summary}】\n{text}")
+        src_name = _clean_plan_code(Path(doc.metadata.get("source", "")).stem)
+        sentences = [s.strip() for s in re.split(r'[。！？\n]', text) if len(s.strip()) > 10]
+        # 優先取使用者查詢詞出現的句子，再補其他命中詞的句子，合計最多 2 句
+        pri = [s for s in sentences if priority_kws and any(kw in s for kw in priority_kws)]
+        rest = [s for s in sentences if s not in pri and any(kw in s for kw in hits)]
+        selected = (pri[:2] + rest)[:2] if pri else rest[:2]
+        snippet = "。".join(selected) + "。" if selected else text[:120]
+        entry = f"【{src_name}】\n{snippet}"
+        high.append(entry) if total >= 5 else mid.append(entry)
 
     print(f"[SEQ] 高度相關 {len(high)} 篇，部分相關 {len(mid)} 篇"
           + ("（已去重複）" if dedup_by_source else "")
@@ -1785,7 +1782,7 @@ def ask():
             _seq_trigger = (
                 inv and
                 not _multi_enumerate and  # 多校追問不跑 Seq Query（_q_terms 無效）
-                (_list or (_usr_topic and _usr_topic_kws and _faiss_src_count > _KW_THRESHOLD))
+                (_list or (_usr_topic and _usr_topic_kws and _faiss_src_count > 5))
             )
             if _seq_trigger:
                 _seq_topic = _usr_topic or "列舉"
@@ -1811,12 +1808,15 @@ def ask():
                             if k not in _seq_kws:
                                 _seq_kws.append(k)
                 else:
+                    # 非列舉型：問題命中議題 → 用議題所有關鍵字掃全庫
                     _seq_kws = _usr_topic_kws
                 print(f"[SEQ] 啟動全庫掃描（議題：{_seq_topic}，list={_list}，faiss_src={_faiss_src_count}，關鍵字數={len(_seq_kws)}）")
+                _q_priority_kws = [kw for kw in _seq_kws if kw in search_question]
                 annotated = _seq_query_by_index(_seq_kws, _seq_topic, inv,
-                                                dedup_by_source=_list,
-                                                min_hits=1 if _list else 3,
-                                                condense=_list)
+                                                dedup_by_source=1,
+                                                min_hits=1,
+                                                condense=_list,
+                                                priority_kws=_q_priority_kws or None)
                 # 列舉型：問題詞 + LLM 生成詞即時掃描（補足索引沒有的詞，如「海洋」「流浪動物」）
                 _live_scan_kws = _q_terms + [k for k in _llm_kw_list if k not in _q_terms]
                 if _list and _live_scan_kws:
@@ -1826,9 +1826,10 @@ def ask():
                         seen_heads = {a[:80] for a in annotated}
                         annotated += [r for r in _live_results if r[:80] not in seen_heads]
                         print(f"[SEQ-LIVE] 合併後共 {len(annotated)} 篇")
-                # 若有前輪學校清單，只保留那些學校的 chunk
+                # 若有前輪學校清單（追問），只保留那些學校的 chunk
                 if _listed_schools and annotated:
                     annotated = [a for a in annotated if any(s.split('：')[0] in a for s in _listed_schools)]
+                    print(f"[SEQ] 追問學校過濾後 {len(annotated)} 篇")
             else:
                 annotated = None
 
