@@ -638,8 +638,8 @@ def _compute_docs_hash(year: str) -> str:
             paths.append(overview)
     h = hashlib.md5()
     for p in paths:
-        stat = p.stat()
-        h.update(f"{p.name}:{stat.st_size}:{stat.st_mtime}".encode())
+        h.update(p.name.encode())
+        h.update(p.read_bytes())
     return h.hexdigest()
 
 
