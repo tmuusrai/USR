@@ -1495,6 +1495,11 @@ def ask():
         try:
             t0 = time.perf_counter()
 
+            # ── 送出 highlight 詞彙供前端標記 ──
+            _hl_terms = _extract_query_terms(question)
+            if _hl_terms:
+                yield f"data: {json.dumps({'type': 'highlight_terms', 'terms': _hl_terms}, ensure_ascii=False)}\n\n"
+
             # ── 對話記憶 + 搜尋問題準備 ──
             history = (_chat_history.get(chat_id, []) if chat_id else []) if use_context else []
             t_prepare_start = time.perf_counter()

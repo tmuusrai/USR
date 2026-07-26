@@ -516,9 +516,17 @@ let highlightTerms = [];
 const _KW_STOPS = new Set(['的','了','是','嗎','呢','啊','也','都','很','就','但','在','有','這','那','個','可','能','會','要','用','做','不','沒','如何','怎麼','什麼','哪些','哪個','為何','請問','告訴','說明','幫我','可以','能否','學校','計畫','有哪']);
 
 function _extractHighlightTerms(q) {
-  return q.split(/[\s，。？！、「」『』【】（）()：:；;,\.…]+/)
-    .map(s => s.trim())
-    .filter(s => s.length >= 2 && !_KW_STOPS.has(s));
+  // 先用標點切割
+  const parts = q.split(/[\s，。？！、「」『』【】（）()：:；;,\.…]+/)
+    .map(s => s.trim()).filter(s => s.length >= 2 && !_KW_STOPS.has(s));
+  // 對每段用虛詞再切一次（應對無空格中文）
+  const _FILLER = /相關|計畫|哪些|有哪|有幾|哪幾|多少|大學|學校|告訴|說明|介紹|如何|列出|請問|永續|的|等/g;
+  const result = [];
+  parts.forEach(p => {
+    const sub = p.replace(_FILLER, ' ').split(/\s+/).map(s => s.trim()).filter(s => s.length >= 2 && !_KW_STOPS.has(s));
+    if (sub.length) result.push(...sub); else if (p.length >= 2) result.push(p);
+  });
+  return [...new Set(result)];
 }
 
 function _applyHighlight(html, terms) {
@@ -887,6 +895,8 @@ async function askQuestion() {
         answerText += evt.text;
         botEl.innerHTML = renderAnswer(answerText);
         box.scrollTop = box.scrollHeight;
+      } else if (evt.type === "highlight_terms") {
+        if (evt.terms && evt.terms.length) highlightTerms = evt.terms;
       } else if (evt.type === "sources") {
         renderRAG(evt.sources || []);
       } else if (evt.type === "done") {
