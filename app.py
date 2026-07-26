@@ -1311,9 +1311,10 @@ def ask():
 
     data = request.get_json(silent=True) or {}
     question = (data.get("question") or "").strip()
-    chat_id   = (data.get("chat_id") or "").strip()
-    conv_id   = (data.get("conv_id") or "").strip()
-    user_id   = session.get("username") or "user"
+    chat_id    = (data.get("chat_id") or "").strip()
+    conv_id    = (data.get("conv_id") or "").strip()
+    use_context = bool(data.get("use_context", False))
+    user_id    = session.get("username") or "user"
     user_type = (data.get("user_type") or "applicant").strip()
     if user_type not in ("applicant", "reviewer"):
         user_type = "applicant"
@@ -1337,7 +1338,7 @@ def ask():
             t0 = time.perf_counter()
 
             # ── 對話記憶 + 搜尋問題準備 ──
-            history = _chat_history.get(chat_id, []) if chat_id else []
+            history = (_chat_history.get(chat_id, []) if chat_id else []) if use_context else []
             t_prepare_start = time.perf_counter()
             if history:
                 search_question, expand_query = _prepare_search_query(question, history)
