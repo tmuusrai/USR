@@ -2,6 +2,7 @@ import os
 import sys
 import re
 import json
+import hashlib
 import time
 import queue as _queue
 import threading
@@ -122,10 +123,10 @@ EXTRA_DIR       = Path("extra_docs")
 MD_DIR          = Path("114md")
 LLM_WIKI_DIR    = Path("llm_wiki_data")
 QA_DIR          = Path("qa_data")
-INDEX_DIR       = Path("faiss_index")
+INDEX_DIR       = Path(os.getenv("INDEX_DIR",     "faiss_index"))
 
 MD_DIR_113      = Path("113md")
-INDEX_DIR_113   = Path("faiss_index_113")
+INDEX_DIR_113   = Path(os.getenv("INDEX_DIR_113", "faiss_index_113"))
 
 # ── Embedding 模型（全域共用，避免重複初始化）──────────
 class _CachedEmbeddings(Embeddings):
@@ -623,21 +624,45 @@ def _inject_school_label(content: str, school: str, project: str) -> str:
     return "\n".join(lines)
 
 
+def _compute_docs_hash(year: str) -> str:
+    """計算所有來源文件的 hash，用來判斷文件是否有變動。"""
+    md_dir = MD_DIR if year == "114" else MD_DIR_113
+    paths: list[Path] = []
+    if md_dir.exists():
+        paths += sorted(md_dir.glob("*.md"))
+    if year == "114":
+        if EXTRA_DIR.exists():
+            paths += sorted(EXTRA_DIR.rglob("*.txt"))
+        overview = QA_DIR / "計劃總覽.txt"
+        if overview.exists():
+            paths.append(overview)
+    h = hashlib.md5()
+    for p in paths:
+        stat = p.stat()
+        h.update(f"{p.name}:{stat.st_size}:{stat.st_mtime}".encode())
+    return h.hexdigest()
+
+
 def load_or_build_index(year: str = "114") -> FAISS:
-    """載入既有索引；若不存在則從 md/ 重新建立。"""
+    """載入既有索引；文件未變動直接載入，否則重建。"""
     md_dir    = MD_DIR    if year == "114" else MD_DIR_113
     index_dir = INDEX_DIR if year == "114" else INDEX_DIR_113
     index_file = index_dir / "index.faiss"
+    hash_file  = index_dir / "docs.hash"
 
     if index_file.exists():
-        print(f"[INDEX] 載入既有 FAISS 索引（{year}年）...")
-        return FAISS.load_local(
-            str(index_dir),
-            embeddings,
-            allow_dangerous_deserialization=True,
-        )
-
-    print(f"[INDEX] 未找到索引（{year}年），開始建立...")
+        current_hash = _compute_docs_hash(year)
+        stored_hash  = hash_file.read_text().strip() if hash_file.exists() else ""
+        if current_hash == stored_hash:
+            print(f"[INDEX] 文件未變動，載入既有索引（{year}年）...")
+            return FAISS.load_local(
+                str(index_dir),
+                embeddings,
+                allow_dangerous_deserialization=True,
+            )
+        print(f"[INDEX] 文件已變動，重建索引（{year}年）...")
+    else:
+        print(f"[INDEX] 未找到索引（{year}年），開始建立...")
     pdf_files = list(PDF_DIR.rglob("*.pdf")) if (year == "114" and PDF_DIR.exists()) else []
     # 問答索引使用 md_dir/ 原始計畫書；llm_wiki_data/ 僅供知識地圖用
     md_files = list(md_dir.glob("*.md")) if md_dir.exists() else []
@@ -725,6 +750,7 @@ def load_or_build_index(year: str = "114") -> FAISS:
 
     index_dir.mkdir(exist_ok=True)
     vectorstore.save_local(str(index_dir))
+    (index_dir / "docs.hash").write_text(_compute_docs_hash(year))
     print(f"[INDEX] {year} 年索引建立完成並已儲存。", flush=True)
     return vectorstore
 
