@@ -52,6 +52,10 @@ def _load_site_users() -> dict:
         return {SITE_USERNAME: [SITE_PASSWORD]}
     return {}
 SITE_USERS = _load_site_users()
+ADMIN_USERS = set(u.strip() for u in os.getenv("ADMIN_USERS", "").split(",") if u.strip())
+
+def _is_admin() -> bool:
+    return bool(session.get("authenticated") and session.get("username") in ADMIN_USERS)
 
 CONV_DB_PATH    = Path(os.getenv("CONV_DB_PATH", "conversations.db"))
 
@@ -1299,6 +1303,60 @@ def api_update_title(conv_id):
             return jsonify({"error": "not found"}), 404
         conn.execute("UPDATE conversations SET title=?, updated_at=? WHERE id=?", (title, time.time(), conv_id))
     return jsonify({"ok": True})
+
+
+@app.route("/admin")
+def admin_page():
+    if not _is_admin():
+        return redirect("/")
+    return render_template("admin.html")
+
+@app.route("/api/admin/stats")
+def api_admin_stats():
+    if not _is_admin():
+        return jsonify({"error": "unauthorized"}), 403
+    with _get_db() as conn:
+        users = conn.execute("""
+            SELECT
+                c.user_id,
+                COUNT(DISTINCT c.id)                                    AS conv_count,
+                SUM(CASE WHEN m.role='user' THEN 1 ELSE 0 END)         AS question_count,
+                SUM(CASE WHEN m.role='user'
+                         AND m.timestamp > strftime('%s','now','start of day')
+                         THEN 1 ELSE 0 END)                             AS today_count,
+                MAX(c.updated_at)                                       AS last_active
+            FROM conversations c
+            LEFT JOIN conv_messages m ON m.conversation_id = c.id
+            GROUP BY c.user_id
+            ORDER BY last_active DESC
+        """).fetchall()
+        result = []
+        for u in users:
+            last_q = conn.execute("""
+                SELECT m.content FROM conv_messages m
+                JOIN conversations c ON m.conversation_id = c.id
+                WHERE c.user_id = ? AND m.role = 'user'
+                ORDER BY m.timestamp DESC LIMIT 1
+            """, (u["user_id"],)).fetchone()
+            row = dict(u)
+            row["last_question"] = last_q["content"] if last_q else None
+            result.append(row)
+    return jsonify(result)
+
+@app.route("/api/admin/user/<username>/messages")
+def api_admin_user_messages(username):
+    if not _is_admin():
+        return jsonify({"error": "unauthorized"}), 403
+    with _get_db() as conn:
+        msgs = conn.execute("""
+            SELECT m.content, m.timestamp, c.title
+            FROM conv_messages m
+            JOIN conversations c ON m.conversation_id = c.id
+            WHERE c.user_id = ? AND m.role = 'user'
+            ORDER BY m.timestamp DESC
+            LIMIT 200
+        """, (username,)).fetchall()
+    return jsonify([dict(m) for m in msgs])
 
 
 @app.route("/ask", methods=["POST"])

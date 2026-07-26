@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>USR 管理後台</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,-apple-system,sans-serif;background:#f8fafc;color:#1e293b;font-size:14px}
+.top-bar{background:#1e40af;color:#fff;padding:14px 24px;display:flex;align-items:center;gap:16px}
+.top-bar h1{font-size:1.05rem;font-weight:700}
+.top-bar a{color:#bfdbfe;font-size:.85rem;text-decoration:none;margin-left:auto}
+.top-bar a:hover{color:#fff}
+.container{max-width:1140px;margin:0 auto;padding:24px 16px}
+.stats-row{display:flex;gap:14px;margin-bottom:22px;flex-wrap:wrap}
+.stat-card{background:#fff;border:1px solid #e2e8f0;border-radius:10px;padding:16px 22px;flex:1;min-width:130px}
+.stat-card .lbl{font-size:.75rem;color:#64748b;margin-bottom:6px}
+.stat-card .val{font-size:1.7rem;font-weight:700;color:#1e40af}
+.section{background:#fff;border:1px solid #e2e8f0;border-radius:10px;overflow:hidden;margin-bottom:18px}
+.sec-title{padding:12px 18px;font-weight:700;font-size:.9rem;border-bottom:1px solid #e2e8f0;background:#f8fafc;display:flex;align-items:center;gap:10px}
+.sec-title button{margin-left:auto;background:none;border:none;cursor:pointer;color:#94a3b8;font-size:1rem;line-height:1}
+.sec-title button:hover{color:#475569}
+table{width:100%;border-collapse:collapse}
+th{text-align:left;padding:9px 16px;background:#f1f5f9;color:#475569;font-weight:600;font-size:.78rem;white-space:nowrap}
+td{padding:10px 16px;border-top:1px solid #f1f5f9;vertical-align:top}
+tr:hover td{background:#fafbfc}
+.badge{display:inline-block;padding:2px 9px;border-radius:999px;font-size:.75rem;font-weight:600}
+.b-blue{background:#dbeafe;color:#1d4ed8}
+.b-green{background:#dcfce7;color:#15803d}
+.b-orange{background:#ffedd5;color:#c2410c}
+.view-btn{padding:4px 12px;background:#1e40af;color:#fff;border:none;border-radius:6px;font-size:.78rem;cursor:pointer;white-space:nowrap}
+.view-btn:hover{background:#1e3a8a}
+.last-q{max-width:260px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#64748b}
+.ts{font-size:.75rem;color:#94a3b8;white-space:nowrap}
+.q-text{color:#1e293b;line-height:1.5}
+.empty{padding:32px;text-align:center;color:#94a3b8}
+</style>
+</head>
+<body>
+<div class="top-bar">
+  <h1>USR 管理後台</h1>
+  <a href="/">← 回主頁</a>
+</div>
+<div class="container">
+
+  <div class="stats-row">
+    <div class="stat-card"><div class="lbl">帳號數</div><div class="val" id="s-users">—</div></div>
+    <div class="stat-card"><div class="lbl">今日問題數</div><div class="val" id="s-today">—</div></div>
+    <div class="stat-card"><div class="lbl">總問題數</div><div class="val" id="s-total">—</div></div>
+  </div>
+
+  <div class="section">
+    <div class="sec-title">用戶問題紀錄</div>
+    <table>
+      <thead>
+        <tr>
+          <th>帳號</th>
+          <th>對話數</th>
+          <th>問題數</th>
+          <th>今日</th>
+          <th>最後活躍</th>
+          <th>最後一題</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody id="users-tbody"><tr><td colspan="7" class="empty">載入中…</td></tr></tbody>
+    </table>
+  </div>
+
+  <div class="section" id="detail-panel" style="display:none">
+    <div class="sec-title">
+      <span id="detail-title">問題明細</span>
+      <button onclick="closeDetail()">✕</button>
+    </div>
+    <table>
+      <thead><tr><th style="width:160px">時間</th><th>問題</th><th>對話標題</th></tr></thead>
+      <tbody id="detail-tbody"></tbody>
+    </table>
+  </div>
+
+</div>
+<script>
+function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')}
+
+function fmtTime(ts){
+  if(!ts)return'—';
+  const d=new Date(ts*1000),now=new Date(),diff=(now-d)/1000;
+  if(diff<60)return'剛剛';
+  if(diff<3600)return Math.floor(diff/60)+' 分鐘前';
+  if(diff<86400)return Math.floor(diff/3600)+' 小時前';
+  if(diff<172800)return'昨天 '+d.toLocaleTimeString('zh-TW',{hour:'2-digit',minute:'2-digit'});
+  return d.toLocaleDateString('zh-TW',{month:'numeric',day:'numeric'})+' '+d.toLocaleTimeString('zh-TW',{hour:'2-digit',minute:'2-digit'});
+}
+
+async function loadStats(){
+  const res=await fetch('/api/admin/stats');
+  if(!res.ok){document.querySelector('.container').innerHTML='<p style="padding:32px;color:#dc2626">無管理員權限，請確認帳號並設定 ADMIN_USERS 環境變數。</p>';return;}
+  const users=await res.json();
+  let totalQ=0,todayQ=0;
+  users.forEach(u=>{totalQ+=(u.question_count||0);todayQ+=(u.today_count||0);});
+  document.getElementById('s-users').textContent=users.length;
+  document.getElementById('s-today').textContent=todayQ;
+  document.getElementById('s-total').textContent=totalQ;
+  const tbody=document.getElementById('users-tbody');
+  if(!users.length){tbody.innerHTML='<tr><td colspan="7" class="empty">尚無紀錄</td></tr>';return;}
+  tbody.innerHTML=users.map(u=>`
+    <tr>
+      <td><strong>${esc(u.user_id)}</strong></td>
+      <td><span class="badge b-blue">${u.conv_count}</span></td>
+      <td><span class="badge b-green">${u.question_count||0}</span></td>
+      <td>${u.today_count?`<span class="badge b-orange">${u.today_count}</span>`:'0'}</td>
+      <td class="ts">${fmtTime(u.last_active)}</td>
+      <td class="last-q" title="${esc(u.last_question||'')}">${esc(u.last_question||'—')}</td>
+      <td><button class="view-btn" onclick="loadDetail('${esc(u.user_id)}')">查看</button></td>
+    </tr>`).join('');
+}
+
+async function loadDetail(username){
+  const res=await fetch(`/api/admin/user/${encodeURIComponent(username)}/messages`);
+  const msgs=await res.json();
+  document.getElementById('detail-title').textContent=`${username} 的問題紀錄（最近 ${msgs.length} 題）`;
+  document.getElementById('detail-tbody').innerHTML=msgs.length
+    ?msgs.map(m=>`<tr>
+        <td class="ts">${fmtTime(m.timestamp)}</td>
+        <td class="q-text">${esc(m.content)}</td>
+        <td class="last-q" title="${esc(m.title||'')}">${esc(m.title||'—')}</td>
+      </tr>`).join('')
+    :'<tr><td colspan="3" class="empty">尚無問題紀錄</td></tr>';
+  const panel=document.getElementById('detail-panel');
+  panel.style.display='block';
+  panel.scrollIntoView({behavior:'smooth',block:'start'});
+}
+
+function closeDetail(){document.getElementById('detail-panel').style.display='none';}
+
+loadStats();
+</script>
+</body>
+</html>
