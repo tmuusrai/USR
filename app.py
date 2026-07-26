@@ -53,6 +53,8 @@ def _load_site_users() -> dict:
     return {}
 SITE_USERS = _load_site_users()
 
+CONV_DB_PATH    = Path(os.getenv("CONV_DB_PATH", "conversations.db"))
+
 def _get_db():
     conn = sqlite3.connect(str(CONV_DB_PATH))
     conn.row_factory = sqlite3.Row
@@ -97,8 +99,6 @@ INDEX_DIR       = Path("faiss_index")
 
 MD_DIR_113      = Path("113md")
 INDEX_DIR_113   = Path("faiss_index_113")
-
-CONV_DB_PATH    = Path(os.getenv("CONV_DB_PATH", "conversations.db"))
 
 # ── Embedding 模型（全域共用，避免重複初始化）──────────
 class _CachedEmbeddings(Embeddings):
