@@ -66,6 +66,7 @@ body{font-family:"Segoe UI","Noto Sans TC",sans-serif;background:#f5f7fa;height:
 #context-btn{padding:9px 13px;background:#f1f5f9;color:#64748b;border:1.5px solid #cbd5e1;border-radius:10px;font-size:.82rem;font-weight:600;cursor:pointer;white-space:nowrap;transition:all .2s;flex-shrink:0}
 #context-btn.active{background:#1e40af;color:#fff;border-color:#1e40af}
 #context-btn:hover:not(.active){background:#e2e8f0;color:#334155}
+mark.kw-hl{background:#fef08a;color:inherit;border-radius:2px;padding:0 1px}
 #mode-toggle{display:flex;align-items:center;gap:10px;padding:6px 0;flex-shrink:0;flex-wrap:wrap}
 .mode-seg{display:flex;background:#f1f5f9;border-radius:9px;padding:3px;gap:2px}
 .seg-btn{padding:5px 13px;border-radius:7px;border:none;background:none;color:#64748b;font-size:.8rem;font-weight:500;cursor:pointer;transition:all .15s;white-space:nowrap}
@@ -510,6 +511,28 @@ body{font-family:"Segoe UI","Noto Sans TC",sans-serif;background:#f5f7fa;height:
 <script>
 let chatId = crypto.randomUUID();
 let useContext = false;
+let highlightTerms = [];
+
+const _KW_STOPS = new Set(['的','了','是','嗎','呢','啊','也','都','很','就','但','在','有','這','那','個','可','能','會','要','用','做','不','沒','如何','怎麼','什麼','哪些','哪個','為何','請問','告訴','說明','幫我','可以','能否','學校','計畫','有哪']);
+
+function _extractHighlightTerms(q) {
+  return q.split(/[\s，。？！、「」『』【】（）()：:；;,\.…]+/)
+    .map(s => s.trim())
+    .filter(s => s.length >= 2 && !_KW_STOPS.has(s));
+}
+
+function _applyHighlight(html, terms) {
+  if (!terms.length) return html;
+  const parts = html.split(/(<[^>]+>)/);
+  return parts.map((p, i) => {
+    if (i % 2 === 1 || !p) return p;
+    terms.forEach(kw => {
+      const re = new RegExp(kw.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g');
+      p = p.replace(re, `<mark class="kw-hl">${kw}</mark>`);
+    });
+    return p;
+  }).join('');
+}
 
 function toggleContext() {
   useContext = !useContext;
@@ -807,6 +830,7 @@ async function askQuestion() {
     convIsNew = true;
   }
 
+  highlightTerms = _extractHighlightTerms(question);
   const notice = document.getElementById("year-switch-notice");
   if (notice) notice.remove();
   appendMsg(question, "user");
@@ -1292,6 +1316,7 @@ function renderAnswer(raw) {
     return `<div style="${st}">${t}</div>`;
   });
   s = s.replace(/\n/g, '<br>');
+  s = _applyHighlight(s, highlightTerms);
   return s;
 }
 
