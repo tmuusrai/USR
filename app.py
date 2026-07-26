@@ -83,11 +83,34 @@ def _init_conv_db():
                 timestamp REAL NOT NULL,
                 FOREIGN KEY (conversation_id) REFERENCES conversations(id) ON DELETE CASCADE
             );
+            CREATE TABLE IF NOT EXISTS site_users (
+                username TEXT PRIMARY KEY,
+                password TEXT NOT NULL,
+                created_at REAL NOT NULL
+            );
             CREATE INDEX IF NOT EXISTS idx_conv_user ON conversations(user_id, updated_at DESC);
             CREATE INDEX IF NOT EXISTS idx_msg_conv ON conv_messages(conversation_id, timestamp ASC);
         """)
+        # 首次啟動從 SITE_USERS_JSON 匯入（每個帳號取第一組密碼）
+        count = conn.execute("SELECT COUNT(*) FROM site_users").fetchone()[0]
+        if count == 0 and SITE_USERS:
+            now = time.time()
+            for uname, passwords in SITE_USERS.items():
+                if passwords:
+                    conn.execute(
+                        "INSERT OR IGNORE INTO site_users (username, password, created_at) VALUES (?,?,?)",
+                        (uname, passwords[0], now)
+                    )
 
 _init_conv_db()
+
+def _check_login(username: str, password: str) -> bool:
+    with _get_db() as conn:
+        row = conn.execute("SELECT password FROM site_users WHERE username=?", (username,)).fetchone()
+        if row:
+            return row["password"] == password
+    # 向下相容：env var 舊帳號
+    return username in SITE_USERS and password in SITE_USERS[username]
 
 VOYAGE_API_KEY  = os.getenv("VOYAGE_API_KEY")
 CHUNK_SIZE      = int(os.getenv("CHUNK_SIZE", 800))
@@ -1215,16 +1238,18 @@ def index():
 @app.route("/login", methods=["POST"])
 def login():
     data = request.get_json(silent=True) or {}
-    if not SITE_USERS:
+    u = (data.get("username") or "").strip()
+    p = (data.get("password") or "").strip()
+    with _get_db() as _db:
+        has_any = _db.execute("SELECT COUNT(*) FROM site_users").fetchone()[0] > 0
+    if not has_any and not SITE_USERS:
         valid = True
     else:
-        u = data.get("username", "")
-        p = data.get("password", "")
-        valid = u in SITE_USERS and p in SITE_USERS[u]
+        valid = _check_login(u, p)
     if valid:
         session.permanent = True
         session["authenticated"] = True
-        session["username"] = data.get("username", "") if SITE_USERS else ""
+        session["username"] = u or ""
         return jsonify({"ok": True})
     return jsonify({"ok": False, "error": "帳號或密碼錯誤，請再試一次。"}), 401
 
@@ -1357,6 +1382,55 @@ def api_admin_user_messages(username):
             LIMIT 200
         """, (username,)).fetchall()
     return jsonify([dict(m) for m in msgs])
+
+@app.route("/api/admin/users_list", methods=["GET"])
+def api_admin_users_list():
+    if not _is_admin():
+        return jsonify({"error": "unauthorized"}), 403
+    with _get_db() as conn:
+        rows = conn.execute("SELECT username, created_at FROM site_users ORDER BY created_at ASC").fetchall()
+    return jsonify([dict(r) for r in rows])
+
+@app.route("/api/admin/users_list", methods=["POST"])
+def api_admin_add_user():
+    if not _is_admin():
+        return jsonify({"error": "unauthorized"}), 403
+    data = request.get_json() or {}
+    username = (data.get("username") or "").strip()
+    password = (data.get("password") or "").strip()
+    if not username or not password:
+        return jsonify({"error": "帳號和密碼不得為空"}), 400
+    try:
+        with _get_db() as conn:
+            conn.execute(
+                "INSERT INTO site_users (username, password, created_at) VALUES (?,?,?)",
+                (username, password, time.time())
+            )
+        return jsonify({"ok": True})
+    except Exception:
+        return jsonify({"error": "帳號已存在"}), 409
+
+@app.route("/api/admin/user_account/<username>", methods=["DELETE"])
+def api_admin_delete_user(username):
+    if not _is_admin():
+        return jsonify({"error": "unauthorized"}), 403
+    if username in ADMIN_USERS:
+        return jsonify({"error": "不能刪除管理員帳號"}), 400
+    with _get_db() as conn:
+        conn.execute("DELETE FROM site_users WHERE username=?", (username,))
+    return jsonify({"ok": True})
+
+@app.route("/api/admin/user_account/<username>/password", methods=["PATCH"])
+def api_admin_change_password(username):
+    if not _is_admin():
+        return jsonify({"error": "unauthorized"}), 403
+    data = request.get_json() or {}
+    password = (data.get("password") or "").strip()
+    if not password:
+        return jsonify({"error": "密碼不得為空"}), 400
+    with _get_db() as conn:
+        conn.execute("UPDATE site_users SET password=? WHERE username=?", (password, username))
+    return jsonify({"ok": True})
 
 
 @app.route("/ask", methods=["POST"])

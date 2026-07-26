@@ -18,22 +18,30 @@ body{font-family:system-ui,-apple-system,sans-serif;background:#f8fafc;color:#1e
 .stat-card .val{font-size:1.7rem;font-weight:700;color:#1e40af}
 .section{background:#fff;border:1px solid #e2e8f0;border-radius:10px;overflow:hidden;margin-bottom:18px}
 .sec-title{padding:12px 18px;font-weight:700;font-size:.9rem;border-bottom:1px solid #e2e8f0;background:#f8fafc;display:flex;align-items:center;gap:10px}
-.sec-title button{margin-left:auto;background:none;border:none;cursor:pointer;color:#94a3b8;font-size:1rem;line-height:1}
-.sec-title button:hover{color:#475569}
+.sec-title .close-btn{margin-left:auto;background:none;border:none;cursor:pointer;color:#94a3b8;font-size:1rem;line-height:1}
+.sec-title .close-btn:hover{color:#475569}
 table{width:100%;border-collapse:collapse}
 th{text-align:left;padding:9px 16px;background:#f1f5f9;color:#475569;font-weight:600;font-size:.78rem;white-space:nowrap}
-td{padding:10px 16px;border-top:1px solid #f1f5f9;vertical-align:top}
+td{padding:10px 16px;border-top:1px solid #f1f5f9;vertical-align:middle}
 tr:hover td{background:#fafbfc}
 .badge{display:inline-block;padding:2px 9px;border-radius:999px;font-size:.75rem;font-weight:600}
 .b-blue{background:#dbeafe;color:#1d4ed8}
 .b-green{background:#dcfce7;color:#15803d}
 .b-orange{background:#ffedd5;color:#c2410c}
-.view-btn{padding:4px 12px;background:#1e40af;color:#fff;border:none;border-radius:6px;font-size:.78rem;cursor:pointer;white-space:nowrap}
-.view-btn:hover{background:#1e3a8a}
-.last-q{max-width:260px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#64748b}
+.btn{padding:5px 12px;border:none;border-radius:6px;font-size:.78rem;cursor:pointer;white-space:nowrap;font-weight:600}
+.btn-blue{background:#1e40af;color:#fff}.btn-blue:hover{background:#1e3a8a}
+.btn-gray{background:#e2e8f0;color:#475569}.btn-gray:hover{background:#cbd5e1}
+.btn-red{background:#fee2e2;color:#dc2626}.btn-red:hover{background:#fecaca}
+.btn-sm{padding:3px 9px;font-size:.74rem}
+.last-q{max-width:240px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#64748b}
 .ts{font-size:.75rem;color:#94a3b8;white-space:nowrap}
 .q-text{color:#1e293b;line-height:1.5}
 .empty{padding:32px;text-align:center;color:#94a3b8}
+.add-form{padding:14px 18px;border-top:1px solid #e2e8f0;display:flex;gap:10px;align-items:center;flex-wrap:wrap;background:#fafbfc}
+.add-form input{padding:7px 12px;border:1.5px solid #cbd5e1;border-radius:7px;font-size:.85rem;outline:none}
+.add-form input:focus{border-color:#3b82f6}
+.pw-input{display:none;gap:6px;align-items:center}
+.pw-input input{padding:5px 10px;border:1.5px solid #cbd5e1;border-radius:6px;font-size:.82rem;width:140px}
 </style>
 </head>
 <body>
@@ -49,28 +57,40 @@ tr:hover td{background:#fafbfc}
     <div class="stat-card"><div class="lbl">總問題數</div><div class="val" id="s-total">—</div></div>
   </div>
 
+  <!-- 用戶管理 -->
+  <div class="section">
+    <div class="sec-title">用戶管理</div>
+    <table>
+      <thead><tr><th>帳號</th><th>建立時間</th><th>操作</th></tr></thead>
+      <tbody id="acct-tbody"><tr><td colspan="3" class="empty">載入中…</td></tr></tbody>
+    </table>
+    <div class="add-form">
+      <input id="new-uname" placeholder="新帳號名稱" style="width:160px">
+      <input id="new-pw" type="password" placeholder="密碼" style="width:150px">
+      <button class="btn btn-blue" onclick="addUser()">新增帳號</button>
+      <span id="add-msg" style="font-size:.8rem;color:#dc2626"></span>
+    </div>
+  </div>
+
+  <!-- 問題紀錄 -->
   <div class="section">
     <div class="sec-title">用戶問題紀錄</div>
     <table>
       <thead>
         <tr>
-          <th>帳號</th>
-          <th>對話數</th>
-          <th>問題數</th>
-          <th>今日</th>
-          <th>最後活躍</th>
-          <th>最後一題</th>
-          <th></th>
+          <th>帳號</th><th>對話數</th><th>問題數</th><th>今日</th>
+          <th>最後活躍</th><th>最後一題</th><th></th>
         </tr>
       </thead>
       <tbody id="users-tbody"><tr><td colspan="7" class="empty">載入中…</td></tr></tbody>
     </table>
   </div>
 
+  <!-- 問題明細 -->
   <div class="section" id="detail-panel" style="display:none">
     <div class="sec-title">
       <span id="detail-title">問題明細</span>
-      <button onclick="closeDetail()">✕</button>
+      <button class="close-btn" onclick="closeDetail()">✕</button>
     </div>
     <table>
       <thead><tr><th style="width:160px">時間</th><th>問題</th><th>對話標題</th></tr></thead>
@@ -92,9 +112,83 @@ function fmtTime(ts){
   return d.toLocaleDateString('zh-TW',{month:'numeric',day:'numeric'})+' '+d.toLocaleTimeString('zh-TW',{hour:'2-digit',minute:'2-digit'});
 }
 
+function fmtDate(ts){
+  if(!ts)return'—';
+  const d=new Date(ts*1000);
+  return d.toLocaleDateString('zh-TW',{year:'numeric',month:'numeric',day:'numeric'});
+}
+
+// ── 用戶管理 ──
+async function loadAccounts(){
+  const res=await fetch('/api/admin/users_list');
+  if(!res.ok){document.querySelector('.container').innerHTML='<p style="padding:32px;color:#dc2626">無管理員權限。</p>';return;}
+  const users=await res.json();
+  document.getElementById('acct-tbody').innerHTML=users.length
+    ?users.map(u=>`
+      <tr id="row-${esc(u.username)}">
+        <td><strong>${esc(u.username)}</strong></td>
+        <td class="ts">${fmtDate(u.created_at)}</td>
+        <td style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+          <button class="btn btn-gray btn-sm" onclick="togglePw('${esc(u.username)}')">改密碼</button>
+          <div class="pw-input" id="pw-${esc(u.username)}">
+            <input type="password" placeholder="新密碼" id="pwinput-${esc(u.username)}">
+            <button class="btn btn-blue btn-sm" onclick="changePw('${esc(u.username)}')">確認</button>
+            <button class="btn btn-gray btn-sm" onclick="togglePw('${esc(u.username)}')">取消</button>
+          </div>
+          <button class="btn btn-red btn-sm" onclick="deleteUser('${esc(u.username)}')">刪除</button>
+        </td>
+      </tr>`).join('')
+    :'<tr><td colspan="3" class="empty">尚無帳號</td></tr>';
+}
+
+function togglePw(username){
+  const el=document.getElementById('pw-'+username);
+  const show=el.style.display!=='flex';
+  el.style.display=show?'flex':'none';
+  if(show)document.getElementById('pwinput-'+username).focus();
+}
+
+async function changePw(username){
+  const pw=document.getElementById('pwinput-'+username).value.trim();
+  if(!pw){alert('密碼不得為空');return;}
+  const res=await fetch(`/api/admin/user_account/${encodeURIComponent(username)}/password`,{
+    method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({password:pw})
+  });
+  if(res.ok){togglePw(username);document.getElementById('pwinput-'+username).value='';}
+  else{const d=await res.json();alert(d.error||'失敗');}
+}
+
+async function deleteUser(username){
+  if(!confirm(`確定刪除帳號「${username}」？此操作不可復原。`))return;
+  const res=await fetch(`/api/admin/user_account/${encodeURIComponent(username)}`,{method:'DELETE'});
+  const d=await res.json();
+  if(d.ok){loadAccounts();loadStats();}
+  else alert(d.error||'刪除失敗');
+}
+
+async function addUser(){
+  const u=document.getElementById('new-uname').value.trim();
+  const p=document.getElementById('new-pw').value.trim();
+  const msg=document.getElementById('add-msg');
+  msg.textContent='';
+  if(!u||!p){msg.textContent='帳號和密碼不得為空';return;}
+  const res=await fetch('/api/admin/users_list',{
+    method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({username:u,password:p})
+  });
+  const d=await res.json();
+  if(d.ok){
+    document.getElementById('new-uname').value='';
+    document.getElementById('new-pw').value='';
+    loadAccounts();loadStats();
+  } else {
+    msg.textContent=d.error||'新增失敗';
+  }
+}
+
+// ── 問題紀錄 ──
 async function loadStats(){
   const res=await fetch('/api/admin/stats');
-  if(!res.ok){document.querySelector('.container').innerHTML='<p style="padding:32px;color:#dc2626">無管理員權限，請確認帳號並設定 ADMIN_USERS 環境變數。</p>';return;}
+  if(!res.ok)return;
   const users=await res.json();
   let totalQ=0,todayQ=0;
   users.forEach(u=>{totalQ+=(u.question_count||0);todayQ+=(u.today_count||0);});
@@ -102,7 +196,7 @@ async function loadStats(){
   document.getElementById('s-today').textContent=todayQ;
   document.getElementById('s-total').textContent=totalQ;
   const tbody=document.getElementById('users-tbody');
-  if(!users.length){tbody.innerHTML='<tr><td colspan="7" class="empty">尚無紀錄</td></tr>';return;}
+  if(!users.length){tbody.innerHTML='<tr><td colspan="7" class="empty">尚無問題紀錄</td></tr>';return;}
   tbody.innerHTML=users.map(u=>`
     <tr>
       <td><strong>${esc(u.user_id)}</strong></td>
@@ -111,7 +205,7 @@ async function loadStats(){
       <td>${u.today_count?`<span class="badge b-orange">${u.today_count}</span>`:'0'}</td>
       <td class="ts">${fmtTime(u.last_active)}</td>
       <td class="last-q" title="${esc(u.last_question||'')}">${esc(u.last_question||'—')}</td>
-      <td><button class="view-btn" onclick="loadDetail('${esc(u.user_id)}')">查看</button></td>
+      <td><button class="btn btn-blue btn-sm" onclick="loadDetail('${esc(u.user_id)}')">查看</button></td>
     </tr>`).join('');
 }
 
@@ -133,6 +227,7 @@ async function loadDetail(username){
 
 function closeDetail(){document.getElementById('detail-panel').style.display='none';}
 
+loadAccounts();
 loadStats();
 </script>
 </body>
