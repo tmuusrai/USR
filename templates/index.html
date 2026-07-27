@@ -1424,8 +1424,7 @@ async function doLogin() {
     const res = await fetch("/login", {method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({username:un, password:pw})});
     const data = await res.json();
     if (data.ok) {
-      document.getElementById("login-overlay").remove();
-      loadConversations();
+      window.location.reload();
     } else {
       errEl.textContent = data.error || "帳號或密碼錯誤，請再試一次。";
       document.getElementById("pw-input").value = "";
