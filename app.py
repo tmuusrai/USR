@@ -106,12 +106,14 @@ def _init_conv_db():
 _init_conv_db()
 
 def _check_login(username: str, password: str) -> bool:
+    # 環境變數帳密優先（讓 Render env var 改密碼立即生效）
+    if username in SITE_USERS and password in SITE_USERS[username]:
+        return True
     with _get_db() as conn:
         row = conn.execute("SELECT password FROM site_users WHERE username=?", (username,)).fetchone()
         if row:
             return row["password"] == password
-    # 向下相容：env var 舊帳號
-    return username in SITE_USERS and password in SITE_USERS[username]
+    return False
 
 VOYAGE_API_KEY  = os.getenv("VOYAGE_API_KEY")
 CHUNK_SIZE      = int(os.getenv("CHUNK_SIZE", 800))
