@@ -1276,7 +1276,8 @@ def index():
     authenticated = not SITE_PASSWORD or session.get("authenticated", False)
     username = session.get("username", "") if authenticated else ""
     return render_template("index.html", authenticated=authenticated,
-        username=username, plans_114=_load_plans("114"), plans_113=_load_plans("113"))
+        username=username, is_admin=_is_admin(),
+        plans_114=_load_plans("114"), plans_113=_load_plans("113"))
 
 
 @app.route("/login", methods=["POST"])
