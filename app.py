@@ -1924,7 +1924,12 @@ def ask():
                 context = context[:_CTX_CHAR_LIMIT]
             # 列舉型：在 context 前加提示，讓 LLM 直接列出所有計畫，不再自行過濾
             if _list and annotated:
-                context = "【以下計畫均已通過關鍵字相關性篩選，請將所有出現的計畫全部列出，不得自行判斷過濾。】\n\n" + context
+                context = (
+                    f"【以下計畫均已通過「{_seq_topic}」議題關鍵字篩選，與使用者查詢主題相關。"
+                    f"請將 context 中出現的每一件計畫（學校全名：計畫全名）全部列出，"
+                    f"即使段落內容未直接出現使用者的查詢詞，只要計畫在此議題下即屬相關，"
+                    f"不得自行判斷過濾或省略任何一件。】\n\n"
+                ) + context
             # 多校追問：提示 LLM 針對每間學校分別回答，不得合併或省略
             if _multi_enumerate:
                 context = f"【本問題涉及前一輪列出的 {len(_listed_schools)} 件計畫，請在回答中針對 context 中每件計畫分別說明，不得合併舉例或省略任何一件。】\n\n" + context
