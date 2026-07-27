@@ -1909,17 +1909,6 @@ def ask():
                 if _listed_schools and annotated:
                     annotated = [a for a in annotated if any(s.split('：')[0] in a for s in _listed_schools)]
                     print(f"[SEQ] 追問學校過濾後 {len(annotated)} 篇")
-                # 列舉型：用查詢詞 + LLM 同義詞過濾廣搜雜訊
-                # 廣搜會把整個議題（如環境永續）全拉進來，但使用者只問特定子主題（如海洋、水資源）
-                # 只保留 context 中有出現這些詞的計畫，避免 LLM 看到不相關計畫後自行過濾
-                if _list and annotated and not _listed_schools:
-                    _filter_kws = [k for k in (_q_terms + _llm_kw_list)
-                                   if len(k) >= 2 and k not in {"相關", "永續", "計畫", "大學", "學校", "哪些"}]
-                    if _filter_kws:
-                        _annotated_filtered = [a for a in annotated if any(kw in a for kw in _filter_kws)]
-                        if _annotated_filtered:
-                            annotated = _annotated_filtered
-                            print(f"[SEQ] 查詢詞過濾後 {len(annotated)} 篇（詞：{_filter_kws[:5]}）")
             else:
                 annotated = None
 
@@ -1948,10 +1937,9 @@ def ask():
             # 列舉型：在 context 前加提示，讓 LLM 直接列出所有計畫，不再自行過濾
             if _list and annotated:
                 context = (
-                    f"【以下計畫均已通過「{_seq_topic}」議題關鍵字篩選，與使用者查詢主題相關。"
-                    f"請將 context 中出現的每一件計畫（學校全名：計畫全名）全部列出，"
-                    f"即使段落內容未直接出現使用者的查詢詞，只要計畫在此議題下即屬相關，"
-                    f"不得自行判斷過濾或省略任何一件。】\n\n"
+                    f"【以下計畫均屬「{_seq_topic}」議題範疇，已通過關鍵字篩選。"
+                    f"同一議題內的計畫彼此相關，請將 context 中出現的每一件計畫（學校全名：計畫全名）全部列出，"
+                    f"不得以「未直接提及查詢詞」為由自行判斷過濾或省略任何一件。】\n\n"
                 ) + context
             # 多校追問：提示 LLM 針對每間學校分別回答，不得合併或省略
             if _multi_enumerate:
