@@ -1593,8 +1593,9 @@ def ask():
             _explicit_followup = bool(_MULTI_REF_RE.search(question) and history)
             _is_followup: bool = _explicit_followup
 
-            with ThreadPoolExecutor(max_workers=2) as _llm_ex:
+            with ThreadPoolExecutor(max_workers=3) as _llm_ex:
                 _kw_fut = _llm_ex.submit(_expand_keywords_by_llm, question) if _list_check else None
+                _topic_fut = _llm_ex.submit(_llm_classify_topics, question) if _list_check else None
                 _fu_fut = (
                     _llm_ex.submit(_check_is_followup, question, history[-1])
                     if history and not _explicit_followup
@@ -1605,6 +1606,17 @@ def ask():
                     if _llm_kws:
                         expand_query = f"{expand_query} {_llm_kws}" if expand_query else _llm_kws
                         _llm_kw_list = [k for k in _llm_kws.split() if len(k) >= 2]
+                if _topic_fut:
+                    _llm_topics = _topic_fut.result()
+                    for _lt in _llm_topics:
+                        if _lt not in (_usr_topic or ""):
+                            for _tk in USR_TOPIC_KEYWORDS.get(_lt, []):
+                                if _tk not in (_usr_topic_kws or []):
+                                    if _usr_topic_kws is None:
+                                        _usr_topic_kws = []
+                                    _usr_topic_kws.append(_tk)
+                            if not _usr_topic:
+                                _usr_topic = _lt
                 if _fu_fut:
                     _is_followup = _fu_fut.result()
 
@@ -2098,6 +2110,39 @@ KW_EXPAND_PROMPT = """你是台灣 USR（大學社會責任）計畫書的搜尋
 問題：{question}
 
 輸出範例：["長照", "樂齡", "銀髮族", "失智症", "長者", "高齡"]"""
+
+_USR_TOPIC_NAMES = list(USR_TOPIC_KEYWORDS.keys())
+
+TOPIC_CLASSIFY_PROMPT = """你是台灣 USR（大學社會責任）計畫的議題分類專家。
+請判斷以下問題屬於哪些 USR 議題類別（可複選，選最相關的）。
+
+可選類別：{topics}
+
+問題：{question}
+
+只輸出 JSON 陣列（類別名稱），不要其他文字。例如：["在地關懷", "健康福祉"]
+若完全沒有對應類別則輸出：[]"""
+
+
+def _llm_classify_topics(question: str) -> list[str]:
+    """用 LLM 語意判斷問題屬於哪些 USR 議題類別，回傳類別名稱清單。"""
+    try:
+        from langchain_core.messages import HumanMessage
+        prompt = TOPIC_CLASSIFY_PROMPT.format(
+            topics="、".join(_USR_TOPIC_NAMES),
+            question=question
+        )
+        res = llm_fast.bind(temperature=0, thinking_budget=0).invoke([HumanMessage(content=prompt)])
+        text = _normalize_content(res.content).strip()
+        m = re.search(r'\[.*?\]', text, re.DOTALL)
+        if m:
+            topics = json.loads(m.group())
+            valid = [t for t in topics if isinstance(t, str) and t in USR_TOPIC_KEYWORDS]
+            print(f"[TOPIC_LLM] 語意分類：{valid}")
+            return valid
+    except Exception as e:
+        print(f"[TOPIC_LLM] 失敗：{e}")
+    return []
 
 _QUERY_FILLER_RE = re.compile(r'(相關|計畫|哪些|有哪|有幾|哪幾|多少|大學|學校|告訴|說明|介紹|如何|列出|請問|永續)')
 
