@@ -1274,8 +1274,9 @@ def _load_plans(year: str = "114"):
 @app.route("/")
 def index():
     authenticated = not SITE_PASSWORD or session.get("authenticated", False)
+    username = session.get("username", "") if authenticated else ""
     return render_template("index.html", authenticated=authenticated,
-        plans_114=_load_plans("114"), plans_113=_load_plans("113"))
+        username=username, plans_114=_load_plans("114"), plans_113=_load_plans("113"))
 
 
 @app.route("/login", methods=["POST"])
@@ -1300,6 +1301,7 @@ def login():
 @app.route("/logout")
 def logout():
     session.pop("authenticated", None)
+    session.pop("username", None)
     return redirect(url_for("index"))
 
 

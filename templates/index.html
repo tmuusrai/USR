@@ -265,6 +265,12 @@ mark.kw-hl{background:#fef08a;color:inherit;border-radius:2px;padding:0 1px}
     <button class="font-btn" onclick="setFontSize('large',this)">大</button>
   </div>
   <button class="rag-btn" onclick="toggleRag()" title="RAG 側欄">📎</button>
+  {% if authenticated %}
+  <a href="/logout" style="margin-left:auto;color:rgba(255,255,255,.85);font-size:.82rem;text-decoration:none;padding:5px 12px;border:1px solid rgba(255,255,255,.3);border-radius:6px;transition:background .15s;white-space:nowrap;display:flex;align-items:center;gap:6px" onmouseover="this.style.background='rgba(255,255,255,.15)'" onmouseout="this.style.background='none'" title="登出">
+    {% if username %}<span style="opacity:.7;font-size:.78rem">{{ username }}</span>{% endif %}
+    登出
+  </a>
+  {% endif %}
 </div>
 <div class="overlay" id="overlay" onclick="closePanels()"></div>
 
