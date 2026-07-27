@@ -267,17 +267,17 @@ mark.kw-hl{background:#fef08a;color:inherit;border-radius:2px;padding:0 1px}
     <button class="year-btn active" onclick="setYear('114',this)">114年</button>
     <button class="year-btn" onclick="setYear('113',this)">113年</button>
   </div>
-  <div class="font-btns">
+  <button class="rag-btn" onclick="toggleRag()" title="RAG 側欄">📎</button>
+  <div class="font-btns" style="margin-left:auto">
     <button class="font-btn" onclick="setFontSize('small',this)">小</button>
     <button class="font-btn active" onclick="setFontSize('medium',this)">中</button>
     <button class="font-btn" onclick="setFontSize('large',this)">大</button>
   </div>
-  <button class="rag-btn" onclick="toggleRag()" title="RAG 側欄">📎</button>
   {% if authenticated %}
   {% if is_admin %}
-  <a href="/admin" style="margin-left:auto;color:rgba(255,255,255,.85);font-size:.82rem;text-decoration:none;padding:5px 12px;border:1px solid rgba(255,255,255,.3);border-radius:6px;transition:background .15s;white-space:nowrap" onmouseover="this.style.background='rgba(255,255,255,.15)'" onmouseout="this.style.background='none'">⚙️ 管理</a>
+  <a href="/admin" style="color:rgba(255,255,255,.85);font-size:.82rem;text-decoration:none;padding:5px 12px;border:1px solid rgba(255,255,255,.3);border-radius:6px;transition:background .15s;white-space:nowrap" onmouseover="this.style.background='rgba(255,255,255,.15)'" onmouseout="this.style.background='none'">⚙️ 管理</a>
   {% endif %}
-  <a href="/logout" {% if not is_admin %}style="margin-left:auto;{% else %}style="{% endif %}color:rgba(255,255,255,.85);font-size:.82rem;text-decoration:none;padding:5px 12px;border:1px solid rgba(255,255,255,.3);border-radius:6px;transition:background .15s;white-space:nowrap;display:flex;align-items:center;gap:6px" onmouseover="this.style.background='rgba(255,255,255,.15)'" onmouseout="this.style.background='none'" title="登出">
+  <a href="/logout" style="color:rgba(255,255,255,.85);font-size:.82rem;text-decoration:none;padding:5px 12px;border:1px solid rgba(255,255,255,.3);border-radius:6px;transition:background .15s;white-space:nowrap;display:flex;align-items:center;gap:6px" onmouseover="this.style.background='rgba(255,255,255,.15)'" onmouseout="this.style.background='none'" title="登出">
     {% if username %}<span style="opacity:.7;font-size:.78rem">{{ username }}</span>{% endif %}
     登出
   </a>
