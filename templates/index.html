@@ -189,6 +189,11 @@ mark.kw-hl{background:#fef08a;color:inherit;border-radius:2px;padding:0 1px}
 .login-box input[type=text]:focus,.login-box input[type=password]:focus{border-color:#3b82f6}
 .login-box button{margin-top:14px;width:100%;padding:13px;background:linear-gradient(135deg,#1d4ed8,#3b82f6);color:#fff;border:none;border-radius:10px;font-size:.95rem;font-weight:700;cursor:pointer;transition:opacity .2s}
 .login-box button:hover{opacity:.88}
+.pw-wrap{position:relative;margin-bottom:0}
+.pw-wrap input{width:100%;padding:12px 42px 12px 16px;border:1.5px solid #e2e8f0;border-radius:10px;font-size:.95rem;outline:none;transition:border-color .2s;text-align:center;letter-spacing:.1em}
+.pw-wrap input:focus{border-color:#3b82f6}
+.pw-eye{position:absolute;right:12px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;font-size:1rem;color:#94a3b8;padding:0;line-height:1}
+.pw-eye:hover{color:#475569}
 #login-err{color:#ef4444;font-size:.82rem;margin-top:10px;min-height:20px}
 /* ── RESPONSIVE ── */
 .menu-btn,.rag-btn{display:none;background:none;border:none;font-size:1.2rem;cursor:pointer;padding:4px 8px;border-radius:6px;line-height:1;color:rgba(255,255,255,.85)}
@@ -242,8 +247,11 @@ mark.kw-hl{background:#fef08a;color:inherit;border-radius:2px;padding:0 1px}
     <input type="text" id="un-input" placeholder="帳號" autocomplete="username"
       style="margin-bottom:10px"
       onkeydown="if(event.key==='Enter') document.getElementById('pw-input').focus()"/>
-    <input type="password" id="pw-input" placeholder="密碼" autocomplete="current-password"
-      onkeydown="if(event.key==='Enter') doLogin()"/>
+    <div class="pw-wrap" style="margin-bottom:0">
+      <input type="password" id="pw-input" placeholder="密碼" autocomplete="current-password"
+        onkeydown="if(event.key==='Enter') doLogin()"/>
+      <button type="button" class="pw-eye" onclick="togglePwEye('pw-input',this)" tabindex="-1">👁</button>
+    </div>
     <button onclick="doLogin()">進入系統</button>
     <div id="login-err"></div>
   </div>
@@ -1398,6 +1406,13 @@ function renderRAG(sources) {
     document.addEventListener("touchend", onUp);
   });
 })();
+
+function togglePwEye(inputId, btn) {
+  const inp = document.getElementById(inputId);
+  const show = inp.type === 'password';
+  inp.type = show ? 'text' : 'password';
+  btn.textContent = show ? '🙈' : '👁';
+}
 
 async function doLogin() {
   const un = document.getElementById("un-input").value.trim();

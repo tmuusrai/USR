@@ -89,6 +89,11 @@ def _init_conv_db():
                 password TEXT NOT NULL,
                 created_at REAL NOT NULL
             );
+            CREATE TABLE IF NOT EXISTS app_settings (
+                key TEXT PRIMARY KEY,
+                value TEXT NOT NULL,
+                updated_at REAL NOT NULL
+            );
             CREATE INDEX IF NOT EXISTS idx_conv_user ON conversations(user_id, updated_at DESC);
             CREATE INDEX IF NOT EXISTS idx_msg_conv ON conv_messages(conversation_id, timestamp ASC);
         """)
@@ -1477,6 +1482,40 @@ def api_admin_change_password(username):
         conn.execute("UPDATE site_users SET password=? WHERE username=?", (password, username))
     return jsonify({"ok": True})
 
+
+@app.route("/api/admin/settings", methods=["GET"])
+def api_admin_settings_get():
+    if not _is_admin():
+        return jsonify({"error": "unauthorized"}), 403
+    with _get_db() as conn:
+        rows = conn.execute("SELECT key, value FROM app_settings").fetchall()
+    settings = {r["key"]: r["value"] for r in rows}
+    return jsonify({
+        "announcement": settings.get("announcement", ""),
+        "sysinfo": {
+            "LLM_MODEL": os.environ.get("LLM_MODEL", "—"),
+            "LLM_MODEL_FAST": os.environ.get("LLM_MODEL_FAST", "—"),
+            "TOP_K": str(TOP_K),
+            "CHUNK_SIZE": str(CHUNK_SIZE),
+            "CHUNK_OVERLAP": str(CHUNK_OVERLAP),
+        }
+    })
+
+@app.route("/api/admin/settings", methods=["PATCH"])
+def api_admin_settings_patch():
+    if not _is_admin():
+        return jsonify({"error": "unauthorized"}), 403
+    data = request.get_json() or {}
+    key = (data.get("key") or "").strip()
+    value = data.get("value", "")
+    if key not in ("announcement",):
+        return jsonify({"error": "不允許修改此設定"}), 400
+    with _get_db() as conn:
+        conn.execute(
+            "INSERT OR REPLACE INTO app_settings (key, value, updated_at) VALUES (?,?,?)",
+            (key, value, time.time())
+        )
+    return jsonify({"ok": True})
 
 @app.route("/ask", methods=["POST"])
 def ask():

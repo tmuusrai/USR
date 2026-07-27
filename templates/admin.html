@@ -32,6 +32,7 @@ tr:hover td{background:#fafbfc}
 .btn-blue{background:#1e40af;color:#fff}.btn-blue:hover{background:#1e3a8a}
 .btn-gray{background:#e2e8f0;color:#475569}.btn-gray:hover{background:#cbd5e1}
 .btn-red{background:#fee2e2;color:#dc2626}.btn-red:hover{background:#fecaca}
+.btn-green{background:#dcfce7;color:#15803d}.btn-green:hover{background:#bbf7d0}
 .btn-sm{padding:3px 9px;font-size:.74rem}
 .last-q{max-width:240px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#64748b}
 .ts{font-size:.75rem;color:#94a3b8;white-space:nowrap}
@@ -42,6 +43,27 @@ tr:hover td{background:#fafbfc}
 .add-form input:focus{border-color:#3b82f6}
 .pw-input{display:none;gap:6px;align-items:center}
 .pw-input input{padding:5px 10px;border:1.5px solid #cbd5e1;border-radius:6px;font-size:.82rem;width:140px}
+.eye-btn{background:none;border:none;cursor:pointer;font-size:.9rem;color:#94a3b8;padding:0 2px;line-height:1}
+.eye-btn:hover{color:#475569}
+.pw-field{position:relative;display:inline-flex;align-items:center}
+.pw-field input{padding-right:28px}
+/* 設定區塊 */
+.setting-row{padding:16px 20px;border-top:1px solid #f1f5f9}
+.setting-row:first-child{border-top:none}
+.setting-label{font-weight:600;font-size:.85rem;color:#374151;margin-bottom:4px}
+.setting-desc{font-size:.78rem;color:#6b7280;margin-bottom:8px}
+.setting-ctrl{display:flex;gap:8px;align-items:flex-start}
+.setting-ctrl textarea{flex:1;padding:8px 12px;border:1.5px solid #cbd5e1;border-radius:7px;font-size:.84rem;outline:none;resize:vertical;min-height:72px;font-family:inherit}
+.setting-ctrl textarea:focus{border-color:#3b82f6}
+.save-ok{color:#15803d;font-size:.78rem;margin-left:6px}
+.save-err{color:#dc2626;font-size:.78rem;margin-left:6px}
+.sysinfo{padding:4px 0}
+.sysinfo dt{display:inline;font-size:.78rem;color:#6b7280;font-weight:600}
+.sysinfo dd{display:inline;font-size:.78rem;font-family:monospace;color:#1e293b;margin-left:6px}
+.sysinfo-row{padding:8px 20px;border-top:1px solid #f1f5f9;display:flex;gap:8px;align-items:center}
+.sysinfo-row:first-child{border-top:none}
+.sysinfo-key{font-size:.78rem;color:#6b7280;font-weight:600;width:160px;flex-shrink:0}
+.sysinfo-val{font-size:.82rem;font-family:monospace;color:#1e293b}
 </style>
 </head>
 <body>
@@ -66,7 +88,10 @@ tr:hover td{background:#fafbfc}
     </table>
     <div class="add-form">
       <input id="new-uname" placeholder="新帳號名稱" style="width:160px">
-      <input id="new-pw" type="password" placeholder="密碼" style="width:150px">
+      <div class="pw-field">
+        <input id="new-pw" type="password" placeholder="密碼" style="width:150px">
+        <button type="button" class="eye-btn" style="position:absolute;right:6px" onclick="toggleEye('new-pw',this)" tabindex="-1">👁</button>
+      </div>
       <button class="btn btn-blue" onclick="addUser()">新增帳號</button>
       <span id="add-msg" style="font-size:.8rem;color:#dc2626"></span>
     </div>
@@ -98,8 +123,35 @@ tr:hover td{background:#fafbfc}
     </table>
   </div>
 
+  <!-- 設定 -->
+  <div class="section">
+    <div class="sec-title">設定</div>
+
+    <div class="setting-row">
+      <div class="setting-label">系統公告</div>
+      <div class="setting-desc">顯示於主頁頂部的通知訊息，留空則不顯示。</div>
+      <div class="setting-ctrl">
+        <textarea id="set-announcement" placeholder="輸入公告內容…"></textarea>
+      </div>
+      <div style="margin-top:8px;display:flex;align-items:center">
+        <button class="btn btn-blue btn-sm" onclick="saveSetting('announcement','set-announcement')">儲存</button>
+        <span id="msg-announcement"></span>
+      </div>
+    </div>
+
+    <div class="sec-title" style="border-top:1px solid #e2e8f0;font-size:.8rem;color:#64748b;background:#f8fafc">系統資訊</div>
+    <div id="sysinfo-rows"><div class="sysinfo-row" style="color:#94a3b8">載入中…</div></div>
+  </div>
+
 </div>
 <script>
+function toggleEye(inputId, btn) {
+  const inp = document.getElementById(inputId);
+  const show = inp.type === 'password';
+  inp.type = show ? 'text' : 'password';
+  btn.textContent = show ? '🙈' : '👁';
+}
+
 function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')}
 
 function fmtTime(ts){
@@ -131,7 +183,10 @@ async function loadAccounts(){
         <td style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
           <button class="btn btn-gray btn-sm" onclick="togglePw('${esc(u.username)}')">改密碼</button>
           <div class="pw-input" id="pw-${esc(u.username)}">
-            <input type="password" placeholder="新密碼" id="pwinput-${esc(u.username)}">
+            <div class="pw-field">
+              <input type="password" placeholder="新密碼" id="pwinput-${esc(u.username)}" style="padding-right:28px">
+              <button type="button" class="eye-btn" style="position:absolute;right:6px" onclick="toggleEye('pwinput-${esc(u.username)}',this)" tabindex="-1">👁</button>
+            </div>
             <button class="btn btn-blue btn-sm" onclick="changePw('${esc(u.username)}')">確認</button>
             <button class="btn btn-gray btn-sm" onclick="togglePw('${esc(u.username)}')">取消</button>
           </div>
@@ -227,8 +282,38 @@ async function loadDetail(username){
 
 function closeDetail(){document.getElementById('detail-panel').style.display='none';}
 
+// ── 設定 ──
+async function loadSettings(){
+  const res=await fetch('/api/admin/settings');
+  if(!res.ok)return;
+  const d=await res.json();
+  if(d.announcement!==undefined) document.getElementById('set-announcement').value=d.announcement;
+  const rows=document.getElementById('sysinfo-rows');
+  rows.innerHTML=Object.entries(d.sysinfo||{}).map(([k,v])=>
+    `<div class="sysinfo-row"><span class="sysinfo-key">${esc(k)}</span><span class="sysinfo-val">${esc(v)}</span></div>`
+  ).join('');
+}
+
+async function saveSetting(key,inputId){
+  const value=document.getElementById(inputId).value;
+  const msgEl=document.getElementById('msg-'+key);
+  const res=await fetch('/api/admin/settings',{
+    method:'PATCH',
+    headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({key,value})
+  });
+  if(res.ok){
+    msgEl.className='save-ok';msgEl.textContent=' 已儲存';
+  } else {
+    const e=await res.json();
+    msgEl.className='save-err';msgEl.textContent=' '+(e.error||'儲存失敗');
+  }
+  setTimeout(()=>{msgEl.textContent='';},3000);
+}
+
 loadAccounts();
 loadStats();
+loadSettings();
 </script>
 </body>
 </html>
