@@ -1909,6 +1909,17 @@ def ask():
                 if _listed_schools and annotated:
                     annotated = [a for a in annotated if any(s.split('：')[0] in a for s in _listed_schools)]
                     print(f"[SEQ] 追問學校過濾後 {len(annotated)} 篇")
+                # 列舉型：用查詢詞 + LLM 同義詞過濾廣搜雜訊
+                # 廣搜會把整個議題（如環境永續）全拉進來，但使用者只問特定子主題（如海洋、水資源）
+                # 只保留 context 中有出現這些詞的計畫，避免 LLM 看到不相關計畫後自行過濾
+                if _list and annotated and not _listed_schools:
+                    _filter_kws = [k for k in (_q_terms + _llm_kw_list)
+                                   if len(k) >= 2 and k not in {"相關", "永續", "計畫", "大學", "學校", "哪些"}]
+                    if _filter_kws:
+                        _annotated_filtered = [a for a in annotated if any(kw in a for kw in _filter_kws)]
+                        if _annotated_filtered:
+                            annotated = _annotated_filtered
+                            print(f"[SEQ] 查詢詞過濾後 {len(annotated)} 篇（詞：{_filter_kws[:5]}）")
             else:
                 annotated = None
 
