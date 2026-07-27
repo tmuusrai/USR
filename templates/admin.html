@@ -83,8 +83,8 @@ tr:hover td{background:#fafbfc}
   <div class="section">
     <div class="sec-title">用戶管理</div>
     <table>
-      <thead><tr><th>帳號</th><th>建立時間</th><th>操作</th></tr></thead>
-      <tbody id="acct-tbody"><tr><td colspan="3" class="empty">載入中…</td></tr></tbody>
+      <thead><tr><th>帳號</th><th>建立時間</th><th>問題紀錄</th><th>操作</th></tr></thead>
+      <tbody id="acct-tbody"><tr><td colspan="4" class="empty">載入中…</td></tr></tbody>
     </table>
     <div class="add-form">
       <input id="new-uname" placeholder="新帳號名稱" style="width:160px">
@@ -95,6 +95,18 @@ tr:hover td{background:#fafbfc}
       <button class="btn btn-blue" onclick="addUser()">新增帳號</button>
       <span id="add-msg" style="font-size:.8rem;color:#dc2626"></span>
     </div>
+  </div>
+
+  <!-- 問題明細（點用戶管理的查看問題展開） -->
+  <div class="section" id="detail-panel" style="display:none">
+    <div class="sec-title">
+      <span id="detail-title">問題明細</span>
+      <button class="close-btn" onclick="closeDetail()">✕</button>
+    </div>
+    <table>
+      <thead><tr><th style="width:160px">時間</th><th>問題</th><th>對話標題</th></tr></thead>
+      <tbody id="detail-tbody"></tbody>
+    </table>
   </div>
 
   <!-- 問題紀錄 -->
@@ -108,18 +120,6 @@ tr:hover td{background:#fafbfc}
         </tr>
       </thead>
       <tbody id="users-tbody"><tr><td colspan="7" class="empty">載入中…</td></tr></tbody>
-    </table>
-  </div>
-
-  <!-- 問題明細 -->
-  <div class="section" id="detail-panel" style="display:none">
-    <div class="sec-title">
-      <span id="detail-title">問題明細</span>
-      <button class="close-btn" onclick="closeDetail()">✕</button>
-    </div>
-    <table>
-      <thead><tr><th style="width:160px">時間</th><th>問題</th><th>對話標題</th></tr></thead>
-      <tbody id="detail-tbody"></tbody>
     </table>
   </div>
 
@@ -180,6 +180,7 @@ async function loadAccounts(){
       <tr id="row-${esc(u.username)}">
         <td><strong>${esc(u.username)}</strong></td>
         <td class="ts">${fmtDate(u.created_at)}</td>
+        <td><button class="btn btn-blue btn-sm" onclick="loadDetail('${esc(u.username)}')">查看歷史</button></td>
         <td style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
           <button class="btn btn-gray btn-sm" onclick="togglePw('${esc(u.username)}')">改密碼</button>
           <div class="pw-input" id="pw-${esc(u.username)}">
