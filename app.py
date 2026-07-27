@@ -92,9 +92,8 @@ def _init_conv_db():
             CREATE INDEX IF NOT EXISTS idx_conv_user ON conversations(user_id, updated_at DESC);
             CREATE INDEX IF NOT EXISTS idx_msg_conv ON conv_messages(conversation_id, timestamp ASC);
         """)
-        # 首次啟動從 SITE_USERS_JSON 匯入（每個帳號取第一組密碼）
-        count = conn.execute("SELECT COUNT(*) FROM site_users").fetchone()[0]
-        if count == 0 and SITE_USERS:
+        # 每次啟動都把 SITE_USERS_JSON 裡的新帳號同步進 SQLite（不覆蓋已有的密碼）
+        if SITE_USERS:
             now = time.time()
             for uname, passwords in SITE_USERS.items():
                 if passwords:
