@@ -1934,9 +1934,11 @@ def ask():
                     _src = _m.group(1)
                     if _src in _seen_plan_srcs:  # 同一計畫書不同 chunk → 去重
                         continue
-                    _seen_plan_srcs.add(_src)
                     _parts = _src.split('_', 1)
-                    _line = f"{_parts[0]}：{_parts[1]}" if len(_parts) == 2 else _src
+                    if len(_parts) < 2:  # 沒有 _ → 非「學校_計畫」格式（如基本資料表合集、計劃總覽）
+                        continue
+                    _seen_plan_srcs.add(_src)
+                    _line = f"{_parts[0]}：{_parts[1]}"
                     if _q_priority_kws and any(pk in _entry for pk in _q_priority_kws):
                         _tier1.append(_line)  # 直接命中問題詞 → 排前面
                     else:
@@ -1965,8 +1967,9 @@ def ask():
                 )
                 context = (
                     f"【系統已透過關鍵字篩選出以下 {len(_plan_list_lines)} 件計畫，此為最終清單。{_sort_note}"
-                    f"請直接以「共{len(_plan_list_lines)}件計畫：」開頭，"
-                    f"逐條列出下方所有條目，格式「學校全名：計畫全名」，不得增刪任何條目。】\n\n"
+                    f"請依下列格式輸出：\n"
+                    f"第一段：以「共{len(_plan_list_lines)}件計畫：」開頭，逐條列出所有條目（格式「學校全名：計畫全名」），不得增刪。\n"
+                    f"第二段：從 context 中選取最具代表性的 5～8 件，各寫 2～3 句摘要說明，格式「學校全名：計畫全名\n摘要」。】\n\n"
                     f"【已篩選計畫清單】\n{_plans_str}\n\n"
                     f"【計畫詳細內容（說明時可參考）】\n"
                 ) + context
