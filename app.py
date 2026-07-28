@@ -1024,8 +1024,14 @@ def _seq_query_by_index(kws: list[str], topic: str, index: dict,
         text = _clean_plan_code(doc.page_content)
         src_name = _clean_plan_code(Path(doc.metadata.get("source", "")).stem)
         if condense:
-            # 列舉型：400 字 snippet，從最近的命中關鍵字位置截取，讓 LLM 看到足夠內容
-            first_pos = min((text.find(kw) for kw in hits if text.find(kw) >= 0), default=0)
+            # 列舉型：snippet 優先從 priority keyword 位置截，確保 priority filter 能命中
+            pri_pos = next(
+                (text.find(kw) for kw in (priority_kws or []) if text.find(kw) >= 0),
+                None
+            )
+            first_pos = pri_pos if pri_pos is not None else min(
+                (text.find(kw) for kw in hits if text.find(kw) >= 0), default=0
+            )
             start = max(0, first_pos - 30)
             snippet = text[start:start + 400]
             entry = f"【{src_name}】\n{snippet}…"
