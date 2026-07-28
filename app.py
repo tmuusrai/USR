@@ -1917,6 +1917,7 @@ def ask():
                 faiss_texts = [_clean_plan_code(doc.page_content) for doc in docs]
             _plan_list_lines: list[str] = []
             if annotated and _list:
+                print(f"[LIST-DEBUG] SEQ annotated 共 {len(annotated)} 筆，開始提取計畫名稱")
                 # 列舉型：先從 SEQ 結果提取計畫名稱清單（在截字前確保完整）
                 for _entry in annotated:
                     _m = re.match(r'【(.+?)】', _entry)
@@ -1926,6 +1927,7 @@ def ask():
                         _plan_list_lines.append(
                             f"{_parts[0]}：{_parts[1]}" if len(_parts) == 2 else _src
                         )
+                print(f"[LIST-DEBUG] 提取到 {len(_plan_list_lines)} 件（match失敗：{len(annotated)-len(_plan_list_lines)}筆）")
                 # 列舉型：SEQ（精確命中）+ FAISS（語意補充）合併，確保廣度
                 seen_heads = {a[:80] for a in annotated}
                 extra = [t for t in faiss_texts if t[:80] not in seen_heads]
