@@ -1921,9 +1921,12 @@ def ask():
             else:
                 faiss_texts = [_clean_plan_code(doc.page_content) for doc in docs]
             _plan_list_lines: list[str] = []
+            _MAX_PLAN_LIST = 150  # LLM 輸出上限（超過會被截斷）
             if annotated and _list:
                 print(f"[LIST-DEBUG] SEQ annotated 共 {len(annotated)} 筆，開始提取計畫名稱")
                 _seen_plan_srcs: set[str] = set()
+                _tier1: list[str] = []  # 直接命中問題詞
+                _tier2: list[str] = []  # 只靠議題關鍵字命中
                 for _entry in annotated:
                     _m = re.match(r'【(.+?)】', _entry)
                     if not _m:
@@ -1931,15 +1934,17 @@ def ask():
                     _src = _m.group(1)
                     if _src in _seen_plan_srcs:  # 同一計畫書不同 chunk → 去重
                         continue
-                    # 只收錄問題優先關鍵字有命中的計畫（避免泛化關鍵字把全庫拉進來）
-                    if _q_priority_kws and not any(pk in _entry for pk in _q_priority_kws):
-                        continue
                     _seen_plan_srcs.add(_src)
                     _parts = _src.split('_', 1)
-                    _plan_list_lines.append(
-                        f"{_parts[0]}：{_parts[1]}" if len(_parts) == 2 else _src
-                    )
-                print(f"[LIST-DEBUG] 提取到 {len(_plan_list_lines)} 件（priority_kws={_q_priority_kws[:3]}）")
+                    _line = f"{_parts[0]}：{_parts[1]}" if len(_parts) == 2 else _src
+                    if _q_priority_kws and any(pk in _entry for pk in _q_priority_kws):
+                        _tier1.append(_line)  # 直接命中問題詞 → 排前面
+                    else:
+                        _tier2.append(_line)  # 議題關鍵字命中 → 排後面
+                # Tier1 全保留；Tier2 補足至上限
+                _t2_cap = max(0, _MAX_PLAN_LIST - len(_tier1))
+                _plan_list_lines = _tier1 + _tier2[:_t2_cap]
+                print(f"[LIST-DEBUG] 提取到 {len(_plan_list_lines)} 件（T1={len(_tier1)}直接命中，T2={min(len(_tier2), _t2_cap)}議題相關，priority_kws={_q_priority_kws[:3]}）")
                 # 列舉型：SEQ（精確命中）+ FAISS（語意補充）合併，確保廣度
                 seen_heads = {a[:80] for a in annotated}
                 extra = [t for t in faiss_texts if t[:80] not in seen_heads]
@@ -1952,15 +1957,20 @@ def ask():
                 context = context[:_CTX_CHAR_LIMIT]
             # 列舉型：在 context 前注入預建清單，讓 LLM 直接按清單輸出，不自行過濾
             if _list and _plan_list_lines:
+                _t1_count = len([l for l in _plan_list_lines if any(pk in l for pk in _q_priority_kws)]) if _q_priority_kws else 0
                 _plans_str = "\n".join(f"{i+1}. {p}" for i, p in enumerate(_plan_list_lines))
+                _sort_note = (
+                    f"清單依相關度排序：前 {_t1_count} 件直接提及查詢關鍵詞，後段為議題相關計畫。"
+                    if _q_priority_kws and _t1_count > 0 else ""
+                )
                 context = (
-                    f"【系統已透過關鍵字篩選出以下 {len(_plan_list_lines)} 件計畫，此為最終清單。"
+                    f"【系統已透過關鍵字篩選出以下 {len(_plan_list_lines)} 件計畫，此為最終清單。{_sort_note}"
                     f"請直接以「共{len(_plan_list_lines)}件計畫：」開頭，"
                     f"逐條列出下方所有條目，格式「學校全名：計畫全名」，不得增刪任何條目。】\n\n"
                     f"【已篩選計畫清單】\n{_plans_str}\n\n"
                     f"【計畫詳細內容（說明時可參考）】\n"
                 ) + context
-                print(f"[LIST] 預建清單 {len(_plan_list_lines)} 件，注入 context 前")
+                print(f"[LIST] 預建清單 {len(_plan_list_lines)} 件（T1={_t1_count}），注入 context 前")
             # 多校追問：提示 LLM 針對每間學校分別回答，不得合併或省略
             if _multi_enumerate:
                 context = f"【本問題涉及前一輪列出的 {len(_listed_schools)} 件計畫，請在回答中針對 context 中每件計畫分別說明，不得合併舉例或省略任何一件。】\n\n" + context
