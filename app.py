@@ -1855,6 +1855,7 @@ def ask():
                 not _multi_enumerate and  # 多校追問不跑 Seq Query（_q_terms 無效）
                 (_list or (_usr_topic and _usr_topic_kws and _faiss_src_count > 5))
             )
+            _q_priority_kws: list[str] = []
             if _seq_trigger:
                 _seq_topic = _usr_topic or "列舉"
                 _q_terms = _extract_query_terms(question) if _list else []
@@ -1888,8 +1889,12 @@ def ask():
                                                 min_hits=1,
                                                 condense=_list,
                                                 priority_kws=_q_priority_kws or None)
-                # 列舉型：問題詞 + LLM 生成詞即時掃描（補足索引沒有的詞，如「海洋」「流浪動物」）
-                _live_scan_kws = _q_terms + [k for k in _llm_kw_list if k not in _q_terms]
+                # 列舉型：只掃描「有意義的問題詞且不在倒排索引」的詞（如「海洋」「流浪動物」）
+                # 排除 _seq_kws 已涵蓋的詞（倒排索引已搜過）和 <4 字的通用縮寫（如 USR）
+                _live_scan_kws = [
+                    k for k in (_q_terms + _llm_kw_list)
+                    if k not in _seq_kws and len(k) >= 4
+                ]
                 if _list and _live_scan_kws:
                     _live_results = _seq_query_live(_live_scan_kws, _seq_topic, vs,
                                                     condense=True)
@@ -1918,16 +1923,23 @@ def ask():
             _plan_list_lines: list[str] = []
             if annotated and _list:
                 print(f"[LIST-DEBUG] SEQ annotated 共 {len(annotated)} 筆，開始提取計畫名稱")
-                # 列舉型：先從 SEQ 結果提取計畫名稱清單（在截字前確保完整）
+                _seen_plan_srcs: set[str] = set()
                 for _entry in annotated:
                     _m = re.match(r'【(.+?)】', _entry)
-                    if _m:
-                        _src = _m.group(1)
-                        _parts = _src.split('_', 1)
-                        _plan_list_lines.append(
-                            f"{_parts[0]}：{_parts[1]}" if len(_parts) == 2 else _src
-                        )
-                print(f"[LIST-DEBUG] 提取到 {len(_plan_list_lines)} 件（match失敗：{len(annotated)-len(_plan_list_lines)}筆）")
+                    if not _m:
+                        continue
+                    _src = _m.group(1)
+                    if _src in _seen_plan_srcs:  # 同一計畫書不同 chunk → 去重
+                        continue
+                    # 只收錄問題優先關鍵字有命中的計畫（避免泛化關鍵字把全庫拉進來）
+                    if _q_priority_kws and not any(pk in _entry for pk in _q_priority_kws):
+                        continue
+                    _seen_plan_srcs.add(_src)
+                    _parts = _src.split('_', 1)
+                    _plan_list_lines.append(
+                        f"{_parts[0]}：{_parts[1]}" if len(_parts) == 2 else _src
+                    )
+                print(f"[LIST-DEBUG] 提取到 {len(_plan_list_lines)} 件（priority_kws={_q_priority_kws[:3]}）")
                 # 列舉型：SEQ（精確命中）+ FAISS（語意補充）合併，確保廣度
                 seen_heads = {a[:80] for a in annotated}
                 extra = [t for t in faiss_texts if t[:80] not in seen_heads]
