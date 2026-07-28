@@ -395,9 +395,7 @@ USR_TOPIC_KEYWORDS: dict[str, list[str]] = {
         "高齡照護", "偏鄉教育", "社區營造", "弱勢扶助", "在地關懷", "社區關懷",
         "社區培力", "青銀共創", "新住民關懷", "原住民族關懷", "偏鄉照顧", "弱勢關懷",
         "場域合作", "MOU", "在地認同", "在地需求", "韌性社區", "地方特色", "區域發展",
-        "在地化經濟", "在地產業", "青年就業", "城市轉型", "共學共創", "部落共學",
-        "世代共融",
-        "地方創生", "社會實踐", "樂齡學習", "在地老化", "健康促進", "食農教育", "文化傳承", "社區共好", "社會安全網", "數位落差", "偏鄉醫療", "社會包容", "活躍老化", "里山倡議", "跨域合作", "在地實踐", "社會影響力", "教育平權", "青農返鄉", "文史保存",
+        "在地化經濟", "在地產業", "青年就業", "城市轉型", "共學共創", "部落共學", "世代共融",
     ],
     "環境永續": [
         "淨零碳排", "循環經濟", "環境教育", "生態保育", "永續環境", "環境永續",
@@ -1581,31 +1579,25 @@ def ask():
             else:
                 _usr_topic, _usr_topic_kws = _detect_usr_topic(question)
             if _usr_topic and _usr_topic_kws:
-                topic_expand = " ".join(_usr_topic_kws[:20])
+                topic_expand = " ".join(_usr_topic_kws)
                 if expand_query:
                     expand_query = f"{expand_query} {topic_expand}"
                 else:
                     expand_query = topic_expand
                 print(f"[TOPIC] 議題展開 query（前60字）：{expand_query[:60]}")
 
-            # ── LLM 平行：關鍵詞擴充（列舉型）+ 追問偵測（有歷史且非明確追問詞）──
+            # ── LLM 平行：議題語意分類 + 追問偵測 ──
             _llm_kw_list: list[str] = []
             _explicit_followup = bool(_MULTI_REF_RE.search(question) and history)
             _is_followup: bool = _explicit_followup
 
-            with ThreadPoolExecutor(max_workers=3) as _llm_ex:
-                _kw_fut = _llm_ex.submit(_expand_keywords_by_llm, question) if _list_check else None
+            with ThreadPoolExecutor(max_workers=2) as _llm_ex:
                 _topic_fut = _llm_ex.submit(_llm_classify_topics, question) if _list_check else None
                 _fu_fut = (
                     _llm_ex.submit(_check_is_followup, question, history[-1])
                     if history and not _explicit_followup
                     else None
                 )
-                if _kw_fut:
-                    _llm_kws = _kw_fut.result()
-                    if _llm_kws:
-                        expand_query = f"{expand_query} {_llm_kws}" if expand_query else _llm_kws
-                        _llm_kw_list = [k for k in _llm_kws.split() if len(k) >= 2]
                 if _topic_fut:
                     _llm_topics = _topic_fut.result()
                     for _lt in _llm_topics:
@@ -1923,7 +1915,17 @@ def ask():
                 ]
             else:
                 faiss_texts = [_clean_plan_code(doc.page_content) for doc in docs]
+            _plan_list_lines: list[str] = []
             if annotated and _list:
+                # 列舉型：先從 SEQ 結果提取計畫名稱清單（在截字前確保完整）
+                for _entry in annotated:
+                    _m = re.match(r'【(.+?)】', _entry)
+                    if _m:
+                        _src = _m.group(1)
+                        _parts = _src.split('_', 1)
+                        _plan_list_lines.append(
+                            f"{_parts[0]}：{_parts[1]}" if len(_parts) == 2 else _src
+                        )
                 # 列舉型：SEQ（精確命中）+ FAISS（語意補充）合併，確保廣度
                 seen_heads = {a[:80] for a in annotated}
                 extra = [t for t in faiss_texts if t[:80] not in seen_heads]
@@ -1934,13 +1936,17 @@ def ask():
                 context = "\n\n".join(faiss_texts)
             if len(context) > _CTX_CHAR_LIMIT:
                 context = context[:_CTX_CHAR_LIMIT]
-            # 列舉型：在 context 前加提示，讓 LLM 直接列出所有計畫，不再自行過濾
-            if _list and annotated:
+            # 列舉型：在 context 前注入預建清單，讓 LLM 直接按清單輸出，不自行過濾
+            if _list and _plan_list_lines:
+                _plans_str = "\n".join(f"{i+1}. {p}" for i, p in enumerate(_plan_list_lines))
                 context = (
-                    f"【以下計畫均屬「{_seq_topic}」議題範疇，已通過關鍵字篩選。"
-                    f"同一議題內的計畫彼此相關，請將 context 中出現的每一件計畫（學校全名：計畫全名）全部列出，"
-                    f"不得以「未直接提及查詢詞」為由自行判斷過濾或省略任何一件。】\n\n"
+                    f"【系統已透過關鍵字篩選出以下 {len(_plan_list_lines)} 件計畫，此為最終清單。"
+                    f"請直接以「共{len(_plan_list_lines)}件計畫：」開頭，"
+                    f"逐條列出下方所有條目，格式「學校全名：計畫全名」，不得增刪任何條目。】\n\n"
+                    f"【已篩選計畫清單】\n{_plans_str}\n\n"
+                    f"【計畫詳細內容（說明時可參考）】\n"
                 ) + context
+                print(f"[LIST] 預建清單 {len(_plan_list_lines)} 件，注入 context 前")
             # 多校追問：提示 LLM 針對每間學校分別回答，不得合併或省略
             if _multi_enumerate:
                 context = f"【本問題涉及前一輪列出的 {len(_listed_schools)} 件計畫，請在回答中針對 context 中每件計畫分別說明，不得合併舉例或省略任何一件。】\n\n" + context
