@@ -1926,6 +1926,7 @@ def ask():
                 ]
             else:
                 faiss_texts = [_clean_plan_code(doc.page_content) for doc in docs]
+            print(f"[LIST-GATE] _list={_list} annotated={type(annotated).__name__ if annotated is not None else 'None'}({len(annotated) if annotated else 0}) _usr_topic={_usr_topic} _seq_kws={len(_seq_kws) if '_seq_kws' in dir() else 'undef'}")
             _plan_list_lines: list[str] = []
             _MAX_PLAN_LIST = 150  # LLM 輸出上限（超過會被截斷）
             if annotated and _list:
