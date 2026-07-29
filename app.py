@@ -1935,6 +1935,7 @@ def ask():
                 _seen_plan_srcs: set[str] = set()
                 _tier1: list[str] = []  # 直接命中問題詞
                 _tier2_scored: list[tuple[int, str]] = []  # (相關度分數, 行文字)
+                _plan_to_snippet: dict[str, str] = {}  # plan_line → SEQ snippet
                 # T2 評分依據：query詞 + LLM擴充詞 在 entry 裡出現幾個
                 _t2_score_kws = [k for k in (_q_priority_kws + _q_terms + _llm_kw_list) if len(k) >= 2]
                 for _entry in annotated:
@@ -1949,6 +1950,7 @@ def ask():
                         continue
                     _seen_plan_srcs.add(_src)
                     _line = f"{_parts[0]}：{_parts[1]}"
+                    _plan_to_snippet[_line] = _entry[_m.end():].strip()[:350]
                     if _q_priority_kws and any(pk in _entry for pk in _q_priority_kws):
                         _tier1.append(_line)  # 直接命中問題詞 → 排前面
                     else:
@@ -1966,6 +1968,110 @@ def ask():
                     _tier2 = [l for _, l in _tier2_scored[:_T2_CAP]]
                 _plan_list_lines = _tier1 + _tier2
                 print(f"[LIST-DEBUG] 提取到 {len(_plan_list_lines)} 件（T1={len(_tier1)}直接命中，T2={len(_tier2)}議題相關，其中score>0={len([s for s,_ in _tier2_scored if s>0])}件，priority_kws={_q_priority_kws[:3]}）")
+
+                # ── 列舉型並行路徑：每個計畫單獨送 LLM，避免混淆失焦 ──
+                from langchain_core.messages import HumanMessage as _HMList
+
+                def _sum_one_plan(_plan_line: str) -> str:
+                    _snip = _plan_to_snippet.get(_plan_line, "")
+                    if not _snip:
+                        return ""
+                    _p = (
+                        f"根據以下計畫書內容，用一句話（不超過50字）描述此計畫的核心工作。"
+                        f"只輸出一句摘要，不要其他文字。\n\n{_snip}"
+                    )
+                    try:
+                        _r = llm_fast.bind(temperature=0, thinking_budget=0).invoke([_HMList(content=_p)])
+                        return _normalize_content(_r.content).strip()
+                    except Exception as _pe:
+                        print(f"[LIST-PARA] 摘要失敗: {_pe}")
+                        return ""
+
+                # sources
+                _para_sources: list[dict] = []
+                _para_seen: set = set()
+                for _pd in docs:
+                    _ps = _clean_plan_code(Path(_pd.metadata.get("source", "")).stem)
+                    _pp = _pd.metadata.get("page", 0) + 1
+                    if (_ps, _pp) not in _para_seen:
+                        _para_seen.add((_ps, _pp))
+                        _para_sources.append({"source": _ps, "page": _pp})
+                yield f"data: {json.dumps({'type': 'sources', 'sources': _para_sources}, ensure_ascii=False)}\n\n"
+
+                _t1_label = (
+                    f"（前{len(_tier1)}件直接命中查詢詞，後段為同議題相關）"
+                    if _tier1 and len(_tier1) < len(_plan_list_lines) else ""
+                )
+                _para_ans_parts: list[str] = []
+                _para_t0 = time.perf_counter()
+
+                _header_txt = f"共{len(_plan_list_lines)}件計畫{_t1_label}：\n\n"
+                _para_ans_parts.append(_header_txt)
+                yield f"data: {json.dumps({'type': 'chunk', 'text': _header_txt}, ensure_ascii=False)}\n\n"
+                _para_t_first = time.perf_counter()
+
+                with ThreadPoolExecutor(max_workers=10) as _para_ex:
+                    _para_futs = [(_pl, _para_ex.submit(_sum_one_plan, _pl)) for _pl in _plan_list_lines]
+                    for _pi, (_pl, _pf) in enumerate(_para_futs):
+                        _ps2 = _pf.result()
+                        _pchunk = f"{_pi+1}. {_pl}\n"
+                        if _ps2:
+                            _pchunk += f"{_ps2}\n"
+                        _pchunk += "\n"
+                        _para_ans_parts.append(_pchunk)
+                        yield f"data: {json.dumps({'type': 'chunk', 'text': _pchunk}, ensure_ascii=False)}\n\n"
+
+                _para_t_end = time.perf_counter()
+                _para_full_ans = "".join(_para_ans_parts)
+                _para_timing = {
+                    "prepare_ms":  round((t_prepare_end - t_prepare_start) * 1000),
+                    "voyage_ms":   round((t_voyage - t_prepare_end) * 1000),
+                    "faiss_ms":    round((t_faiss - t_voyage) * 1000),
+                    "llm_first_ms": round((_para_t_first - _para_t0) * 1000),
+                    "llm_total_ms": round((_para_t_end - _para_t0) * 1000),
+                    "total_ms":    round((_para_t_end - t0) * 1000),
+                }
+                print(f"[LIST-PARA] 並行摘要 {len(_plan_list_lines)} 件，輸出={len(_para_full_ans)}字元，總計={_para_timing['total_ms']}ms")
+
+                _para_sugg = _generate_suggestions(question, _para_full_ans[:600])
+                if _para_sugg:
+                    yield f"data: {json.dumps({'type': 'suggested_questions', 'questions': _para_sugg}, ensure_ascii=False)}\n\n"
+
+                if conv_id and user_id:
+                    try:
+                        _now2 = time.time()
+                        with _get_db() as _conn2:
+                            _conn2.execute(
+                                "INSERT OR IGNORE INTO conversations (id, user_id, title, created_at, updated_at) VALUES (?,?,?,?,?)",
+                                (conv_id, user_id, question[:30] if question else "新對話", _now2, _now2)
+                            )
+                            _ex2 = _conn2.execute("SELECT title FROM conversations WHERE id=?", (conv_id,)).fetchone()
+                            if _ex2 and _ex2["title"] == "新對話" and question:
+                                _conn2.execute("UPDATE conversations SET title=? WHERE id=?", (question[:30], conv_id))
+                            _conn2.execute(
+                                "INSERT OR IGNORE INTO conv_messages (id, conversation_id, role, content, timestamp) VALUES (?,?,?,?,?)",
+                                (str(_uuid.uuid4()), conv_id, "user", question, _now2 - 0.001)
+                            )
+                            _conn2.execute(
+                                "INSERT OR IGNORE INTO conv_messages (id, conversation_id, role, content, timestamp) VALUES (?,?,?,?,?)",
+                                (str(_uuid.uuid4()), conv_id, "assistant", _para_full_ans, _now2)
+                            )
+                            _conn2.execute("UPDATE conversations SET updated_at=? WHERE id=?", (_now2, conv_id))
+                    except Exception as _ce:
+                        print(f"[CONV] 儲存對話失敗: {_ce}")
+
+                yield f"data: {json.dumps({'type': 'done', 'timing': _para_timing})}\n\n"
+
+                if chat_id:
+                    _ph = _chat_history.setdefault(chat_id, [])
+                    _ph.append({"q": question, "a": _para_full_ans[:5000], "plans": _extract_listed_plans(_para_full_ans)})
+                    if len(_ph) > _MAX_HISTORY:
+                        _ph.pop(0)
+                    if len(_chat_history) > 1000:
+                        for _hk in list(_chat_history.keys())[:200]:
+                            del _chat_history[_hk]
+                return  # 跳過原本的大 LLM call
+
                 # 列舉型：SEQ（精確命中）+ FAISS（語意補充）合併，確保廣度
                 seen_heads = {a[:80] for a in annotated}
                 extra = [t for t in faiss_texts if t[:80] not in seen_heads]
