@@ -1950,7 +1950,7 @@ def ask():
                         continue
                     _seen_plan_srcs.add(_src)
                     _line = f"{_parts[0]}：{_parts[1]}"
-                    _plan_to_snippet[_line] = _entry[_m.end():].strip()[:350]
+                    _plan_to_snippet[_line] = _entry[_m.end():].strip()[:500]
                     if _q_priority_kws and any(pk in _entry for pk in _q_priority_kws):
                         _tier1.append(_line)  # 直接命中問題詞 → 排前面
                     else:
@@ -1977,8 +1977,11 @@ def ask():
                     if not _snip:
                         return ""
                     _p = (
-                        f"從以下計畫書內容中，直接擷取最能說明此計畫核心工作的1～2句話。"
-                        f"規則：盡量保留原文字句，不要改寫或統整，不要輸出「此計畫...」開頭的概括語句。"
+                        f"從以下計畫書內容中，直接擷取2～4句最能說明此計畫具體工作內容的句子。"
+                        f"規則：\n"
+                        f"- 優先擷取有具體細節的句子（含數字、地點、對象、具體方法或活動名稱）\n"
+                        f"- 盡量保留原文字句，不要改寫、統整或抽象化\n"
+                        f"- 不要輸出「此計畫致力於...」「本計畫旨在...」等概括開頭\n"
                         f"只輸出擷取的句子，不要其他文字。\n\n{_snip}"
                     )
                     try:
