@@ -1333,6 +1333,7 @@ function renderAnswer(raw) {
   let s = raw.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
   s = s.replace(/\*\*([^]*?)\*\*/g, '$1');
   s = s.replace(/\*/g, '');
+  s = s.replace(/([、。，；：！？「」【】『』〔〕…—～·])\1+/g, '$1');
   s = s.replace(_SCHOOL_RE, m => `<span style="color:#1d4ed8">${m}</span>`);
   s = s.replace(_PLAN_RE, m => `<span style="color:#8b0000">${m}</span>`);
   s = s.replace(/〔([^〕\n]{1,40})〕/g, (_, p) => `<u>${p}</u>`);
