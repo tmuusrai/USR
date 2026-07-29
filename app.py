@@ -1933,7 +1933,9 @@ def ask():
                 print(f"[LIST-DEBUG] SEQ annotated 共 {len(annotated)} 筆，開始提取計畫名稱")
                 _seen_plan_srcs: set[str] = set()
                 _tier1: list[str] = []  # 直接命中問題詞
-                _tier2: list[str] = []  # 只靠議題關鍵字命中
+                _tier2_scored: list[tuple[int, str]] = []  # (相關度分數, 行文字)
+                # T2 評分依據：query詞 + LLM擴充詞 在 entry 裡出現幾個
+                _t2_score_kws = [k for k in (_q_priority_kws + _q_terms + _llm_kw_list) if len(k) >= 2]
                 for _entry in annotated:
                     _m = re.match(r'【(.+?)】', _entry)
                     if not _m:
@@ -1949,11 +1951,13 @@ def ask():
                     if _q_priority_kws and any(pk in _entry for pk in _q_priority_kws):
                         _tier1.append(_line)  # 直接命中問題詞 → 排前面
                     else:
-                        _tier2.append(_line)  # 議題關鍵字命中 → 排後面
-                # Tier1 全保留；Tier2 補足至上限
-                _t2_cap = max(0, _MAX_PLAN_LIST - len(_tier1))
-                _plan_list_lines = _tier1 + _tier2[:_t2_cap]
-                print(f"[LIST-DEBUG] 提取到 {len(_plan_list_lines)} 件（T1={len(_tier1)}直接命中，T2={min(len(_tier2), _t2_cap)}議題相關，priority_kws={_q_priority_kws[:3]}）")
+                        _score = sum(1 for k in _t2_score_kws if k in _entry)
+                        _tier2_scored.append((_score, _line))
+                # T2 依分數由高到低排序（分數相同保留 SEQ 原始順序）
+                _tier2_scored.sort(key=lambda x: x[0], reverse=True)
+                _tier2 = [line for _, line in _tier2_scored]
+                _plan_list_lines = _tier1 + _tier2
+                print(f"[LIST-DEBUG] 提取到 {len(_plan_list_lines)} 件（T1={len(_tier1)}直接命中，T2={len(_tier2)}議題相關已排序，priority_kws={_q_priority_kws[:3]}）")
                 # 列舉型：SEQ（精確命中）+ FAISS（語意補充）合併，確保廣度
                 seen_heads = {a[:80] for a in annotated}
                 extra = [t for t in faiss_texts if t[:80] not in seen_heads]
