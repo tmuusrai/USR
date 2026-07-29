@@ -17,6 +17,7 @@ sys.stderr.reconfigure(encoding="utf-8")
 
 from dotenv import load_dotenv
 from flask import Flask, request, jsonify, render_template, session, redirect, url_for, Response, stream_with_context
+from werkzeug.security import generate_password_hash, check_password_hash
 from flask_cors import CORS
 
 from langchain_community.document_loaders import PyPDFLoader, TextLoader
@@ -34,7 +35,7 @@ from structured_qa import init_qa, try_structured_answer
 
 app = Flask(__name__)
 CORS(app)
-app.secret_key = os.getenv("SECRET_KEY", "usr-web-fixed-key-tmuusrai-2024")
+app.secret_key = os.getenv("FLASK_SECRET_KEY", "usr-web-fixed-key-tmuusrai-2024")
 app.config["PERMANENT_SESSION_LIFETIME"] = __import__("datetime").timedelta(days=1)
 
 # ── 設定 ──────────────────────────────────────────────
@@ -96,6 +97,17 @@ def _init_conv_db():
             );
             CREATE INDEX IF NOT EXISTS idx_conv_user ON conversations(user_id, updated_at DESC);
             CREATE INDEX IF NOT EXISTS idx_msg_conv ON conv_messages(conversation_id, timestamp ASC);
+            CREATE TABLE IF NOT EXISTS api_costs (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                ts REAL NOT NULL,
+                service TEXT NOT NULL,
+                call_type TEXT NOT NULL DEFAULT '',
+                model TEXT NOT NULL DEFAULT '',
+                input_tokens INTEGER NOT NULL DEFAULT 0,
+                output_tokens INTEGER NOT NULL DEFAULT 0,
+                cost_usd REAL NOT NULL DEFAULT 0
+            );
+            CREATE INDEX IF NOT EXISTS idx_api_costs_ts ON api_costs(ts);
         """)
         # 每次啟動都把 SITE_USERS_JSON 裡的新帳號同步進 SQLite（不覆蓋已有的密碼）
         if SITE_USERS:
@@ -104,10 +116,44 @@ def _init_conv_db():
                 if passwords:
                     conn.execute(
                         "INSERT OR IGNORE INTO site_users (username, password, created_at) VALUES (?,?,?)",
-                        (uname, passwords[0], now)
+                        (uname, generate_password_hash(passwords[0]), now)
                     )
 
 _init_conv_db()
+
+# ── API 成本追蹤 ─────────────────────────────────────────
+_LLM_MODEL_NAME      = os.environ.get("LLM_MODEL", "gemini-2.0-flash")
+_LLM_FAST_MODEL_NAME = os.environ.get("LLM_MODEL_FAST", _LLM_MODEL_NAME)
+_VOYAGE_PRICE_PER_1M = 0.12  # voyage-4-large, USD per 1M tokens
+_LLM_PRICING: dict[str, tuple[float, float]] = {
+    # (USD per 1M input tokens, USD per 1M output tokens)
+    "gemini-2.5-pro":   (1.25, 10.0),
+    "gemini-2.5-flash": (0.15,  0.60),
+    "gemini-2.0-flash": (0.075, 0.30),
+    "gemini-1.5-pro":   (1.25,  5.00),
+    "gemini-1.5-flash": (0.075, 0.30),
+}
+
+def _model_price(model_name: str) -> tuple[float, float]:
+    for k, v in _LLM_PRICING.items():
+        if k in model_name:
+            return v
+    return (0.075, 0.30)
+
+def _log_api_cost(service: str, call_type: str, model: str, input_tokens: int, output_tokens: int) -> None:
+    if service == "voyage":
+        cost = (input_tokens / 1_000_000) * _VOYAGE_PRICE_PER_1M
+    else:
+        in_p, out_p = _model_price(model)
+        cost = (input_tokens / 1_000_000) * in_p + (output_tokens / 1_000_000) * out_p
+    try:
+        with _get_db() as conn:
+            conn.execute(
+                "INSERT INTO api_costs (ts,service,call_type,model,input_tokens,output_tokens,cost_usd) VALUES (?,?,?,?,?,?,?)",
+                (time.time(), service, call_type, model, input_tokens, output_tokens, cost)
+            )
+    except Exception as _ce:
+        print(f"[COST] 記錄失敗: {_ce}")
 
 def _check_login(username: str, password: str) -> bool:
     # 環境變數帳密優先（讓 Render env var 改密碼立即生效）
@@ -115,9 +161,18 @@ def _check_login(username: str, password: str) -> bool:
         return True
     with _get_db() as conn:
         row = conn.execute("SELECT password FROM site_users WHERE username=?", (username,)).fetchone()
-        if row:
-            return row["password"] == password
-    return False
+        if not row:
+            return False
+        stored = row["password"]
+        # 已 hash 的密碼
+        if stored.startswith(("pbkdf2:", "scrypt:", "sha256$", "argon2")):
+            return check_password_hash(stored, password)
+        # 舊的明文密碼：比對成功後自動 migrate 成 hash
+        if stored == password:
+            conn.execute("UPDATE site_users SET password=? WHERE username=?",
+                         (generate_password_hash(password), username))
+            return True
+        return False
 
 VOYAGE_API_KEY  = os.getenv("VOYAGE_API_KEY")
 CHUNK_SIZE      = int(os.getenv("CHUNK_SIZE", 800))
@@ -151,6 +206,7 @@ class _CachedEmbeddings(Embeddings):
         self._cache[text] = vec
         if len(self._cache) > self._MAX:
             self._cache.popitem(last=False)
+        _log_api_cost("voyage", "embed_query", "voyage-4-large", max(1, len(text) // 2), 0)
         return vec
 
     def embed_documents(self, texts: list) -> list:
@@ -1459,7 +1515,7 @@ def api_admin_add_user():
         with _get_db() as conn:
             conn.execute(
                 "INSERT INTO site_users (username, password, created_at) VALUES (?,?,?)",
-                (username, password, time.time())
+                (username, generate_password_hash(password), time.time())
             )
         return jsonify({"ok": True})
     except Exception:
@@ -1484,7 +1540,8 @@ def api_admin_change_password(username):
     if not password:
         return jsonify({"error": "密碼不得為空"}), 400
     with _get_db() as conn:
-        conn.execute("UPDATE site_users SET password=? WHERE username=?", (password, username))
+        conn.execute("UPDATE site_users SET password=? WHERE username=?",
+                     (generate_password_hash(password), username))
     return jsonify({"ok": True})
 
 
@@ -1521,6 +1578,60 @@ def api_admin_settings_patch():
             (key, value, time.time())
         )
     return jsonify({"ok": True})
+
+@app.route("/api/admin/costs")
+def api_admin_costs():
+    if not _is_admin():
+        return jsonify({"error": "unauthorized"}), 403
+    import datetime
+    now = time.time()
+    utc_now = datetime.datetime.utcfromtimestamp(now)
+    today_start = datetime.datetime(utc_now.year, utc_now.month, utc_now.day).timestamp()
+    month_start = datetime.datetime(utc_now.year, utc_now.month, 1).timestamp()
+    with _get_db() as conn:
+        by_svc = conn.execute("""
+            SELECT service,
+                   SUM(input_tokens) AS input_tokens,
+                   SUM(output_tokens) AS output_tokens,
+                   ROUND(SUM(cost_usd),6) AS cost_usd,
+                   COUNT(*) AS calls
+            FROM api_costs
+            GROUP BY service
+            ORDER BY cost_usd DESC
+        """).fetchall()
+        by_type = conn.execute("""
+            SELECT service, call_type,
+                   SUM(input_tokens) AS input_tokens,
+                   SUM(output_tokens) AS output_tokens,
+                   ROUND(SUM(cost_usd),6) AS cost_usd,
+                   COUNT(*) AS calls
+            FROM api_costs
+            GROUP BY service, call_type
+            ORDER BY service, cost_usd DESC
+        """).fetchall()
+        daily = conn.execute("""
+            SELECT DATE(ts,'unixepoch') AS day,
+                   ROUND(SUM(cost_usd),6) AS cost_usd,
+                   SUM(input_tokens) AS input_tokens,
+                   SUM(output_tokens) AS output_tokens,
+                   COUNT(*) AS calls
+            FROM api_costs
+            WHERE ts >= ?
+            GROUP BY day
+            ORDER BY day DESC
+            LIMIT 14
+        """, (now - 14 * 86400,)).fetchall()
+        today_row  = conn.execute("SELECT COALESCE(ROUND(SUM(cost_usd),6),0) AS v FROM api_costs WHERE ts>=?", (today_start,)).fetchone()
+        month_row  = conn.execute("SELECT COALESCE(ROUND(SUM(cost_usd),6),0) AS v FROM api_costs WHERE ts>=?", (month_start,)).fetchone()
+        total_row  = conn.execute("SELECT COALESCE(ROUND(SUM(cost_usd),6),0) AS v FROM api_costs").fetchone()
+    return jsonify({
+        "by_service": [dict(r) for r in by_svc],
+        "by_type":    [dict(r) for r in by_type],
+        "daily":      [dict(r) for r in daily],
+        "today_usd":  today_row["v"],
+        "month_usd":  month_row["v"],
+        "total_usd":  total_row["v"],
+    })
 
 @app.route("/ask", methods=["POST"])
 def ask():
@@ -1976,9 +2087,18 @@ def ask():
                     _snip = _plan_to_snippet.get(_plan_line, "")
                     if not _snip:
                         return ""
+                    _topic_kws_for_prompt = list(dict.fromkeys(
+                        k for k in (_q_priority_kws + list(_usr_topic_kws or []))
+                        if len(k) >= 2
+                    ))[:20]
+                    _kw_hint = (
+                        f"- 優先擷取與以下主題關鍵字語意相關的句子：{'、'.join(_topic_kws_for_prompt)}\n"
+                        if _topic_kws_for_prompt else ""
+                    )
                     _p = (
                         f"從以下計畫書內容中，直接擷取2～4句最能說明此計畫具體工作內容的句子。"
                         f"規則：\n"
+                        f"{_kw_hint}"
                         f"- 優先擷取有具體細節的句子（含數字、地點、對象、具體方法或活動名稱）\n"
                         f"- 盡量保留原文字句，不要改寫、統整或抽象化\n"
                         f"- 不要輸出「此計畫致力於...」「本計畫旨在...」等概括開頭\n"
@@ -1989,6 +2109,11 @@ def ask():
                     try:
                         _r = llm_fast.bind(temperature=0, thinking_budget=0).invoke([_HMList(content=_p)])
                         _out = _normalize_content(_r.content).strip()
+                        try:
+                            _um = getattr(_r, 'usage_metadata', None) or {}
+                            _log_api_cost("gemini", "list_para", _LLM_FAST_MODEL_NAME, _um.get('input_tokens', 0), _um.get('output_tokens', 0))
+                        except Exception:
+                            pass
                         # fallback：LLM 說找不到內容，直接截原文
                         _refusal_hints = ("並未包含", "無法擷取", "沒有具體", "僅列出", "#RAW", "不包含描述")
                         if any(h in _out for h in _refusal_hints) or len(_out) < 10:
@@ -2172,6 +2297,7 @@ def ask():
             answer_chars = 0
             answer_parts = []
             t_first_chunk = None
+            _stream_usage_meta = None
             t_gemini_start = time.perf_counter()
             for chunk in _active_llm.stream(prompt_value):
                 content = chunk.content
@@ -2180,6 +2306,8 @@ def ask():
                         block.get("text", "") if isinstance(block, dict) else str(block)
                         for block in content
                     )
+                if hasattr(chunk, 'usage_metadata') and chunk.usage_metadata:
+                    _stream_usage_meta = chunk.usage_metadata
                 if content:
                     if t_first_chunk is None:
                         t_first_chunk = time.perf_counter()
@@ -2194,6 +2322,14 @@ def ask():
             prompt_chars = len(prompt_value.to_string())
             total_chars = prompt_chars + answer_chars
             print(f"[TOKEN] 輸入={prompt_chars}字元(~{prompt_chars//2}tokens) 輸出={answer_chars}字元(~{answer_chars//2}tokens) 合計~{total_chars//2}tokens")
+            try:
+                _um = _stream_usage_meta or {}
+                _stream_model = _LLM_MODEL_NAME if (_active_llm is llm) else _LLM_FAST_MODEL_NAME
+                _log_api_cost("gemini", "rag_stream", _stream_model,
+                              _um.get('input_tokens', prompt_chars // 2),
+                              _um.get('output_tokens', answer_chars // 2))
+            except Exception:
+                pass
 
             timing = {
                 "prepare_ms":     round((t_prepare_end - t_prepare_start) * 1000),
@@ -2317,6 +2453,11 @@ def _llm_classify_topics(question: str) -> list[str]:
             question=question
         )
         res = llm_fast.bind(temperature=0, thinking_budget=0).invoke([HumanMessage(content=prompt)])
+        try:
+            _um = getattr(res, 'usage_metadata', None) or {}
+            _log_api_cost("gemini", "classify", _LLM_FAST_MODEL_NAME, _um.get('input_tokens', 0), _um.get('output_tokens', 0))
+        except Exception:
+            pass
         text = _normalize_content(res.content).strip()
         m = re.search(r'\[.*?\]', text, re.DOTALL)
         if m:
@@ -2347,6 +2488,11 @@ def _expand_keywords_by_llm(question: str) -> str:
         from langchain_core.messages import HumanMessage
         prompt = KW_EXPAND_PROMPT.format(question=question)
         res = llm_fast.bind(temperature=0.1, thinking_budget=0).invoke([HumanMessage(content=prompt)])
+        try:
+            _um = getattr(res, 'usage_metadata', None) or {}
+            _log_api_cost("gemini", "expand_kw", _LLM_FAST_MODEL_NAME, _um.get('input_tokens', 0), _um.get('output_tokens', 0))
+        except Exception:
+            pass
         text = _normalize_content(res.content).strip()
         m = re.search(r'\[.*?\]', text, re.DOTALL)
         if m:
@@ -2374,6 +2520,11 @@ def _check_is_followup(question: str, prev_turn: dict) -> bool:
             return False
         prompt = FOLLOWUP_CHECK_PROMPT.format(prev_q=prev_q, curr_q=question[:120])
         res = llm_fast.bind(temperature=0, thinking_budget=0).invoke([HumanMessage(content=prompt)])
+        try:
+            _um = getattr(res, 'usage_metadata', None) or {}
+            _log_api_cost("gemini", "followup_check", _LLM_FAST_MODEL_NAME, _um.get('input_tokens', 0), _um.get('output_tokens', 0))
+        except Exception:
+            pass
         text = _normalize_content(res.content).strip()
         result = text.startswith('是')
         print(f"[FOLLOWUP] {'追問' if result else '新問題'}（LLM）：{question[:40]!r}")
@@ -2398,6 +2549,11 @@ def _generate_suggestions(question: str, answer: str) -> list[str]:
         from langchain_core.messages import HumanMessage
         prompt = SUGGEST_PROMPT.format(question=question, answer=answer[:600])
         res = llm_fast.bind(temperature=0.4, thinking_budget=0).invoke([HumanMessage(content=prompt)])
+        try:
+            _um = getattr(res, 'usage_metadata', None) or {}
+            _log_api_cost("gemini", "suggest", _LLM_FAST_MODEL_NAME, _um.get('input_tokens', 0), _um.get('output_tokens', 0))
+        except Exception:
+            pass
         text = _normalize_content(res.content).strip()
         print(f"[SUGGEST] LLM 原始回傳：{text[:200]!r}")
         m = re.search(r'\[.*?\]', text, re.DOTALL)
