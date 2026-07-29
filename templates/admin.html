@@ -79,6 +79,12 @@ tr:hover td{background:#fafbfc}
     <div class="stat-card"><div class="lbl">總問題數</div><div class="val" id="s-total">—</div></div>
   </div>
 
+  <div class="stats-row">
+    <div class="stat-card"><div class="lbl">今日 API 費用</div><div class="val" style="font-size:1.3rem" id="c-today">—</div></div>
+    <div class="stat-card"><div class="lbl">本月 API 費用</div><div class="val" style="font-size:1.3rem" id="c-month">—</div></div>
+    <div class="stat-card"><div class="lbl">累計 API 費用</div><div class="val" style="font-size:1.3rem" id="c-total">—</div></div>
+  </div>
+
   <!-- 用戶管理 -->
   <div class="section">
     <div class="sec-title">用戶管理</div>
@@ -120,6 +126,33 @@ tr:hover td{background:#fafbfc}
         </tr>
       </thead>
       <tbody id="users-tbody"><tr><td colspan="7" class="empty">載入中…</td></tr></tbody>
+    </table>
+  </div>
+
+  <!-- API 費用明細 -->
+  <div class="section">
+    <div class="sec-title">API 費用（按服務）</div>
+    <table>
+      <thead><tr><th>服務</th><th>呼叫次數</th><th>輸入 tokens</th><th>輸出 tokens</th><th>費用 (USD)</th></tr></thead>
+      <tbody id="cost-tbody"><tr><td colspan="5" class="empty">載入中…</td></tr></tbody>
+    </table>
+  </div>
+
+  <!-- API 細項 -->
+  <div class="section">
+    <div class="sec-title">API 費用細項（按呼叫類型）</div>
+    <table>
+      <thead><tr><th>服務</th><th>類型</th><th>呼叫次數</th><th>輸入 tokens</th><th>輸出 tokens</th><th>費用 (USD)</th></tr></thead>
+      <tbody id="cost-type-tbody"><tr><td colspan="6" class="empty">載入中…</td></tr></tbody>
+    </table>
+  </div>
+
+  <!-- 近14日費用 -->
+  <div class="section">
+    <div class="sec-title">近14日每日費用</div>
+    <table>
+      <thead><tr><th>日期</th><th>呼叫次數</th><th>輸入 tokens</th><th>輸出 tokens</th><th>費用 (USD)</th></tr></thead>
+      <tbody id="daily-tbody"><tr><td colspan="5" class="empty">載入中…</td></tr></tbody>
     </table>
   </div>
 
@@ -312,9 +345,80 @@ async function saveSetting(key,inputId){
   setTimeout(()=>{msgEl.textContent='';},3000);
 }
 
+// ── API 費用 ──
+function fmtUSD(v){
+  if(v===null||v===undefined)return'—';
+  if(v>=1)return'$'+Number(v).toFixed(4);
+  return'$'+Number(v).toFixed(6);
+}
+function fmtNum(n){return Number(n||0).toLocaleString();}
+
+const _callTypeLabel={
+  rag_stream:'RAG 主查詢',
+  list_para:'列舉摘要',
+  classify:'議題分類',
+  expand_kw:'關鍵字擴展',
+  followup_check:'追問判斷',
+  suggest:'建議問題',
+  embed_query:'嵌入查詢',
+};
+
+async function loadCosts(){
+  const res=await fetch('/api/admin/costs');
+  if(!res.ok)return;
+  const d=await res.json();
+  document.getElementById('c-today').textContent=fmtUSD(d.today_usd);
+  document.getElementById('c-month').textContent=fmtUSD(d.month_usd);
+  document.getElementById('c-total').textContent=fmtUSD(d.total_usd);
+
+  const ctb=document.getElementById('cost-tbody');
+  if(!d.by_service||!d.by_service.length){
+    ctb.innerHTML='<tr><td colspan="5" class="empty">尚無資料</td></tr>';
+  } else {
+    ctb.innerHTML=d.by_service.map(r=>`
+      <tr>
+        <td><span class="badge ${r.service==='voyage'?'b-orange':'b-blue'}">${esc(r.service)}</span></td>
+        <td>${fmtNum(r.calls)}</td>
+        <td>${fmtNum(r.input_tokens)}</td>
+        <td>${fmtNum(r.output_tokens)}</td>
+        <td><strong>${fmtUSD(r.cost_usd)}</strong></td>
+      </tr>`).join('');
+  }
+
+  const cttb=document.getElementById('cost-type-tbody');
+  if(!d.by_type||!d.by_type.length){
+    cttb.innerHTML='<tr><td colspan="6" class="empty">尚無資料</td></tr>';
+  } else {
+    cttb.innerHTML=d.by_type.map(r=>`
+      <tr>
+        <td><span class="badge ${r.service==='voyage'?'b-orange':'b-blue'}">${esc(r.service)}</span></td>
+        <td class="ts">${esc(_callTypeLabel[r.call_type]||r.call_type)}</td>
+        <td>${fmtNum(r.calls)}</td>
+        <td>${fmtNum(r.input_tokens)}</td>
+        <td>${fmtNum(r.output_tokens)}</td>
+        <td>${fmtUSD(r.cost_usd)}</td>
+      </tr>`).join('');
+  }
+
+  const dtb=document.getElementById('daily-tbody');
+  if(!d.daily||!d.daily.length){
+    dtb.innerHTML='<tr><td colspan="5" class="empty">尚無資料</td></tr>';
+  } else {
+    dtb.innerHTML=d.daily.map(r=>`
+      <tr>
+        <td class="ts">${esc(r.day)}</td>
+        <td>${fmtNum(r.calls)}</td>
+        <td>${fmtNum(r.input_tokens)}</td>
+        <td>${fmtNum(r.output_tokens)}</td>
+        <td><strong>${fmtUSD(r.cost_usd)}</strong></td>
+      </tr>`).join('');
+  }
+}
+
 loadAccounts();
 loadStats();
 loadSettings();
+loadCosts();
 </script>
 </body>
 </html>
