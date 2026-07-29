@@ -1972,12 +1972,17 @@ def ask():
                     f"清單依相關度排序：前 {_t1_count} 件直接提及查詢關鍵詞，後段為議題相關計畫。"
                     if _q_priority_kws and _t1_count > 0 else ""
                 )
+                _topic_label = f"（{_usr_topic}議題）" if _usr_topic else ""
+                _t1_highlight = f"前 {_t1_count} 件直接命中查詢詞，其餘為同議題相關計畫。" if _t1_count and _t1_count < len(_plan_list_lines) else ""
                 context = (
-                    f"【系統已透過關鍵字篩選出以下 {len(_plan_list_lines)} 件計畫，此為最終清單。{_sort_note}"
-                    f"請以「共{len(_plan_list_lines)}件計畫：」開頭，逐條列出所有條目，不得增刪。\n"
-                    f"格式：每條「學校全名：計畫全名」獨立一行，其下空一行寫 1～2 句摘要（從下方 context 擷取該計畫核心內容），再空一行接下一條。】\n\n"
+                    f"【系統強制指令】以下清單已由關鍵字引擎確認，共 {len(_plan_list_lines)} 件計畫，請全數列出。{_t1_highlight}\n"
+                    f"輸出規則：\n"
+                    f"1. 第一行必須是「共{len(_plan_list_lines)}件計畫：」\n"
+                    f"2. 逐條列出下方【已篩選計畫清單】全部 {len(_plan_list_lines)} 件，格式「N. 學校全名：計畫全名」，不得省略任何一件、不得自行更改件數。\n"
+                    f"3. 每條計畫名稱下方可加一句描述計畫核心內容的說明（參考【計畫詳細內容】中對應條目），說明不必限於查詢關鍵字，可摘述該計畫任何核心工作。若找不到對應資料可省略說明。\n"
+                    f"4. 所有 {len(_plan_list_lines)} 件列完後，可另起段落做整體補充。{_sort_note}\n\n"
                     f"【已篩選計畫清單】\n{_plans_str}\n\n"
-                    f"【計畫詳細內容（說明時可參考）】\n"
+                    f"【計畫詳細內容（可參考各計畫任何核心內容）】\n"
                 ) + context
                 print(f"[LIST] 預建清單 {len(_plan_list_lines)} 件（T1={_t1_count}），注入 context 前")
             # 多校追問：提示 LLM 針對每間學校分別回答，不得合併或省略
