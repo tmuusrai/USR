@@ -1558,11 +1558,11 @@ def ask():
             t0 = time.perf_counter()
 
             # ── 送出 highlight 詞彙供前端標記 ──
-            # 優先：問題裡出現的 USR 議題關鍵字（確定會在文件/答案裡出現）
-            _hl_topic, _hl_topic_kws = _detect_usr_topic(question)
-            _hl_terms = [kw for kw in (_hl_topic_kws or []) if kw in question]
-            # 退回：一般抽詞，但過濾掉泛用詞（USR 每句都有，highlight 沒意義）
             _HL_GENERIC = {"USR", "計畫", "學校", "大學"}
+            _hl_topic, _hl_topic_kws = _detect_usr_topic(question)
+            # 議題關鍵字（≥3字）全部送出，讓回答內文中的相關詞都被標記，不限於問題詞
+            _hl_terms = [kw for kw in (_hl_topic_kws or []) if len(kw) >= 3 and kw not in _HL_GENERIC][:25]
+            # 退回：一般抽詞
             if not _hl_terms:
                 _hl_terms = [t for t in _extract_query_terms(question) if t not in _HL_GENERIC]
             if _hl_terms:
@@ -1973,9 +1973,8 @@ def ask():
                 )
                 context = (
                     f"【系統已透過關鍵字篩選出以下 {len(_plan_list_lines)} 件計畫，此為最終清單。{_sort_note}"
-                    f"請依下列格式輸出：\n"
-                    f"第一段：以「共{len(_plan_list_lines)}件計畫：」開頭，逐條列出所有條目（格式「學校全名：計畫全名」），不得增刪。\n"
-                    f"第二段：從 context 中選取最具代表性的 5～8 件，各寫 2～3 句摘要說明，格式「學校全名：計畫全名\n摘要」。】\n\n"
+                    f"請以「共{len(_plan_list_lines)}件計畫：」開頭，逐條列出所有條目，不得增刪。\n"
+                    f"格式：每條「學校全名：計畫全名」獨立一行，其下空一行寫 1～2 句摘要（從下方 context 擷取該計畫核心內容），再空一行接下一條。】\n\n"
                     f"【已篩選計畫清單】\n{_plans_str}\n\n"
                     f"【計畫詳細內容（說明時可參考）】\n"
                 ) + context
