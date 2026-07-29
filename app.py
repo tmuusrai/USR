@@ -1970,6 +1970,14 @@ def ask():
                 print(f"[LIST-DEBUG] 提取到 {len(_plan_list_lines)} 件（T1={len(_tier1)}直接命中，T2={len(_tier2)}議題相關，其中score>0={len([s for s,_ in _tier2_scored if s>0])}件，priority_kws={_q_priority_kws[:3]}）")
 
                 # ── 列舉型直接輸出路徑：直接輸出 SEQ 原文片段，不經 LLM 統整 ──
+                # 補送更完整的 highlight 詞：query 詞 + 所有議題關鍵字（不限 25 個）
+                _HL_GENERIC2 = {"USR", "計畫", "學校", "大學", "計畫有"}
+                _extra_hl = list(dict.fromkeys(
+                    k for k in (_q_priority_kws + _q_terms + list(_hl_topic_kws or []))
+                    if len(k) >= 2 and k not in _HL_GENERIC2
+                ))
+                if _extra_hl:
+                    yield f"data: {json.dumps({'type': 'highlight_terms', 'terms': _extra_hl}, ensure_ascii=False)}\n\n"
                 _para_sources: list[dict] = []
                 _para_seen: set = set()
                 for _pd in docs:
