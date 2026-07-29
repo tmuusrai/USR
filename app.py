@@ -1953,11 +1953,18 @@ def ask():
                     else:
                         _score = sum(1 for k in _t2_score_kws if k in _entry)
                         _tier2_scored.append((_score, _line))
-                # T2 依分數由高到低排序（分數相同保留 SEQ 原始順序）
+                # T2 依分數由高到低排序；只保留 score>0（有 query 詞交集）；上限 50 件
                 _tier2_scored.sort(key=lambda x: x[0], reverse=True)
-                _tier2 = [line for _, line in _tier2_scored]
+                _T2_CAP = 50
+                if _q_priority_kws:
+                    # 有明確 query 詞時：優先保留有交集的（score>0），其次補無交集的
+                    _t2_nonzero = [(s, l) for s, l in _tier2_scored if s > 0]
+                    _t2_zero    = [(s, l) for s, l in _tier2_scored if s == 0]
+                    _tier2 = [l for _, l in (_t2_nonzero + _t2_zero)[:_T2_CAP]]
+                else:
+                    _tier2 = [l for _, l in _tier2_scored[:_T2_CAP]]
                 _plan_list_lines = _tier1 + _tier2
-                print(f"[LIST-DEBUG] 提取到 {len(_plan_list_lines)} 件（T1={len(_tier1)}直接命中，T2={len(_tier2)}議題相關已排序，priority_kws={_q_priority_kws[:3]}）")
+                print(f"[LIST-DEBUG] 提取到 {len(_plan_list_lines)} 件（T1={len(_tier1)}直接命中，T2={len(_tier2)}議題相關，其中score>0={len([s for s,_ in _tier2_scored if s>0])}件，priority_kws={_q_priority_kws[:3]}）")
                 # 列舉型：SEQ（精確命中）+ FAISS（語意補充）合併，確保廣度
                 seen_heads = {a[:80] for a in annotated}
                 extra = [t for t in faiss_texts if t[:80] not in seen_heads]
@@ -1983,7 +1990,7 @@ def ask():
                     f"輸出規則：\n"
                     f"1. 第一行必須是「共{len(_plan_list_lines)}件計畫：」\n"
                     f"2. 逐條列出下方【已篩選計畫清單】全部 {len(_plan_list_lines)} 件，格式「N. 學校全名：計畫全名」，不得省略任何一件、不得自行更改件數。\n"
-                    f"3. 每條計畫名稱下方必須加一句說明（從【計畫詳細內容】中找到對應條目後摘述），說明不限於查詢關鍵字，可摘述該計畫任何核心工作內容。\n"
+                    f"3. 每條計畫名稱下方加一句說明（從【計畫詳細內容】中找到對應條目後摘述），說明不限查詢關鍵字，可摘述任何核心工作。若找不到對應內容，直接跳過不寫，絕對不可輸出「資訊有限」「未提及」「僅列出計畫名稱」等佔位語句。\n"
                     f"4. 所有 {len(_plan_list_lines)} 件列完後，可另起段落做整體補充。{_sort_note}\n\n"
                     f"【已篩選計畫清單】\n{_plans_str}\n\n"
                     f"【計畫詳細內容（可參考各計畫任何核心內容）】\n"
