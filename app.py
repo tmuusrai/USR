@@ -1982,14 +1982,21 @@ def ask():
                         f"- 優先擷取有具體細節的句子（含數字、地點、對象、具體方法或活動名稱）\n"
                         f"- 盡量保留原文字句，不要改寫、統整或抽象化\n"
                         f"- 不要輸出「此計畫致力於...」「本計畫旨在...」等概括開頭\n"
+                        f"- 將擷取出的句子中，最能代表計畫主題的2～4個名詞或專有名詞用**標記**\n"
+                        f"- 若內容為單位名稱清單、聯絡表格等無描述性文字，直接輸出「#RAW」\n"
                         f"只輸出擷取的句子，不要其他文字。\n\n{_snip}"
                     )
                     try:
                         _r = llm_fast.bind(temperature=0, thinking_budget=0).invoke([_HMList(content=_p)])
-                        return _normalize_content(_r.content).strip()
+                        _out = _normalize_content(_r.content).strip()
+                        # fallback：LLM 說找不到內容，直接截原文
+                        _refusal_hints = ("並未包含", "無法擷取", "沒有具體", "僅列出", "#RAW", "不包含描述")
+                        if any(h in _out for h in _refusal_hints) or len(_out) < 10:
+                            return _snip[:200]
+                        return _out
                     except Exception as _pe:
                         print(f"[LIST-PARA] 擷取失敗: {_pe}")
-                        return _snip[:150]  # fallback: 直接截原文
+                        return _snip[:200]
 
                 # ── 舊標籤保留（後面程式碼用到）──
                 # 補送更完整的 highlight 詞：query 詞 + 所有議題關鍵字（不限 25 個）
