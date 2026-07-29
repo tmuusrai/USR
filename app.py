@@ -1187,14 +1187,17 @@ def _annotate_docs_by_topic(docs, topic: str, kws: list[str]) -> list[str]:
         text = _clean_plan_code(doc.page_content)
         hits = _count_kw_hits(text, kws)
         total = sum(hits.values())
-        if total < 3:
+        if total < 1:
             continue
         hit_summary = "、".join(f"{kw}×{cnt}" for kw, cnt in hits.items())
         if total >= 5:
             label = f"【高度相關｜{topic}｜命中：{hit_summary}】"
             high.append(f"{label}\n{text}")
-        else:
+        elif total >= 3:
             label = f"【部分相關｜{topic}｜命中：{hit_summary}】"
+            mid.append(f"{label}\n{text}")
+        else:
+            label = f"【少量相關｜{topic}｜命中：{hit_summary}】"
             mid.append(f"{label}\n{text}")
 
     print(f"[SEQ] 高度相關 {len(high)} 篇，部分相關 {len(mid)} 篇")
@@ -1704,31 +1707,22 @@ def ask():
                     expand_query = topic_expand
                 print(f"[TOPIC] 議題展開 query（前60字）：{expand_query[:60]}")
 
-            # ── LLM 平行：議題語意分類 + 追問偵測 ──
+            # ── LLM：議題語意分類 ──
             _llm_kw_list: list[str] = []
             _explicit_followup = bool(_MULTI_REF_RE.search(question) and history)
             _is_followup: bool = _explicit_followup
 
-            with ThreadPoolExecutor(max_workers=2) as _llm_ex:
-                _topic_fut = _llm_ex.submit(_llm_classify_topics, question) if _list_check else None
-                _fu_fut = (
-                    _llm_ex.submit(_check_is_followup, question, history[-1])
-                    if history and not _explicit_followup
-                    else None
-                )
-                if _topic_fut:
-                    _llm_topics = _topic_fut.result()
-                    for _lt in _llm_topics:
-                        if _lt not in (_usr_topic or ""):
-                            for _tk in USR_TOPIC_KEYWORDS.get(_lt, []):
-                                if _tk not in (_usr_topic_kws or []):
-                                    if _usr_topic_kws is None:
-                                        _usr_topic_kws = []
-                                    _usr_topic_kws.append(_tk)
-                            if not _usr_topic:
-                                _usr_topic = _lt
-                if _fu_fut:
-                    _is_followup = _fu_fut.result()
+            if _list_check:
+                _llm_topics = _llm_classify_topics(question)
+                for _lt in _llm_topics:
+                    if _lt not in (_usr_topic or ""):
+                        for _tk in USR_TOPIC_KEYWORDS.get(_lt, []):
+                            if _tk not in (_usr_topic_kws or []):
+                                if _usr_topic_kws is None:
+                                    _usr_topic_kws = []
+                                _usr_topic_kws.append(_tk)
+                        if not _usr_topic:
+                            _usr_topic = _lt
 
             # ✦ 主觀評量問題攔截：反問使用者定義判斷準則
             if not skip_eval and _is_evaluation_question(question):
@@ -2347,6 +2341,30 @@ def ask():
                 f" | LLM完成={timing['llm_total_ms']}ms"
                 f" | 總計={timing['total_ms']}ms"
             )
+
+            # ── 評量問題小總結（original_question 存在代表是評量問題流程）──
+            if original_question:
+                from langchain_core.messages import HumanMessage as _HMSum
+                _sum_prompt = (
+                    f"根據以下回答內容，用1～2句話直接回答原始問題。\n"
+                    f"原始問題：{original_question}\n"
+                    f"回答摘要：{''.join(answer_parts)[:800]}\n\n"
+                    f"只輸出結論句，不要其他文字。"
+                )
+                try:
+                    _sum_res = llm_fast.bind(temperature=0, thinking_budget=0).invoke([_HMSum(content=_sum_prompt)])
+                    _sum_text = _normalize_content(_sum_res.content).strip()
+                    if _sum_text:
+                        _sum_chunk = f"\n\n---\n**結論**\n{_sum_text}"
+                        yield f"data: {json.dumps({'type': 'chunk', 'text': _sum_chunk}, ensure_ascii=False)}\n\n"
+                        answer_parts.append(_sum_chunk)
+                        try:
+                            _um = getattr(_sum_res, 'usage_metadata', None) or {}
+                            _log_api_cost("gemini", "eval_summary", _LLM_FAST_MODEL_NAME, _um.get('input_tokens', 0), _um.get('output_tokens', 0))
+                        except Exception:
+                            pass
+                except Exception as _se:
+                    print(f"[EVAL-SUM] 小總結失敗: {_se}")
 
             # ── 建議問題（在 done 之前送，確保串流還開著）──
             suggestions = _generate_suggestions(question, "".join(answer_parts))
