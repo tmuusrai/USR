@@ -1969,7 +1969,26 @@ def ask():
                 _plan_list_lines = _tier1 + _tier2
                 print(f"[LIST-DEBUG] 提取到 {len(_plan_list_lines)} 件（T1={len(_tier1)}直接命中，T2={len(_tier2)}議題相關，其中score>0={len([s for s,_ in _tier2_scored if s>0])}件，priority_kws={_q_priority_kws[:3]}）")
 
-                # ── 列舉型直接輸出路徑：直接輸出 SEQ 原文片段，不經 LLM 統整 ──
+                # ── 列舉型並行路徑：每個計畫單獨送 LLM，擷取原文關鍵句 ──
+                from langchain_core.messages import HumanMessage as _HMList
+
+                def _sum_one_plan(_plan_line: str) -> str:
+                    _snip = _plan_to_snippet.get(_plan_line, "")
+                    if not _snip:
+                        return ""
+                    _p = (
+                        f"從以下計畫書內容中，直接擷取最能說明此計畫核心工作的1～2句話。"
+                        f"規則：盡量保留原文字句，不要改寫或統整，不要輸出「此計畫...」開頭的概括語句。"
+                        f"只輸出擷取的句子，不要其他文字。\n\n{_snip}"
+                    )
+                    try:
+                        _r = llm_fast.bind(temperature=0, thinking_budget=0).invoke([_HMList(content=_p)])
+                        return _normalize_content(_r.content).strip()
+                    except Exception as _pe:
+                        print(f"[LIST-PARA] 擷取失敗: {_pe}")
+                        return _snip[:150]  # fallback: 直接截原文
+
+                # ── 舊標籤保留（後面程式碼用到）──
                 # 補送更完整的 highlight 詞：query 詞 + 所有議題關鍵字（不限 25 個）
                 _HL_GENERIC2 = {"USR", "計畫", "學校", "大學", "計畫有"}
                 _extra_hl = list(dict.fromkeys(
@@ -2000,14 +2019,16 @@ def ask():
                 yield f"data: {json.dumps({'type': 'chunk', 'text': _header_txt}, ensure_ascii=False)}\n\n"
                 _para_t_first = time.perf_counter()
 
-                for _pi, _pl in enumerate(_plan_list_lines):
-                    _snip = _plan_to_snippet.get(_pl, "")
-                    _pchunk = f"{_pi+1}. {_pl}\n"
-                    if _snip:
-                        _pchunk += f"{_snip}\n"
-                    _pchunk += "\n"
-                    _para_ans_parts.append(_pchunk)
-                    yield f"data: {json.dumps({'type': 'chunk', 'text': _pchunk}, ensure_ascii=False)}\n\n"
+                with ThreadPoolExecutor(max_workers=10) as _para_ex:
+                    _para_futs = [(_pl, _para_ex.submit(_sum_one_plan, _pl)) for _pl in _plan_list_lines]
+                    for _pi, (_pl, _pf) in enumerate(_para_futs):
+                        _ps2 = _pf.result()
+                        _pchunk = f"{_pi+1}. {_pl}\n"
+                        if _ps2:
+                            _pchunk += f"{_ps2}\n"
+                        _pchunk += "\n"
+                        _para_ans_parts.append(_pchunk)
+                        yield f"data: {json.dumps({'type': 'chunk', 'text': _pchunk}, ensure_ascii=False)}\n\n"
 
                 _para_t_end = time.perf_counter()
                 _para_full_ans = "".join(_para_ans_parts)
