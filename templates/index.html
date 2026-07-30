@@ -66,7 +66,7 @@ body{font-family:"Segoe UI","Noto Sans TC",sans-serif;background:#f5f7fa;height:
 #context-btn{padding:9px 13px;background:#f1f5f9;color:#64748b;border:1.5px solid #cbd5e1;border-radius:10px;font-size:.82rem;font-weight:600;cursor:pointer;white-space:nowrap;transition:all .2s;flex-shrink:0}
 #context-btn.active{background:#1e40af;color:#fff;border-color:#1e40af}
 #context-btn:hover:not(.active){background:#e2e8f0;color:#334155}
-mark.kw-hl{background:none;color:inherit;font-weight:700;padding:0}
+strong.kw-hl{font-weight:700}
 #mode-toggle{display:flex;align-items:center;gap:10px;padding:6px 0;flex-shrink:0;flex-wrap:wrap}
 .mode-seg{display:flex;background:#f1f5f9;border-radius:9px;padding:3px;gap:2px}
 .seg-btn{padding:5px 13px;border-radius:7px;border:none;background:none;color:#64748b;font-size:.8rem;font-weight:500;cursor:pointer;transition:all .15s;white-space:nowrap}
@@ -553,7 +553,7 @@ function _applyHighlight(html, terms) {
     if (i % 2 === 1 || !p) return p;
     terms.forEach(kw => {
       const re = new RegExp(kw.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g');
-      p = p.replace(re, `<mark class="kw-hl">${kw}</mark>`);
+      p = p.replace(re, `<strong class="kw-hl">${kw}</strong>`);
     });
     return p;
   }).join('');
@@ -1331,7 +1331,7 @@ function convertTables(s) {
 }
 function renderAnswer(raw) {
   let s = raw.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
-  s = s.replace(/\*\*([^*\n]{1,30})\*\*/g, '<mark class="kw-hl">$1</mark>');
+  s = s.replace(/\*\*([^*\n]{1,30})\*\*/g, '<strong class="kw-hl">$1</strong>');
   s = s.replace(/\*/g, '');
   s = s.replace(/([、。，；：！？「」【】『』〔〕…—～·])\1+/g, '$1');
   s = s.replace(_SCHOOL_RE, m => `<span style="color:#1d4ed8">${m}</span>`);
