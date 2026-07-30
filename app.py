@@ -2184,7 +2184,7 @@ def ask():
                         if _ps2 == "":  # 無實質內容（純標題），跳過不列出
                             continue
                         _out_idx += 1
-                        _pchunk = f"{_out_idx}. {_pl}\n{_ps2}\n\n"
+                        _pchunk = f"{_out_idx}. {_pl}\n{_ps2}\n"
                         _para_ans_parts.append(_pchunk)
                         yield f"data: {json.dumps({'type': 'chunk', 'text': _pchunk}, ensure_ascii=False)}\n\n"
 
