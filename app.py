@@ -1085,8 +1085,21 @@ def _seq_query_by_index(kws: list[str], topic: str, index: dict,
             bracket_end = text.find('】\n')
             text_body = text[bracket_end + 2:] if 0 <= bracket_end < 120 else text
             sentences = [s.strip() for s in re.split(r'[。！？\n]', text_body) if len(s.strip()) > 15]
-            # 排除純標題行：以子節編號開頭（（一）、（二）...）且以注入標籤）結尾
-            _is_heading = lambda s: bool(re.match(r'^[（(][一二三四五六七八九十百\d]{1,3}[）)]', s)) and s.rstrip().endswith('）')
+            # 排除純標題行（以下任一即視為 heading，不含實質內容）
+            def _is_heading(s: str) -> bool:
+                # markdown heading（#）
+                if re.match(r'^#{1,7}\s', s):
+                    return True
+                # 中文數字大節標題（一、二、三、...）
+                if re.match(r'^[一二三四五六七八九十百\d]+[、．.]\s', s):
+                    return True
+                # （一）（二）... 型子節且以注入標籤）結尾
+                if re.match(r'^[（(][一二三四五六七八九十百\d]{1,3}[）)]', s) and s.rstrip().endswith('）'):
+                    return True
+                # 純注入標籤行（school　project），無其他內容
+                if re.match(r'^（[^）　]*　[^）]*）\s*$', s):
+                    return True
+                return False
             content_sents = [s for s in sentences if not _is_heading(s)]
             pool = content_sents if content_sents else sentences
             pri = [s for s in pool if priority_kws and any(kw in s for kw in priority_kws)]
