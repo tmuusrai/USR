@@ -2232,13 +2232,21 @@ def ask():
                 )
                 _topic_label = f"（{_usr_topic}議題）" if _usr_topic else ""
                 _t1_highlight = f"前 {_t1_count} 件直接命中查詢詞，其餘為同議題相關計畫。" if _t1_count and _t1_count < len(_plan_list_lines) else ""
+                # 偵測列舉問題之外的分析型子問題（多個？分隔）
+                _extra_sub_qs = [p.strip() for p in re.split(r'[？?]', question) if p.strip()][1:]
+                _extra_q_rule = (
+                    f"5. 所有計畫列完後，另起段落依序回答以下子問題（從【計畫詳細內容】歸納，引用2~3個計畫舉例說明）：\n"
+                    + "\n".join(f"   - {q}？" for q in _extra_sub_qs) + "\n"
+                ) if _extra_sub_qs else ""
+                _rule4_suffix = "請接著回答第5點各子問題。" if _extra_sub_qs else f"可另起段落做整體補充。{_sort_note}"
                 context = (
                     f"【系統強制指令】以下清單已由關鍵字引擎確認，共 {len(_plan_list_lines)} 件計畫，請全數列出。{_t1_highlight}\n"
                     f"輸出規則：\n"
                     f"1. 第一行必須是「共{len(_plan_list_lines)}件計畫：」\n"
                     f"2. 逐條列出下方【已篩選計畫清單】全部 {len(_plan_list_lines)} 件，格式「N. 學校全名：計畫全名」，計畫名稱必須與清單完全一致逐字照抄，不得增刪或改動任何字符（含標點符號），不得省略任何一件、不得自行更改件數。\n"
                     f"3. 每條計畫名稱下方加一句說明（從【計畫詳細內容】中找到對應條目後摘述），說明不限查詢關鍵字，可摘述任何核心工作。若找不到對應內容，直接跳過不寫，絕對不可輸出「資訊有限」「未提及」「僅列出計畫名稱」等佔位語句。\n"
-                    f"4. 所有 {len(_plan_list_lines)} 件列完後，可另起段落做整體補充。{_sort_note}\n\n"
+                    f"4. 所有 {len(_plan_list_lines)} 件列完後，{_rule4_suffix}\n"
+                    f"{_extra_q_rule}\n"
                     f"【已篩選計畫清單】\n{_plans_str}\n\n"
                     f"【計畫詳細內容（可參考各計畫任何核心內容）】\n"
                 ) + context
