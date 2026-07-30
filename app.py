@@ -2206,7 +2206,8 @@ def ask():
                     )
                     _sub_q_text = "\n".join(f"- {q}？" for q in _extra_sub_qs)
                     _sub_prompt = (
-                        f"根據以下 USR 計畫資料，依序回答問題（每題引用2~3個具體計畫舉例說明）：\n{_sub_q_text}\n\n"
+                        f"根據以下 USR 計畫資料，依序回答問題。每個問題需引用2~3個具體計畫，"
+                        f"必須列出學校名稱與計畫名稱，並說明該計畫的具體做法或案例，不得只做概括描述：\n{_sub_q_text}\n\n"
                         f"計畫資料：\n{_sub_context}"
                     )
                     _sub_intro = "\n---\n"
