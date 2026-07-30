@@ -1101,10 +1101,13 @@ def _seq_query_by_index(kws: list[str], topic: str, index: dict,
                     return True
                 return False
             content_sents = [s for s in sentences if not _is_heading(s)]
-            pool = content_sents if content_sents else sentences
-            pri = [s for s in pool if priority_kws and any(kw in s for kw in priority_kws)]
-            rest = [s for s in pool if s not in pri and any(kw in s for kw in hits)]
-            selected = (pri[:3] + rest)[:4] if pri else rest[:4]
+            # 永遠只從 content_sents 選句，不 fallback 回含標題的 sentences
+            pri = [s for s in content_sents if priority_kws and any(kw in s for kw in priority_kws)]
+            rest = [s for s in content_sents if s not in pri and any(kw in s for kw in hits)]
+            if pri or rest:
+                selected = (pri[:3] + rest)[:4] if pri else rest[:4]
+            else:
+                selected = content_sents[:3]  # 沒有命中詞也取前幾句內容，不輸出標題
             snippet = '。'.join(selected) + '。' if selected else text_body[:300]
             entry = f"【{src_name}】\n{snippet}…"
         else:
@@ -2239,7 +2242,7 @@ def ask():
             # 列舉型：在 context 前注入預建清單，讓 LLM 直接按清單輸出，不自行過濾
             if _list and _plan_list_lines:
                 _t1_count = len([l for l in _plan_list_lines if any(pk in l for pk in _q_priority_kws)]) if _q_priority_kws else 0
-                _plans_str = "\n".join(f"{i+1}. {p}" for i, p in enumerate(_plan_list_lines))
+                _plans_str = "\n".join(f"{i+1}. {p}" for i, p in enumerate(_plan_list_lines))  # 先建完整版
                 _sort_note = (
                     f"清單依相關度排序：前 {_t1_count} 件直接提及查詢關鍵詞，後段為議題相關計畫。"
                     if _q_priority_kws and _t1_count > 0 else ""
@@ -2248,20 +2251,23 @@ def ask():
                 _t1_highlight = f"前 {_t1_count} 件直接命中查詢詞，其餘為同議題相關計畫。" if _t1_count and _t1_count < len(_plan_list_lines) else ""
                 # 偵測列舉問題之外的分析型子問題（多個？分隔）
                 _extra_sub_qs = [p.strip() for p in re.split(r'[？?]', question) if p.strip()][1:]
+                # 有分析型子問題時限制清單件數，確保 LLM 有空間回答後續問題
+                _display_lines = _plan_list_lines[:25] if _extra_sub_qs else _plan_list_lines
                 _extra_q_rule = (
                     f"5. 所有計畫列完後，另起段落依序回答以下子問題（從【計畫詳細內容】歸納，引用2~3個計畫舉例說明）：\n"
                     + "\n".join(f"   - {q}？" for q in _extra_sub_qs) + "\n"
                 ) if _extra_sub_qs else ""
                 _rule4_suffix = "請接著回答第5點各子問題。" if _extra_sub_qs else f"可另起段落做整體補充。{_sort_note}"
+                _list_note = f"（另有更多相關計畫，以下列出前 {len(_display_lines)} 件）" if _extra_sub_qs and len(_plan_list_lines) > len(_display_lines) else ""
                 context = (
                     f"【系統強制指令】以下清單已由關鍵字引擎確認，共 {len(_plan_list_lines)} 件計畫，請全數列出。{_t1_highlight}\n"
                     f"輸出規則：\n"
-                    f"1. 第一行必須是「共{len(_plan_list_lines)}件計畫：」\n"
-                    f"2. 逐條列出下方【已篩選計畫清單】全部 {len(_plan_list_lines)} 件，格式「N. 學校全名：計畫全名」，計畫名稱必須與清單完全一致逐字照抄，不得增刪或改動任何字符（含標點符號），不得省略任何一件、不得自行更改件數。\n"
+                    f"1. 第一行必須是「共{len(_plan_list_lines)}件計畫：」{_list_note}\n"
+                    f"2. 逐條列出下方【已篩選計畫清單】全部 {len(_display_lines)} 件，格式「N. 學校全名：計畫全名」，計畫名稱必須與清單完全一致逐字照抄，不得增刪或改動任何字符（含標點符號），不得省略任何一件、不得自行更改件數。\n"
                     f"3. 每條計畫名稱下方加一句說明（從【計畫詳細內容】中找到對應條目後摘述），說明不限查詢關鍵字，可摘述任何核心工作。若找不到對應內容，直接跳過不寫，絕對不可輸出「資訊有限」「未提及」「僅列出計畫名稱」等佔位語句。\n"
-                    f"4. 所有 {len(_plan_list_lines)} 件列完後，{_rule4_suffix}\n"
+                    f"4. 所有 {len(_display_lines)} 件列完後，{_rule4_suffix}\n"
                     f"{_extra_q_rule}\n"
-                    f"【已篩選計畫清單】\n{_plans_str}\n\n"
+                    f"【已篩選計畫清單】\n{chr(10).join(f'{i+1}. {p}' for i, p in enumerate(_display_lines))}\n\n"
                     f"【計畫詳細內容（可參考各計畫任何核心內容）】\n"
                 ) + context
                 print(f"[LIST] 預建清單 {len(_plan_list_lines)} 件（T1={_t1_count}），注入 context 前")
