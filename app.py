@@ -2655,8 +2655,11 @@ def _generate_clarify_msg(question: str) -> str:
     from langchain_core.messages import HumanMessage as _HMClarify
     try:
         prompt = f"{_CLARIFY_SYSTEM_PROMPT}\n\n問題：{question}"
-        resp = llm_fast.bind(temperature=0.3, thinking_budget=0).invoke([_HMClarify(content=prompt)])
-        return resp.content.strip()
+        print(f"[CLARIFY] 呼叫 LLM 生成澄清訊息，問題：{question[:50]}")
+        resp = llm_fast.bind(temperature=0, thinking_budget=0).invoke([_HMClarify(content=prompt)])
+        result = resp.content.strip()
+        print(f"[CLARIFY] LLM 回傳：{result[:80]}")
+        return result
     except Exception as e:
         print(f"[CLARIFY] LLM 呼叫失敗: {e}")
         return "您的問題涉及主觀判斷，請描述您希望依據哪些面向評估，我就能針對您的標準為您做出分析！"
