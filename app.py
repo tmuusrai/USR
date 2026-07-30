@@ -1081,19 +1081,18 @@ def _seq_query_by_index(kws: list[str], topic: str, index: dict,
         text = _clean_plan_code(doc.page_content)
         src_name = _clean_plan_code(Path(doc.metadata.get("source", "")).stem)
         if condense:
-            # chunk 開頭有 prepend 的【school　project（type）】標籤，跳過後再截 snippet
-            # 避免 start 落在標籤中間造成截斷跑版
+            # chunk 開頭有 prepend 的【school　project（type）】標籤，跳過
             bracket_end = text.find('】\n')
             text_body = text[bracket_end + 2:] if 0 <= bracket_end < 120 else text
-            pri_pos = next(
-                (text_body.find(kw) for kw in (priority_kws or []) if text_body.find(kw) >= 0),
-                None
-            )
-            first_pos = pri_pos if pri_pos is not None else min(
-                (text_body.find(kw) for kw in hits if text_body.find(kw) >= 0), default=0
-            )
-            start = max(0, first_pos - 30)
-            snippet = text_body[start:start + 400]
+            sentences = [s.strip() for s in re.split(r'[。！？\n]', text_body) if len(s.strip()) > 15]
+            # 排除純標題行：以子節編號開頭（（一）、（二）...）且以注入標籤）結尾
+            _is_heading = lambda s: bool(re.match(r'^[（(][一二三四五六七八九十百\d]{1,3}[）)]', s)) and s.rstrip().endswith('）')
+            content_sents = [s for s in sentences if not _is_heading(s)]
+            pool = content_sents if content_sents else sentences
+            pri = [s for s in pool if priority_kws and any(kw in s for kw in priority_kws)]
+            rest = [s for s in pool if s not in pri and any(kw in s for kw in hits)]
+            selected = (pri[:3] + rest)[:4] if pri else rest[:4]
+            snippet = '。'.join(selected) + '。' if selected else text_body[:300]
             entry = f"【{src_name}】\n{snippet}…"
         else:
             # 非列舉型：優先取使用者查詢詞的句子，再補其他命中詞句子，最多 2 句
