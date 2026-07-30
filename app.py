@@ -2657,7 +2657,7 @@ def _generate_clarify_msg(question: str) -> str:
         prompt = f"{_CLARIFY_SYSTEM_PROMPT}\n\n問題：{question}"
         print(f"[CLARIFY] 呼叫 LLM 生成澄清訊息，問題：{question[:50]}")
         resp = llm_fast.bind(temperature=0, thinking_budget=0).invoke([_HMClarify(content=prompt)])
-        result = resp.content.strip()
+        result = _normalize_content(resp.content).strip()
         print(f"[CLARIFY] LLM 回傳：{result[:80]}")
         return result
     except Exception as e:
