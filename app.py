@@ -2178,12 +2178,13 @@ def ask():
 
                 with ThreadPoolExecutor(max_workers=10) as _para_ex:
                     _para_futs = [(_pl, _para_ex.submit(_sum_one_plan, _pl)) for _pl in _display_lines]
-                    for _pi, (_pl, _pf) in enumerate(_para_futs):
+                    _out_idx = 0
+                    for _pl, _pf in _para_futs:
                         _ps2 = _pf.result()
-                        _pchunk = f"{_pi+1}. {_pl}\n"
-                        if _ps2:
-                            _pchunk += f"{_ps2}\n"
-                        _pchunk += "\n"
+                        if _ps2 == "":  # 無實質內容（純標題），跳過不列出
+                            continue
+                        _out_idx += 1
+                        _pchunk = f"{_out_idx}. {_pl}\n{_ps2}\n\n"
                         _para_ans_parts.append(_pchunk)
                         yield f"data: {json.dumps({'type': 'chunk', 'text': _pchunk}, ensure_ascii=False)}\n\n"
 
