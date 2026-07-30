@@ -2254,6 +2254,7 @@ def ask():
                 _extra_sub_qs = [p.strip() for p in re.split(r'[？?]', question) if p.strip()][1:]
                 # 有分析型子問題時限制清單件數，確保 LLM 有空間回答後續問題
                 _display_lines = _plan_list_lines[:25] if _extra_sub_qs else _plan_list_lines
+                print(f"[LIST-SUB] extra_sub_qs={_extra_sub_qs} display={len(_display_lines)} total={len(_plan_list_lines)}")
                 _extra_q_rule = (
                     f"5. 所有計畫列完後，另起段落依序回答以下子問題（從【計畫詳細內容】歸納，引用2~3個計畫舉例說明）：\n"
                     + "\n".join(f"   - {q}？" for q in _extra_sub_qs) + "\n"
@@ -2270,7 +2271,7 @@ def ask():
                     f"{_sys_directive}\n"
                     f"輸出規則：\n"
                     f"1. 第一行必須是「共{len(_plan_list_lines)}件計畫{_list_note}：」\n"
-                    f"2. 逐條列出下方【已篩選計畫清單】全部 {len(_display_lines)} 件，格式「N. 學校全名：計畫全名」，計畫名稱必須與清單完全一致逐字照抄，不得增刪或改動任何字符（含標點符號），不得省略任何一件、不得自行更改件數。\n"
+                    f"2. 逐條列出下方【已篩選計畫清單】全部 {len(_display_lines)} 件，格式「N. 學校全名：計畫全名」，計畫名稱必須與清單完全一致逐字照抄，不得增刪或改動任何字符（含標點符號），不得省略任何一件、不得自行更改件數，嚴禁從【計畫詳細內容】自行增加清單以外的計畫。\n"
                     f"3. 每條計畫名稱下方加一句說明（從【計畫詳細內容】中找到對應條目後摘述），說明不限查詢關鍵字，可摘述任何核心工作。若找不到對應內容，直接跳過不寫，絕對不可輸出「資訊有限」「未提及」「僅列出計畫名稱」等佔位語句。\n"
                     f"4. 所有 {len(_display_lines)} 件列完後，{_rule4_suffix}\n"
                     f"{_extra_q_rule}\n"
