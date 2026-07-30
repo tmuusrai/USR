@@ -1081,16 +1081,19 @@ def _seq_query_by_index(kws: list[str], topic: str, index: dict,
         text = _clean_plan_code(doc.page_content)
         src_name = _clean_plan_code(Path(doc.metadata.get("source", "")).stem)
         if condense:
-            # 列舉型：snippet 優先從 priority keyword 位置截，確保 priority filter 能命中
+            # chunk 開頭有 prepend 的【school　project（type）】標籤，跳過後再截 snippet
+            # 避免 start 落在標籤中間造成截斷跑版
+            bracket_end = text.find('】\n')
+            text_body = text[bracket_end + 2:] if 0 <= bracket_end < 120 else text
             pri_pos = next(
-                (text.find(kw) for kw in (priority_kws or []) if text.find(kw) >= 0),
+                (text_body.find(kw) for kw in (priority_kws or []) if text_body.find(kw) >= 0),
                 None
             )
             first_pos = pri_pos if pri_pos is not None else min(
-                (text.find(kw) for kw in hits if text.find(kw) >= 0), default=0
+                (text_body.find(kw) for kw in hits if text_body.find(kw) >= 0), default=0
             )
             start = max(0, first_pos - 30)
-            snippet = text[start:start + 400]
+            snippet = text_body[start:start + 400]
             entry = f"【{src_name}】\n{snippet}…"
         else:
             # 非列舉型：優先取使用者查詢詞的句子，再補其他命中詞句子，最多 2 句
