@@ -1728,8 +1728,9 @@ def ask():
 
             # ✦ 主觀評量問題攔截：反問使用者定義判斷準則
             if not skip_eval and _is_evaluation_question(question):
+                _clarify_msg = _generate_clarify_msg(question)
                 yield f"data: {json.dumps({'type': 'sources', 'sources': []}, ensure_ascii=False)}\n\n"
-                yield f"data: {json.dumps({'type': 'chunk', 'text': _CLARIFY_MSG}, ensure_ascii=False)}\n\n"
+                yield f"data: {json.dumps({'type': 'chunk', 'text': _clarify_msg}, ensure_ascii=False)}\n\n"
                 total_ms = round((time.perf_counter() - t0) * 1000)
                 if conv_id:
                     try:
@@ -1745,7 +1746,7 @@ def ask():
                             )
                             _conn.execute(
                                 "INSERT OR IGNORE INTO conv_messages (id, conversation_id, role, content, timestamp) VALUES (?,?,?,?,?)",
-                                (str(_uuid.uuid4()), conv_id, "assistant", _CLARIFY_MSG, _now)
+                                (str(_uuid.uuid4()), conv_id, "assistant", _clarify_msg, _now)
                             )
                             _conn.execute("UPDATE conversations SET updated_at=? WHERE id=?", (_now, conv_id))
                     except Exception as _e:
@@ -2634,20 +2635,31 @@ _EVAL_RE = re.compile(
     r'|(?:最好|最佳|最優|最強)的.{0,6}(?:計畫|學校|大學|做法|方案|案例)'
     r'|排名|排行|第一名|冠軍|名次|勝出|較優|更優'
     r'|誰做得比較好|哪個比較好|哪個更好|哪個較好|哪間做得好'
+    # 「哪些學校有 + 主觀品質形容詞」：需釐清何謂「完整/完善」
+    r'|哪.{0,12}(?:完整|完善|健全|完備|齊全|周全|良好|優良|成熟|豐富|積極|全面|深入|扎實|紮實|有效|到位)(?:的|之).{0,15}(?:制度|機制|措施|政策|規劃|計畫|方案|做法|配套|支持|體系|系統)'
 )
 
-_CLARIFY_MSG = """您的問題涉及主觀的優劣評斷，不同人對「最好」的定義可能大不相同，我需要先了解您的判斷標準，才能給出有意義的比較分析。
+_CLARIFY_SYSTEM_PROMPT = """你是 USR（大學社會責任）計畫搜尋助理。使用者的問題含有主觀評量詞（如「最好」「完整」「完善」「排名」等），需要先釐清評估標準。
 
-請問您想依據哪些面向來評估？例如：
+請根據問題的**具體主題**，提出 4～6 個與該主題直接相關的評估面向，格式如下：
+- 第一句說明為何需要釐清標準（針對問題主題，不要說「最好的定義」）
+- 再提出面向清單（每項「• 面向：簡短說明」）
+- 最後一句邀請使用者描述條件
 
-• 計畫規模：總經費、執行年期、涵蓋地區
-• 社會影響力：直接受惠人數、社區問題改善程度
-• 在地連結：與社區的合作深度、長期夥伴關係
-• 創新程度：技術應用獨特性、跨域整合方式
-• 國際能見度：跨國合作夥伴、獲獎紀錄
-• 人才培育：學生實務時數、就業媒合成效
+禁止使用與問題無關的通用面向（如「計畫規模」「國際能見度」等，除非問題確實涉及這些）。
+只輸出給使用者看的文字，不加任何前綴或解釋。"""
 
-請描述您在意的條件（可以是上面任一項，也可以自行定義），我就能針對您的標準為您做出分析！"""
+
+def _generate_clarify_msg(question: str) -> str:
+    """根據問題內容動態生成針對性的澄清訊息。"""
+    try:
+        resp = llm_fast.invoke([
+            {"role": "system", "content": _CLARIFY_SYSTEM_PROMPT},
+            {"role": "user", "content": question},
+        ])
+        return resp.content.strip()
+    except Exception:
+        return "您的問題涉及主觀判斷，請描述您希望依據哪些面向評估，我就能針對您的標準為您做出分析！"
 
 
 def _is_evaluation_question(question: str) -> bool:
@@ -2824,8 +2836,9 @@ def subagent_ask():
 
             # ✦ 主觀評量問題攔截
             if not skip_eval and _is_evaluation_question(question):
+                _clarify_msg = _generate_clarify_msg(question)
                 yield f"data: {json.dumps({'type': 'sources', 'sources': []}, ensure_ascii=False)}\n\n"
-                yield f"data: {json.dumps({'type': 'chunk', 'text': _CLARIFY_MSG}, ensure_ascii=False)}\n\n"
+                yield f"data: {json.dumps({'type': 'chunk', 'text': _clarify_msg}, ensure_ascii=False)}\n\n"
                 total_ms = round((time.perf_counter() - t_start) * 1000)
                 yield f"data: {json.dumps({'type': 'done', 'timing': {'total_ms': total_ms}, 'mode': 'clarify', 'original_question': question}, ensure_ascii=False)}\n\n"
                 return
