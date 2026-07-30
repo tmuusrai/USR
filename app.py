@@ -2260,8 +2260,14 @@ def ask():
                 ) if _extra_sub_qs else ""
                 _rule4_suffix = "請接著回答第5點各子問題。" if _extra_sub_qs else f"可另起段落做整體補充。{_sort_note}"
                 _list_note = f"（另有更多相關計畫，以下舉例前 {len(_display_lines)} 件）" if _extra_sub_qs and len(_plan_list_lines) > len(_display_lines) else ""
+                _sys_directive = (
+                    f"【系統強制指令】以下清單已由關鍵字引擎確認，共 {len(_plan_list_lines)} 件計畫，"
+                    f"因問題含後續子問題，本次僅列前 {len(_display_lines)} 件作為舉例，列完後必須回答第5點子問題。{_t1_highlight}"
+                ) if _extra_sub_qs else (
+                    f"【系統強制指令】以下清單已由關鍵字引擎確認，共 {len(_plan_list_lines)} 件計畫，請全數列出。{_t1_highlight}"
+                )
                 context = (
-                    f"【系統強制指令】以下清單已由關鍵字引擎確認，共 {len(_plan_list_lines)} 件計畫，請全數列出。{_t1_highlight}\n"
+                    f"{_sys_directive}\n"
                     f"輸出規則：\n"
                     f"1. 第一行必須是「共{len(_plan_list_lines)}件計畫{_list_note}：」\n"
                     f"2. 逐條列出下方【已篩選計畫清單】全部 {len(_display_lines)} 件，格式「N. 學校全名：計畫全名」，計畫名稱必須與清單完全一致逐字照抄，不得增刪或改動任何字符（含標點符號），不得省略任何一件、不得自行更改件數。\n"
