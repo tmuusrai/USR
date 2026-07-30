@@ -1694,11 +1694,9 @@ def ask():
             # ── 送出 highlight 詞彙供前端標記 ──
             _HL_GENERIC = {"USR", "計畫", "學校", "大學"}
             _hl_topic, _hl_topic_kws = _detect_usr_topic(question)
-            # 議題關鍵字（≥3字）全部送出，讓回答內文中的相關詞都被標記，不限於問題詞
-            _hl_terms = [kw for kw in (_hl_topic_kws or []) if len(kw) >= 3 and kw not in _HL_GENERIC][:25]
-            # 退回：一般抽詞
-            if not _hl_terms:
-                _hl_terms = [t for t in _extract_query_terms(question) if t not in _HL_GENERIC]
+            _hl_topic_terms = [kw for kw in (_hl_topic_kws or []) if len(kw) >= 3 and kw not in _HL_GENERIC][:20]
+            _hl_query_terms = [t for t in _extract_query_terms(question) if t not in _HL_GENERIC and t not in _hl_topic_terms]
+            _hl_terms = list(dict.fromkeys(_hl_topic_terms + _hl_query_terms))[:25]
             if _hl_terms:
                 yield f"data: {json.dumps({'type': 'highlight_terms', 'terms': _hl_terms}, ensure_ascii=False)}\n\n"
 
@@ -2231,6 +2229,9 @@ def ask():
                 }
                 print(f"[LIST-PARA] 並行摘要 {len(_plan_list_lines)} 件，輸出={len(_para_full_ans)}字元，總計={_para_timing['total_ms']}ms")
 
+                _para_hl_extra = _generate_hl_terms(question, _para_full_ans[:800])
+                if _para_hl_extra:
+                    yield f"data: {json.dumps({'type': 'highlight_terms', 'terms': _para_hl_extra}, ensure_ascii=False)}\n\n"
                 _para_sugg = _generate_suggestions(question, _para_full_ans[:600])
                 if _para_sugg:
                     yield f"data: {json.dumps({'type': 'suggested_questions', 'questions': _para_sugg}, ensure_ascii=False)}\n\n"
@@ -2637,6 +2638,23 @@ SUGGEST_PROMPT = """根據以下 USR 計畫書問答，生成 3 個使用者可�
 
 原始問題：{question}
 回答摘要：{answer}"""
+
+
+def _generate_hl_terms(question: str, answer: str) -> list[str]:
+    """從回答中讓 LLM 提取應標記的相關關鍵詞。"""
+    from langchain_core.messages import HumanMessage as _HMHl
+    try:
+        prompt = (
+            f"根據以下問題與回答，列出8~12個回答中最重要、值得標記強調的繁體中文關鍵詞或專有名詞。"
+            f"包含：核心概念詞、同義詞、重要專業術語。每行一個詞，不要編號或解釋。\n\n"
+            f"問題：{question}\n\n回答摘要：{answer[:800]}"
+        )
+        resp = llm_fast.bind(temperature=0, thinking_budget=0).invoke([_HMHl(content=prompt)])
+        text = _normalize_content(resp.content).strip()
+        return [t.strip() for t in text.split('\n') if 2 <= len(t.strip()) <= 15][:15]
+    except Exception as e:
+        print(f"[HL_TERMS] LLM 呼叫失敗: {e}")
+        return []
 
 
 def _generate_suggestions(question: str, answer: str) -> list[str]:
