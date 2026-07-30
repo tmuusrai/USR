@@ -2094,6 +2094,12 @@ def ask():
                 _plan_list_lines = _tier1 + _tier2
                 print(f"[LIST-DEBUG] 提取到 {len(_plan_list_lines)} 件（T1={len(_tier1)}直接命中，T2={len(_tier2)}議題相關，其中score>0={len([s for s,_ in _tier2_scored if s>0])}件，priority_kws={_q_priority_kws[:3]}）")
 
+                # 偵測分析型子問題（多個？分隔），有則限制清單件數
+                _extra_sub_qs = [p.strip() for p in re.split(r'[？?]', question) if p.strip()][1:]
+                _display_lines = _plan_list_lines[:25] if _extra_sub_qs else _plan_list_lines
+                _list_display_note = f"（另有更多計畫，以下列出前{len(_display_lines)}件）" if _extra_sub_qs and len(_plan_list_lines) > len(_display_lines) else ""
+                print(f"[LIST-SUB] extra_sub_qs={_extra_sub_qs} display={len(_display_lines)} total={len(_plan_list_lines)}")
+
                 # ── 列舉型並行路徑：每個計畫單獨送 LLM，擷取原文關鍵句 ──
                 from langchain_core.messages import HumanMessage as _HMList
 
@@ -2163,13 +2169,13 @@ def ask():
                 _para_ans_parts: list[str] = []
                 _para_t0 = time.perf_counter()
 
-                _header_txt = f"共{len(_plan_list_lines)}件計畫{_t1_label}：\n\n"
+                _header_txt = f"共{len(_plan_list_lines)}件計畫{_list_display_note}{_t1_label}：\n\n"
                 _para_ans_parts.append(_header_txt)
                 yield f"data: {json.dumps({'type': 'chunk', 'text': _header_txt}, ensure_ascii=False)}\n\n"
                 _para_t_first = time.perf_counter()
 
                 with ThreadPoolExecutor(max_workers=10) as _para_ex:
-                    _para_futs = [(_pl, _para_ex.submit(_sum_one_plan, _pl)) for _pl in _plan_list_lines]
+                    _para_futs = [(_pl, _para_ex.submit(_sum_one_plan, _pl)) for _pl in _display_lines]
                     for _pi, (_pl, _pf) in enumerate(_para_futs):
                         _ps2 = _pf.result()
                         _pchunk = f"{_pi+1}. {_pl}\n"
@@ -2178,6 +2184,26 @@ def ask():
                         _pchunk += "\n"
                         _para_ans_parts.append(_pchunk)
                         yield f"data: {json.dumps({'type': 'chunk', 'text': _pchunk}, ensure_ascii=False)}\n\n"
+
+                # 子問題分析：列完後再送 LLM 回答
+                if _extra_sub_qs:
+                    _sub_context = "\n\n".join(
+                        f"{i+1}. {pl}\n{_plan_to_snippet.get(pl, '')[:400]}"
+                        for i, pl in enumerate(_plan_list_lines[:30])
+                    )
+                    _sub_q_text = "\n".join(f"- {q}？" for q in _extra_sub_qs)
+                    _sub_prompt = (
+                        f"根據以下 USR 計畫資料，依序回答問題（每題引用2~3個具體計畫舉例說明）：\n{_sub_q_text}\n\n"
+                        f"計畫資料：\n{_sub_context}"
+                    )
+                    _sub_intro = "\n---\n"
+                    _para_ans_parts.append(_sub_intro)
+                    yield f"data: {json.dumps({'type': 'chunk', 'text': _sub_intro}, ensure_ascii=False)}\n\n"
+                    for _schunk in llm.stream([_HMList(content=_sub_prompt)]):
+                        _spiece = _normalize_content(_schunk.content)
+                        if _spiece:
+                            _para_ans_parts.append(_spiece)
+                            yield f"data: {json.dumps({'type': 'chunk', 'text': _spiece}, ensure_ascii=False)}\n\n"
 
                 _para_t_end = time.perf_counter()
                 _para_full_ans = "".join(_para_ans_parts)
