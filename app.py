@@ -1086,15 +1086,16 @@ def _seq_query_by_index(kws: list[str], topic: str, index: dict,
             text_body = text[bracket_end + 2:] if 0 <= bracket_end < 120 else text
             sentences = [s.strip() for s in re.split(r'[。！？\n]', text_body) if len(s.strip()) > 15]
             # 排除純標題行（以下任一即視為 heading，不含實質內容）
+            _CN_NUM = r'一二三四五六七八九十百壹貳叁肆伍陸柒捌玖拾'
             def _is_heading(s: str) -> bool:
                 # markdown heading（#）
                 if re.match(r'^#{1,7}\s', s):
                     return True
-                # 中文數字大節標題（一、二、三、...）
-                if re.match(r'^[一二三四五六七八九十百\d]+[、．.]\s', s):
+                # 中文數字大節標題（一、二、三、叁、...）含大寫數字
+                if re.match(rf'^[{_CN_NUM}\d]+[、．.]\s', s):
                     return True
-                # （一）（二）... 型子節且以注入標籤）結尾
-                if re.match(r'^[（(][一二三四五六七八九十百\d]{1,3}[）)]', s) and s.rstrip().endswith('）'):
+                # （一）（二）... 型子節，不論後面接什麼都算標題
+                if re.match(rf'^[（(][{_CN_NUM}\d]{{1,3}}[）)]', s):
                     return True
                 # 純注入標籤行（school　project），無其他內容
                 if re.match(r'^（[^）　]*　[^）]*）\s*$', s):
@@ -2258,11 +2259,11 @@ def ask():
                     + "\n".join(f"   - {q}？" for q in _extra_sub_qs) + "\n"
                 ) if _extra_sub_qs else ""
                 _rule4_suffix = "請接著回答第5點各子問題。" if _extra_sub_qs else f"可另起段落做整體補充。{_sort_note}"
-                _list_note = f"（另有更多相關計畫，以下列出前 {len(_display_lines)} 件）" if _extra_sub_qs and len(_plan_list_lines) > len(_display_lines) else ""
+                _list_note = f"（另有更多相關計畫，以下舉例前 {len(_display_lines)} 件）" if _extra_sub_qs and len(_plan_list_lines) > len(_display_lines) else ""
                 context = (
                     f"【系統強制指令】以下清單已由關鍵字引擎確認，共 {len(_plan_list_lines)} 件計畫，請全數列出。{_t1_highlight}\n"
                     f"輸出規則：\n"
-                    f"1. 第一行必須是「共{len(_plan_list_lines)}件計畫：」{_list_note}\n"
+                    f"1. 第一行必須是「共{len(_plan_list_lines)}件計畫{_list_note}：」\n"
                     f"2. 逐條列出下方【已篩選計畫清單】全部 {len(_display_lines)} 件，格式「N. 學校全名：計畫全名」，計畫名稱必須與清單完全一致逐字照抄，不得增刪或改動任何字符（含標點符號），不得省略任何一件、不得自行更改件數。\n"
                     f"3. 每條計畫名稱下方加一句說明（從【計畫詳細內容】中找到對應條目後摘述），說明不限查詢關鍵字，可摘述任何核心工作。若找不到對應內容，直接跳過不寫，絕對不可輸出「資訊有限」「未提及」「僅列出計畫名稱」等佔位語句。\n"
                     f"4. 所有 {len(_display_lines)} 件列完後，{_rule4_suffix}\n"
