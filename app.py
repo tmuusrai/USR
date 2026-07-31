@@ -3286,7 +3286,8 @@ def subagent_ask():
             # ── 步驟 3：背景執行緒串流（每 5s 發 keepalive，應對 Gemini 思考階段）──
             context = "\n\n".join(all_context)
             if len(context) > 20000:
-                context = context[:20000] + "\n\n...(資料已截斷)"
+                cut = context[:20000].rfind("\n\n")
+                context = context[:cut if cut > 10000 else 20000] + "\n\n...(資料已截斷)"
             if user_type == "reviewer":
                 _answer_tmpl = REVIEWER_ANSWER_ONSITE if reviewer_subtype == "onsite" else REVIEWER_ANSWER_WRITTEN
             else:
