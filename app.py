@@ -1983,7 +1983,7 @@ def ask():
             _seq_trigger = (
                 inv and
                 not _multi_enumerate and  # 多校追問不跑 Seq Query（_q_terms 無效）
-                (_list or (_usr_topic and _usr_topic_kws and _faiss_src_count > 5))
+                (_list or (_usr_topic and _usr_topic_kws and _faiss_src_count > 10))
             )
             _q_priority_kws: list[str] = []
             if _seq_trigger:
@@ -2062,7 +2062,7 @@ def ask():
                 # T2 評分依據：query詞 + LLM擴充詞 在 entry 裡出現幾個
                 _t2_score_kws = [k for k in (_q_priority_kws + _q_terms + _llm_kw_list) if len(k) >= 2]
                 for _entry in annotated:
-                    _m = re.match(r'【(.+?)】', _entry)
+                    _m = re.match(r'【(.+)】', _entry.split('\n', 1)[0])  # greedy on first line; handles plan names with 【】 inside
                     if not _m:
                         continue
                     _src = _m.group(1)
