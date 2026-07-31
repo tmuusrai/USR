@@ -1541,23 +1541,17 @@ def api_admin_stats():
                 SUM(CASE WHEN m.role='user'
                          AND m.timestamp > strftime('%s','now','start of day')
                          THEN 1 ELSE 0 END)                             AS today_count,
-                MAX(c.updated_at)                                       AS last_active
+                MAX(c.updated_at)                                       AS last_active,
+                (SELECT lm.content FROM conv_messages lm
+                 JOIN conversations lc ON lm.conversation_id = lc.id
+                 WHERE lc.user_id = c.user_id AND lm.role = 'user'
+                 ORDER BY lm.timestamp DESC LIMIT 1)                    AS last_question
             FROM conversations c
             LEFT JOIN conv_messages m ON m.conversation_id = c.id
             GROUP BY c.user_id
             ORDER BY last_active DESC
         """).fetchall()
-        result = []
-        for u in users:
-            last_q = conn.execute("""
-                SELECT m.content FROM conv_messages m
-                JOIN conversations c ON m.conversation_id = c.id
-                WHERE c.user_id = ? AND m.role = 'user'
-                ORDER BY m.timestamp DESC LIMIT 1
-            """, (u["user_id"],)).fetchone()
-            row = dict(u)
-            row["last_question"] = last_q["content"] if last_q else None
-            result.append(row)
+        result = [dict(u) for u in users]
     return jsonify(result)
 
 @app.route("/api/admin/user/<username>/messages")
