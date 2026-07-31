@@ -1368,7 +1368,7 @@ function renderRAG(sources) {
     if (seen.has(key)) return; seen.add(key);
     const c = document.createElement("div"); c.className = "rag-card";
     const short = s.source.length > 20 ? s.source.slice(0,20)+"…" : s.source;
-    c.innerHTML = `<div class="rag-head"><div class="rag-badge">${i+1}</div><div class="rag-src" title="${s.source}">📄 ${short}</div></div><div class="rag-text">${s.source}</div><div class="rag-page">第 ${s.page} 頁　點擊展開</div>`;
+    c.innerHTML = `<div class="rag-head"><div class="rag-badge">${i+1}</div><div class="rag-src" title="${escHtml(s.source)}">📄 ${escHtml(short)}</div></div><div class="rag-text">${escHtml(s.source)}</div><div class="rag-page">第 ${escHtml(String(s.page))} 頁　點擊展開</div>`;
     c.onclick = () => c.classList.toggle("expanded");
     body.appendChild(c);
   });

@@ -35,7 +35,7 @@ from structured_qa import init_qa, try_structured_answer
 
 app = Flask(__name__)
 CORS(app)
-app.secret_key = os.getenv("FLASK_SECRET_KEY", "usr-web-fixed-key-tmuusrai-2024")
+app.secret_key = os.getenv("FLASK_SECRET_KEY") or os.urandom(32)
 app.config["PERMANENT_SESSION_LIFETIME"] = __import__("datetime").timedelta(days=1)
 
 # ── 設定 ──────────────────────────────────────────────
@@ -1434,9 +1434,8 @@ def login():
     with _get_db() as _db:
         has_any = _db.execute("SELECT COUNT(*) FROM site_users").fetchone()[0] > 0
     if not has_any and not SITE_USERS:
-        valid = True
-    else:
-        valid = _check_login(u, p)
+        return jsonify({"ok": False, "error": "系統尚未設定帳號，請聯絡管理員。"}), 503
+    valid = _check_login(u, p)
     if valid:
         session.permanent = True
         session["authenticated"] = True
@@ -1723,7 +1722,7 @@ def ask():
         return jsonify({"error": "索引尚未建立，請先將 PDF 放入 pdfs/ 資料夾後重啟伺服器。"}), 503
 
     data = request.get_json(silent=True) or {}
-    question = (data.get("question") or "").strip()
+    question = _sanitize_prompt_input((data.get("question") or "").strip())
     chat_id    = (data.get("chat_id") or "").strip()
     conv_id    = (data.get("conv_id") or "").strip()
     use_context = bool(data.get("use_context", False))
@@ -1731,7 +1730,7 @@ def ask():
     user_type = (data.get("user_type") or "applicant").strip()
     if user_type not in ("applicant", "reviewer"):
         user_type = "applicant"
-    original_question = (data.get("original_question") or "").strip()
+    original_question = _sanitize_prompt_input((data.get("original_question") or "").strip())
     skip_eval = bool(original_question)
     if original_question:
         question = f"{original_question}（請依以下標準評估：{question}）"
@@ -3111,6 +3110,10 @@ def tool_search_rag(query: str, k: int = 5, year: str = "114"):
             sources.append({"source": src, "page": page})
     return "\n\n---\n\n".join(results), sources
 
+
+def _sanitize_prompt_input(text: str) -> str:
+    """移除控制字元，防止 prompt injection 透過不可見字元操控 LLM。"""
+    return re.sub(r'[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]', '', text)
 
 def _normalize_content(content):
     if isinstance(content, list):
