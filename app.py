@@ -2179,7 +2179,7 @@ def ask():
                 _para_ans_parts: list[str] = []
                 _para_t0 = time.perf_counter()
 
-                _header_txt = f"共{len(_plan_list_lines)}件計畫{_list_display_note}{_t1_label}：\n\n"
+                _header_txt = f"找到 {len(_display_lines)} 件相關計畫{_list_display_note}{_t1_label}，擷取內容中…\n\n"
                 _para_ans_parts.append(_header_txt)
                 yield f"data: {json.dumps({'type': 'chunk', 'text': _header_txt}, ensure_ascii=False)}\n\n"
                 _para_t_first = time.perf_counter()
@@ -2187,14 +2187,19 @@ def ask():
                 with ThreadPoolExecutor(max_workers=10) as _para_ex:
                     _para_futs = [(_pl, _para_ex.submit(_sum_one_plan, _pl)) for _pl in _display_lines]
                     _out_idx = 0
+                    _skipped = 0
                     for _pl, _pf in _para_futs:
                         _ps2 = _pf.result()
                         if _ps2 == "":  # 無實質內容（純標題），跳過不列出
+                            _skipped += 1
                             continue
                         _out_idx += 1
                         _pchunk = f"{_out_idx}. {_pl}\n{_ps2}\n"
                         _para_ans_parts.append(_pchunk)
                         yield f"data: {json.dumps({'type': 'chunk', 'text': _pchunk}, ensure_ascii=False)}\n\n"
+                _actual_note = f"\n（共列出 {_out_idx} 件" + (f"，另 {_skipped} 件無具體描述略去" if _skipped else "") + "）\n"
+                _para_ans_parts.append(_actual_note)
+                yield f"data: {json.dumps({'type': 'chunk', 'text': _actual_note}, ensure_ascii=False)}\n\n"
 
                 # 子問題分析：列完後再送 LLM 回答
                 if _extra_sub_qs:
