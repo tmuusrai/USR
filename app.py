@@ -1331,10 +1331,37 @@ vectorstore = vectorstores.get("114")  # backwards-compat alias
 
 # ── 倒排索引（啟動時建立，涵蓋所有 USR_TOPIC_KEYWORDS）──
 _inv_indexes: dict[str, dict] = {}
+
+# ── SDG 對應表（優先從 sdg_map.json 讀取，不存在才掃 vectorstore 並存檔）──
 _sdg_maps: dict[str, dict[str, list[str]]] = {}
+_SDG_MAP_PATH = Path("sdg_map.json")
+
+def _load_or_build_sdg_maps() -> None:
+    if _SDG_MAP_PATH.exists():
+        try:
+            with open(_SDG_MAP_PATH, encoding="utf-8") as _f:
+                _sdg_maps.update(json.load(_f))
+            total = sum(len(v) for yr in _sdg_maps.values() for v in yr.values())
+            print(f"[SDG-MAP] 從 sdg_map.json 載入（{total} 筆）")
+            return
+        except Exception as _e:
+            print(f"[SDG-MAP] 載入失敗，重建：{_e}")
+    # 從 vectorstore 掃描建立並存檔
+    built: dict[str, dict[str, list[str]]] = {}
+    for yr, vs in vectorstores.items():
+        if vs:
+            built[yr] = _build_sdg_map(vs)
+    _sdg_maps.update(built)
+    try:
+        with open(_SDG_MAP_PATH, "w", encoding="utf-8") as _f:
+            json.dump(_sdg_maps, _f, ensure_ascii=False, indent=2)
+        print(f"[SDG-MAP] 已存至 sdg_map.json")
+    except Exception as _e:
+        print(f"[SDG-MAP] 存檔失敗：{_e}")
+
 if vectorstores.get("114"):
     _inv_indexes["114"] = _build_inverted_index(vectorstores["114"])
-    _sdg_maps["114"] = _build_sdg_map(vectorstores["114"])
+_load_or_build_sdg_maps()
 
 # ── 懶載入鎖（113 年首次請求時才載）──
 import threading
@@ -1352,7 +1379,8 @@ def _ensure_year_loaded(year: str) -> None:
             _vs = load_or_build_index(year)
             vectorstores[year] = _vs
             _inv_indexes[year] = _build_inverted_index(_vs)
-            _sdg_maps[year] = _build_sdg_map(_vs)
+            if year not in _sdg_maps:  # sdg_map.json 若無此年才重建
+                _sdg_maps[year] = _build_sdg_map(_vs)
             print(f"[APP] {year} 年索引就緒。")
         except FileNotFoundError as e:
             vectorstores[year] = None
