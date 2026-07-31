@@ -818,6 +818,7 @@ def load_or_build_index(year: str = "114") -> FAISS:
 
 # ── 對話記憶 ─────────────────────────────────────────
 _chat_history: dict[str, list] = {}   # chat_id -> [{q, a}]
+_chat_history_lock = threading.Lock()
 _MAX_HISTORY  = 5                      # 每個 session 保留最近幾輪
 
 _FOLLOWUP_RE = re.compile(
@@ -1901,11 +1902,12 @@ def ask():
                         except Exception as _e:
                             print(f"[CONV] 儲存對話失敗: {_e}")
                     if chat_id:
-                        hist = _chat_history.setdefault(chat_id, [])
-                        hist.append({"q": question, "a": full_ans[:5000],
-                             "plans": _extract_listed_plans(full_ans)})
-                        if len(hist) > _MAX_HISTORY:
-                            hist.pop(0)
+                        with _chat_history_lock:
+                            hist = _chat_history.setdefault(chat_id, [])
+                            hist.append({"q": question, "a": full_ans[:5000],
+                                 "plans": _extract_listed_plans(full_ans)})
+                            if len(hist) > _MAX_HISTORY:
+                                hist.pop(0)
                     yield f"data: {json.dumps({'type': 'done', 'timing': {'total_ms': total_ms}, 'mode': 'full_plan'})}\n\n"
                     suggestions = _generate_suggestions(question, full_ans)
                     if suggestions:
@@ -2350,10 +2352,11 @@ def ask():
                 yield f"data: {json.dumps({'type': 'done', 'timing': _para_timing})}\n\n"
 
                 if chat_id:
-                    _ph = _chat_history.setdefault(chat_id, [])
-                    _ph.append({"q": question, "a": _para_full_ans[:5000], "plans": _extract_listed_plans(_para_full_ans)})
-                    if len(_ph) > _MAX_HISTORY:
-                        _ph.pop(0)
+                    with _chat_history_lock:
+                        _ph = _chat_history.setdefault(chat_id, [])
+                        _ph.append({"q": question, "a": _para_full_ans[:5000], "plans": _extract_listed_plans(_para_full_ans)})
+                        if len(_ph) > _MAX_HISTORY:
+                            _ph.pop(0)
                     if len(_chat_history) > 1000:
                         for _hk in list(_chat_history.keys())[:200]:
                             del _chat_history[_hk]
@@ -2569,15 +2572,16 @@ def ask():
             # ── 儲存對話記憶 ──
             if chat_id:
                 full_ans = _full_answer
-                hist = _chat_history.setdefault(chat_id, [])
-                # 多校追問時保留原始清單（而非從新答案重新提取，避免清單縮水）
                 saved_plans = _listed_schools if _listed_schools else _extract_listed_plans(full_ans)
-                hist.append({"q": question, "a": full_ans[:5000], "plans": saved_plans})
-                if len(hist) > _MAX_HISTORY:
-                    hist.pop(0)
-                if len(_chat_history) > 1000:
-                    for k in list(_chat_history.keys())[:200]:
-                        del _chat_history[k]
+                with _chat_history_lock:
+                    hist = _chat_history.setdefault(chat_id, [])
+                    # 多校追問時保留原始清單（而非從新答案重新提取，避免清單縮水）
+                    hist.append({"q": question, "a": full_ans[:5000], "plans": saved_plans})
+                    if len(hist) > _MAX_HISTORY:
+                        hist.pop(0)
+                    if len(_chat_history) > 1000:
+                        for k in list(_chat_history.keys())[:200]:
+                            del _chat_history[k]
 
             # 建議問題改由前端另外呼叫 /api/suggest，不在主串流裡生成
 
