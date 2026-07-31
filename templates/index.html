@@ -62,6 +62,7 @@ body{font-family:"Segoe UI","Noto Sans TC",sans-serif;background:#f5f7fa;height:
 #ask-btn{padding:8px 20px;background:linear-gradient(135deg,#1d4ed8,#3b82f6);color:#fff;border:none;border-radius:10px;font-size:.88rem;font-weight:600;cursor:pointer;transition:opacity .2s,transform .1s;white-space:nowrap}
 #ask-btn:hover:not(:disabled){transform:translateY(-1px)}
 #ask-btn:disabled{opacity:.45;cursor:not-allowed}
+#mode-toggle{display:flex;flex-shrink:0;padding:4px 0 2px}
 #mode-ask-col{display:flex;flex-direction:column;gap:5px;flex-shrink:0}
 #mode-ask-col #ask-btn{align-self:flex-end}
 strong.kw-hl{font-weight:700}
@@ -444,15 +445,17 @@ strong.kw-hl{font-weight:700}
   <div id="chat-wrap">
     <div id="resize-handle" title="拖曳調整大小"></div>
     <div id="messages"></div>
+    <div id="mode-toggle">
+      <div class="mode-seg" id="context-seg">
+        <button class="seg-btn active" onclick="setContextMode('fresh',this)">全新提問</button>
+        <button class="seg-btn" onclick="setContextMode('follow',this)">接續上題</button>
+      </div>
+    </div>
     <div id="input-row">
       <textarea id="question" placeholder="請輸入問題，例如：有哪些計畫關注高齡照護？"
         oninput="autoResize(this)"
         onkeydown="if(event.key==='Enter'&&!event.shiftKey&&!event.isComposing){event.preventDefault();askQuestion()}"></textarea>
       <div id="mode-ask-col">
-        <div class="mode-seg" id="context-seg">
-          <button class="seg-btn active" onclick="setContextMode('fresh',this)">全新提問</button>
-          <button class="seg-btn" onclick="setContextMode('follow',this)">接續上題</button>
-        </div>
         <div class="mode-seg">
           <button class="seg-btn active" onclick="setMode('rag',this)">一般</button>
           <button class="seg-btn subagent" onclick="setMode('subagent',this)">⚡ SubAgent</button>
