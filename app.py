@@ -1800,8 +1800,8 @@ def ask():
                         if not _usr_topic:
                             _usr_topic = _lt
 
-            # ✦ 主觀評量問題攔截：反問使用者定義判斷準則
-            if not skip_eval and _is_evaluation_question(question):
+            # ✦ 主觀評量／開放式如何做問題：反問使用者定義判斷準則或回答角度
+            if not skip_eval and (_is_evaluation_question(question) or _is_howto_question(question, list_check=_list_check)):
                 _clarify_msg = _generate_clarify_msg(question)
                 yield f"data: {json.dumps({'type': 'sources', 'sources': []}, ensure_ascii=False)}\n\n"
                 yield f"data: {json.dumps({'type': 'chunk', 'text': _clarify_msg}, ensure_ascii=False)}\n\n"
@@ -2944,15 +2944,26 @@ _EVAL_RE = re.compile(
     r'|哪.{0,12}(?:完整|完善|健全|完備|齊全|周全|良好|優良|成熟|豐富|積極|全面|深入|扎實|紮實|有效|到位)(?:的|之).{0,15}(?:制度|機制|措施|政策|規劃|計畫|方案|做法|配套|支持|體系|系統)'
 )
 
-_CLARIFY_SYSTEM_PROMPT = """你是 USR（大學社會責任）計畫搜尋助理。使用者的問題含有主觀評量詞（如「最好」「完整」「完善」「排名」等），需要先釐清評估標準。
+_HOWTO_RE = re.compile(
+    r'一個好的.{0,20}(?:該如何|要怎麼|如何|怎麼)'
+    r'|如何(?:才能)?(?:建立|打造|發展|推動|提升|改善|規劃|設計|經營|管理|推廣|培養|形成|組織|運作|落實|深化|實現|達成|推進|強化|加強)'
+    r'|怎麼(?:才能)?(?:建立|打造|發展|推動|提升|做好|達成|落實|經營|管理)'
+    r'|(?:最好|更好)的(?:方法|方式|做法|作法|策略|模式)是(?:什麼|哪些)'
+    r'|有沒有.{0,8}(?:具體|好的|有效).{0,4}(?:方法|方式|做法|作法|策略|案例).{0,8}(?:及|和|與|或).{0,8}(?:操作|實施|執行|推動)'
+)
 
-請根據問題的**具體主題**，提出 4～6 個與該主題直接相關的評估面向，格式如下：
-- 第一句說明為何需要釐清標準（針對問題主題，不要說「最好的定義」）
-- 再提出面向清單（每項「• 面向：簡短說明」）
-- 最後一句邀請使用者描述條件
+_CLARIFY_SYSTEM_PROMPT = """你是 USR（大學社會責任）計畫搜尋助理。使用者的問題需要先釐清評估標準或回答角度，才能給出有意義的回答。
 
-禁止使用與問題無關的通用面向（如「計畫規模」「國際能見度」等，除非問題確實涉及這些）。
-只輸出給使用者看的文字，不加任何前綴或解釋。"""
+常見情況：
+A. 含主觀評量詞（如「最好」「完整」「完善」「排名」）→ 不同標準有不同答案
+B. 開放式「如何建立／推動／設計」→ 在不同面向下操作方式差異很大
+
+請根據問題的**具體主題**，提出 3～5 個與該主題直接相關的評估面向或操作角度，格式如下：
+- 第一句說明為何需要釐清（針對問題主題）
+- 面向清單（每項「• 面向：一句說明」）
+- 最後一句邀請使用者指定角度，並說明可切換「接續上題」模式繼續提問
+
+禁止使用與問題無關的通用面向。只輸出給使用者看的文字，不加任何前綴或解釋。"""
 
 
 def _generate_clarify_msg(question: str) -> str:
@@ -2972,6 +2983,12 @@ def _generate_clarify_msg(question: str) -> str:
 
 def _is_evaluation_question(question: str) -> bool:
     return bool(_EVAL_RE.search(question))
+
+def _is_howto_question(question: str, list_check: bool = False) -> bool:
+    """開放式「如何做」問題，在無列舉意圖且無特定學校時才觸發澄清。"""
+    if list_check or _extract_school(question):
+        return False
+    return bool(_HOWTO_RE.search(question))
 
 
 def _build_known_schools() -> list[str]:
