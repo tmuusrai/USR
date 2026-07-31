@@ -1018,6 +1018,34 @@ def _count_kw_hits(text: str, kws: list[str]) -> dict[str, int]:
     return {kw: cnt for kw in kws if (cnt := text.count(kw)) > 0}
 
 
+def _build_sdg_map(vs) -> dict[str, list[str]]:
+    """啟動時掃整個 docstore，建立 {SDG號碼: ["學校：計畫", ...]} 對應表（1-17 全部）。"""
+    sdg_srcs: dict[str, set[str]] = {}
+    seen_src: set[str] = set()
+    for doc in vs.docstore._dict.values():
+        raw_src = Path(doc.metadata.get("source", "")).stem
+        src = re.sub(r'_formatted$', '', raw_src).strip('_')
+        if not src or src in seen_src:
+            continue
+        seen_src.add(src)
+        text = doc.page_content
+        for m in re.finditer(r'SDG\s*0?(\d{1,2})', text, re.IGNORECASE):
+            n = m.group(1).lstrip('0') or '1'
+            if 1 <= int(n) <= 17:
+                sdg_srcs.setdefault(n, set()).add(src)
+    result: dict[str, list[str]] = {}
+    for n, srcs in sdg_srcs.items():
+        lines = []
+        for src in sorted(srcs):
+            parts = src.split('_', 1)
+            if len(parts) == 2:
+                lines.append(f"{parts[0]}：{parts[1]}")
+        result[n] = lines
+    counts = {n: len(v) for n, v in sorted(result.items(), key=lambda x: int(x[0]))}
+    print(f"[SDG-MAP] 建立完成：{counts}")
+    return result
+
+
 def _build_inverted_index(vs) -> dict[str, list]:
     """
     啟動時掃整個 docstore 一次，建立 {關鍵字: [(doc, 出現次數), ...]} 的倒排索引。
@@ -1303,8 +1331,10 @@ vectorstore = vectorstores.get("114")  # backwards-compat alias
 
 # ── 倒排索引（啟動時建立，涵蓋所有 USR_TOPIC_KEYWORDS）──
 _inv_indexes: dict[str, dict] = {}
+_sdg_maps: dict[str, dict[str, list[str]]] = {}
 if vectorstores.get("114"):
     _inv_indexes["114"] = _build_inverted_index(vectorstores["114"])
+    _sdg_maps["114"] = _build_sdg_map(vectorstores["114"])
 
 # ── 懶載入鎖（113 年首次請求時才載）──
 import threading
@@ -1322,6 +1352,7 @@ def _ensure_year_loaded(year: str) -> None:
             _vs = load_or_build_index(year)
             vectorstores[year] = _vs
             _inv_indexes[year] = _build_inverted_index(_vs)
+            _sdg_maps[year] = _build_sdg_map(_vs)
             print(f"[APP] {year} 年索引就緒。")
         except FileNotFoundError as e:
             vectorstores[year] = None
@@ -2065,7 +2096,16 @@ def ask():
             print(f"[LIST-GATE] _list={_list} annotated={type(annotated).__name__ if annotated is not None else 'None'}({len(annotated) if annotated else 0}) _usr_topic={_usr_topic} _seq_kws={len(_seq_kws) if '_seq_kws' in dir() else 'undef'}")
             _plan_list_lines: list[str] = []
             _MAX_PLAN_LIST = 150  # LLM 輸出上限（超過會被截斷）
-            if annotated and _list:
+
+            # SDG 查詢：直接從 _sdg_maps 取得對應學校計畫清單，不走 annotated 解析
+            if _sdg_m and _list:
+                _sdg_key = _sdg_m.group(1).lstrip('0') or '1'
+                _sdg_plan_list = (_sdg_maps.get(year) or _sdg_maps.get("114", {})).get(_sdg_key, [])
+                if _sdg_plan_list:
+                    _plan_list_lines = _sdg_plan_list[:]
+                    print(f"[SDG-MAP] SDG{_sdg_key} 直接命中 {len(_plan_list_lines)} 件計畫")
+
+            if not _plan_list_lines and annotated and _list:
                 print(f"[LIST-DEBUG] SEQ annotated 共 {len(annotated)} 筆，開始提取計畫名稱")
                 _seen_plan_srcs: set[str] = set()
                 _tier1: list[str] = []  # 直接命中問題詞
