@@ -1861,6 +1861,14 @@ def ask():
                 if _school:
                     print(f"[ASK] 從歷史補充學校：{_school}")
             _list      = bool(_LIST_INTENT_RE.search(search_question)) and not _school and not _LIST_CONCEPT_RE.search(search_question)
+            # SDG 查詢：偵測 SDG\d+ → 強制 list、記錄 variants 供 seq_kws 使用
+            _sdg_m = re.search(r'SDG\s*0?(\d{1,2})', search_question, re.IGNORECASE)
+            _sdg_variants: list[str] = []
+            if _sdg_m:
+                _n = _sdg_m.group(1)
+                _sdg_variants = list(dict.fromkeys([f"SDG {_n}", f"SDG{_n}", f"SDG 0{_n}", f"SDG0{_n}"]))
+                _list = True
+                print(f"[SDG] 偵測到 SDG{_n}，variants={_sdg_variants}，強制 list=True")
             _personnel = bool(_PERSONNEL_RE.search(search_question))
             _kw        = _extract_keywords(search_question)
             _role      = _extract_role_term(question) if _personnel else None
@@ -1992,6 +2000,10 @@ def ask():
                 if _list:
                     # 列舉型：直接用整個議題的所有關鍵字廣搜，同議題都算相關
                     _seq_kws = list(_usr_topic_kws) if _usr_topic_kws else []
+                    # SDG 變體優先插入（如 "SDG 8", "SDG8"），確保 keyword index 都查得到
+                    for sv in _sdg_variants:
+                        if sv not in _seq_kws:
+                            _seq_kws.insert(0, sv)
                     # 問題提取詞 + LLM生成詞，只要有在分類表裡 → 觸發整個分類擴充
                     for kw in (_q_terms + _llm_kw_list):
                         for topic_kws in USR_TOPIC_KEYWORDS.values():
