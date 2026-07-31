@@ -49,7 +49,6 @@ body{font-family:"Segoe UI","Noto Sans TC",sans-serif;background:#f5f7fa;height:
 #resize-handle::before{content:"";width:40px;height:3px;background:#cbd5e1;border-radius:999px;transition:background .15s}
 #resize-handle:hover::before{background:#94a3b8}
 #messages{flex:1;min-height:60px;overflow-y:auto;margin-bottom:12px;display:flex;flex-direction:column;gap:10px}
-#mode-toggle{flex-shrink:0}
 #input-row{flex-shrink:0}
 #messages::-webkit-scrollbar{width:4px}
 #messages::-webkit-scrollbar-thumb{background:#e2e8f0;border-radius:4px}
@@ -60,13 +59,11 @@ body{font-family:"Segoe UI","Noto Sans TC",sans-serif;background:#f5f7fa;height:
 #input-row{display:flex;gap:10px;align-items:flex-end}
 #question{flex:1;padding:10px 14px;border:1.5px solid #cbd5e1;border-radius:10px;font-size:.9rem;resize:none;height:44px;outline:none;transition:border-color .2s;font-family:inherit;line-height:1.4;background:#f8fafc}
 #question:focus{border-color:#3b82f6;background:#fff}
-#ask-btn{padding:11px 24px;background:linear-gradient(135deg,#1d4ed8,#3b82f6);color:#fff;border:none;border-radius:10px;font-size:.9rem;font-weight:600;cursor:pointer;transition:opacity .2s,transform .1s;white-space:nowrap}
+#ask-btn{padding:8px 20px;background:linear-gradient(135deg,#1d4ed8,#3b82f6);color:#fff;border:none;border-radius:10px;font-size:.88rem;font-weight:600;cursor:pointer;transition:opacity .2s,transform .1s;white-space:nowrap}
 #ask-btn:hover:not(:disabled){transform:translateY(-1px)}
 #ask-btn:disabled{opacity:.45;cursor:not-allowed}
-#mode-ask-col{display:flex;flex-direction:column;gap:5px;flex-shrink:0}
-#mode-ask-col #ask-btn{width:100%}
+#mode-ask-col{display:flex;flex-direction:column;gap:5px;flex-shrink:0;align-items:stretch}
 strong.kw-hl{font-weight:700}
-#mode-toggle{display:flex;align-items:center;gap:10px;padding:6px 0;flex-shrink:0;flex-wrap:wrap}
 .mode-seg{display:flex;background:#f1f5f9;border-radius:9px;padding:3px;gap:2px}
 .seg-btn{padding:5px 13px;border-radius:7px;border:none;background:none;color:#64748b;font-size:.8rem;font-weight:500;cursor:pointer;transition:all .15s;white-space:nowrap}
 .seg-btn:hover{background:#e2e8f0;color:#334155}
@@ -446,17 +443,15 @@ strong.kw-hl{font-weight:700}
   <div id="chat-wrap">
     <div id="resize-handle" title="拖曳調整大小"></div>
     <div id="messages"></div>
-    <div id="mode-toggle">
-      <div class="mode-seg" id="context-seg">
-        <button class="seg-btn active" onclick="setContextMode('fresh',this)">全新提問</button>
-        <button class="seg-btn" onclick="setContextMode('follow',this)">接續上題</button>
-      </div>
-    </div>
     <div id="input-row">
       <textarea id="question" placeholder="請輸入問題，例如：有哪些計畫關注高齡照護？"
         oninput="autoResize(this)"
         onkeydown="if(event.key==='Enter'&&!event.shiftKey&&!event.isComposing){event.preventDefault();askQuestion()}"></textarea>
       <div id="mode-ask-col">
+        <div class="mode-seg" id="context-seg">
+          <button class="seg-btn active" onclick="setContextMode('fresh',this)">全新提問</button>
+          <button class="seg-btn" onclick="setContextMode('follow',this)">接續上題</button>
+        </div>
         <div class="mode-seg">
           <button class="seg-btn active" onclick="setMode('rag',this)">一般</button>
           <button class="seg-btn subagent" onclick="setMode('subagent',this)">⚡ SubAgent</button>
