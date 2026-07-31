@@ -2183,7 +2183,8 @@ def ask():
                         print(f"[LIST-REGION] 縣市過濾={_question_counties}，無匹配，不過濾")
 
                 # 偵測分析型子問題（多個？分隔），有則限制清單件數
-                _extra_sub_qs = [p.strip() for p in re.split(r'[？?]', question) if p.strip()][1:]
+                _extra_sub_qs = [p for p in [p.strip() for p in re.split(r'[？?]', question) if p.strip()][1:]
+                                 if re.search(r'什麼|哪些|哪幾|如何|為何|為什麼|怎麼|怎樣|多少|幾個|幾間|幾件|哪', p)]
                 _display_lines = _plan_list_lines[:25] if _extra_sub_qs else _plan_list_lines
                 _list_display_note = f"（另有更多計畫，以下列出前{len(_display_lines)}件）" if _extra_sub_qs and len(_plan_list_lines) > len(_display_lines) else ""
                 print(f"[LIST-SUB] extra_sub_qs={_extra_sub_qs} display={len(_display_lines)} total={len(_plan_list_lines)}")
@@ -2377,7 +2378,8 @@ def ask():
                 _topic_label = f"（{_usr_topic}議題）" if _usr_topic else ""
                 _t1_highlight = f"前 {_t1_count} 件直接命中查詢詞，其餘為同議題相關計畫。" if _t1_count and _t1_count < len(_plan_list_lines) else ""
                 # 偵測列舉問題之外的分析型子問題（多個？分隔）
-                _extra_sub_qs = [p.strip() for p in re.split(r'[？?]', question) if p.strip()][1:]
+                _extra_sub_qs = [p for p in [p.strip() for p in re.split(r'[？?]', question) if p.strip()][1:]
+                                 if re.search(r'什麼|哪些|哪幾|如何|為何|為什麼|怎麼|怎樣|多少|幾個|幾間|幾件|哪', p)]
                 # 有分析型子問題時限制清單件數，確保 LLM 有空間回答後續問題
                 _display_lines = _plan_list_lines[:25] if _extra_sub_qs else _plan_list_lines
                 print(f"[LIST-SUB] extra_sub_qs={_extra_sub_qs} display={len(_display_lines)} total={len(_plan_list_lines)}")
