@@ -1828,58 +1828,6 @@ def ask():
                         if not _usr_topic:
                             _usr_topic = _lt
 
-            # ② 指定學校整體介紹攔截：直接讀 md 檔，不走 FAISS
-            _school_for_full = _extract_school(search_question) or (
-                _extract_school(history[-1]['q']) if history else None
-            )
-            if _FULL_PLAN_RE.search(question) and _school_for_full:
-                full_md = _read_plan_summary(_school_for_full, year)
-                if full_md:
-                    prompt_val = RAG_PROMPT.invoke({"context": full_md, "question": question})
-                    yield f"data: {json.dumps({'type': 'sources', 'sources': []}, ensure_ascii=False)}\n\n"
-                    answer_parts: list[str] = []
-                    for chunk in llm.stream(prompt_val.to_messages()):
-                        piece = getattr(chunk, 'content', '') or ''
-                        if piece:
-                            answer_parts.append(piece)
-                            yield f"data: {json.dumps({'type': 'chunk', 'text': piece}, ensure_ascii=False)}\n\n"
-                    total_ms = round((time.perf_counter() - t0) * 1000)
-                    full_ans = "".join(answer_parts)
-                    if conv_id:
-                        try:
-                            _now = time.time()
-                            with _get_db() as _conn:
-                                _conn.execute(
-                                    "INSERT OR IGNORE INTO conversations (id, user_id, title, created_at, updated_at) VALUES (?,?,?,?,?)",
-                                    (conv_id, user_id, question[:30] if question else "新對話", _now, _now)
-                                )
-                                _existing = _conn.execute("SELECT title FROM conversations WHERE id=?", (conv_id,)).fetchone()
-                                if _existing and _existing["title"] == "新對話" and question:
-                                    _conn.execute("UPDATE conversations SET title=? WHERE id=?", (question[:30], conv_id))
-                                _conn.execute(
-                                    "INSERT OR IGNORE INTO conv_messages (id, conversation_id, role, content, timestamp) VALUES (?,?,?,?,?)",
-                                    (str(_uuid.uuid4()), conv_id, "user", question, _now - 0.001)
-                                )
-                                _conn.execute(
-                                    "INSERT OR IGNORE INTO conv_messages (id, conversation_id, role, content, timestamp) VALUES (?,?,?,?,?)",
-                                    (str(_uuid.uuid4()), conv_id, "assistant", full_ans, _now)
-                                )
-                                _conn.execute("UPDATE conversations SET updated_at=? WHERE id=?", (_now, conv_id))
-                        except Exception as _e:
-                            print(f"[CONV] 儲存對話失敗: {_e}")
-                    if chat_id:
-                        with _chat_history_lock:
-                            hist = _chat_history.setdefault(chat_id, [])
-                            hist.append({"q": question, "a": full_ans[:5000],
-                                 "plans": _extract_listed_plans(full_ans)})
-                            if len(hist) > _MAX_HISTORY:
-                                hist.pop(0)
-                    yield f"data: {json.dumps({'type': 'done', 'timing': {'total_ms': total_ms}, 'mode': 'full_plan'})}\n\n"
-                    suggestions = _generate_suggestions(question, full_ans)
-                    if suggestions:
-                        yield f"data: {json.dumps({'type': 'suggested_questions', 'questions': suggestions}, ensure_ascii=False)}\n\n"
-                    return
-
             # ③ 主觀評量／開放式如何做：反問使用者定義判斷準則或回答角度
             if not skip_eval and (_is_evaluation_question(question) or _is_howto_question(question, list_check=_list_check)):
                 _clarify_msg = _generate_clarify_msg(question)
