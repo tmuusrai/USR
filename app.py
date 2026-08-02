@@ -1863,14 +1863,6 @@ def ask():
                 if _school:
                     print(f"[ASK] 從歷史補充學校：{_school}")
             _list      = bool(_LIST_INTENT_RE.search(search_question)) and not _school and not _LIST_CONCEPT_RE.search(search_question)
-            # SDG 查詢：偵測 SDG\d+ → 強制 list、記錄 variants 供 seq_kws 使用
-            _sdg_m = re.search(r'SDG\s*0?(\d{1,2})', search_question, re.IGNORECASE)
-            _sdg_variants: list[str] = []
-            if _sdg_m:
-                _n = _sdg_m.group(1)
-                _sdg_variants = list(dict.fromkeys([f"SDG {_n}", f"SDG{_n}", f"SDG 0{_n}", f"SDG0{_n}"]))
-                _list = True
-                print(f"[SDG] 偵測到 SDG{_n}，variants={_sdg_variants}，強制 list=True")
             _personnel = bool(_PERSONNEL_RE.search(search_question))
             _kw        = _extract_keywords(search_question)
             _role      = _extract_role_term(question) if _personnel else None
@@ -2002,10 +1994,6 @@ def ask():
                 if _list:
                     # 列舉型：直接用整個議題的所有關鍵字廣搜，同議題都算相關
                     _seq_kws = list(_usr_topic_kws) if _usr_topic_kws else []
-                    # SDG 變體優先插入（如 "SDG 8", "SDG8"），確保 keyword index 都查得到
-                    for sv in _sdg_variants:
-                        if sv not in _seq_kws:
-                            _seq_kws.insert(0, sv)
                     # 問題提取詞 + LLM生成詞，只要有在分類表裡 → 觸發整個分類擴充
                     for kw in (_q_terms + _llm_kw_list):
                         for topic_kws in USR_TOPIC_KEYWORDS.values():
@@ -2067,14 +2055,6 @@ def ask():
             print(f"[LIST-GATE] _list={_list} annotated={type(annotated).__name__ if annotated is not None else 'None'}({len(annotated) if annotated else 0}) _usr_topic={_usr_topic} _seq_kws={len(_seq_kws) if '_seq_kws' in dir() else 'undef'}")
             _plan_list_lines: list[str] = []
             _MAX_PLAN_LIST = 150  # LLM 輸出上限（超過會被截斷）
-
-            # SDG 查詢：直接從 _sdg_maps 取得對應學校計畫清單，不走 annotated 解析
-            if _sdg_m and _list:
-                _sdg_key = _sdg_m.group(1).lstrip('0') or '1'
-                _sdg_plan_list = (_sdg_maps.get(year) or _sdg_maps.get("114", {})).get(_sdg_key, [])
-                if _sdg_plan_list:
-                    _plan_list_lines = _sdg_plan_list[:]
-                    print(f"[SDG-MAP] SDG{_sdg_key} 直接命中 {len(_plan_list_lines)} 件計畫")
 
             if not _plan_list_lines and annotated and _list:
                 print(f"[LIST-DEBUG] SEQ annotated 共 {len(annotated)} 筆，開始提取計畫名稱")

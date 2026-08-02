@@ -1,6 +1,7 @@
 """
 結構化 QA 模組：
-  從 qa_custom.txt 載入人工撰寫的 Q&A 對（含 SDG 索引與知識型問題）
+  1. 從 qa_custom.txt 載入人工撰寫的 Q&A 對（含 SDG 索引與知識型問題）
+  2. 從 計劃總覽.txt 載入各計畫基本資料（學校名稱、主持人、實踐場域等）
 
 用法：
     from structured_qa import init_qa, try_structured_answer
@@ -18,30 +19,140 @@ def _half(s: str) -> str:
 
 # ── 內部儲存 ──────────────────────────────────────────────
 _CUSTOM_QA_BY_YEAR: dict[str, list[dict]] = {"114": [], "113": []}
+
+# plan basics: school_name → list of {plan_name, text}
+_PLAN_BASICS: dict[str, list[dict]] = {}
+_PLAN_BASIC_SCHOOLS: list[str] = []  # sorted by length desc for greedy match
+
 _READY = False
 
 # qa_data/ 資料夾預設與 structured_qa.py 同層
 _QA_DIR = Path(__file__).parent / "qa_data"
 
+# 基本資料型問題觸發詞
+_PLAN_INFO_RE = re.compile(
+    r'基本資料|主持人|實踐場域|計畫類別|計畫議題|SDGs關聯|聯絡人|計畫類型|核定類別|計畫期程|經費期程'
+)
+
 
 def init_qa() -> None:
-    """啟動時呼叫一次，載入各年度 qa_custom.txt。"""
+    """啟動時呼叫一次，載入各年度 qa_custom.txt 及計劃總覽.txt。"""
     global _READY
     for year, fname in [("114", "qa_custom_114.txt"), ("113", "qa_custom_113.txt")]:
         path = _QA_DIR / fname
         _load_custom_qa(path, year)
         print(f"[QA] {year} 年自訂 QA：{len(_CUSTOM_QA_BY_YEAR[year])} 組。")
+    _load_plan_basics(_QA_DIR / "計劃總覽.txt")
     _READY = True
 
 
 def try_structured_answer(question: str, year: str = "114") -> str | None:
     """
-    若問題命中對應年度的 qa_custom，回傳完整答案字串；否則回傳 None（交給 RAG 處理）。
+    若問題命中對應年度的 qa_custom 或計劃基本資料，回傳完整答案字串；
+    否則回傳 None（交給 RAG 處理）。
     """
     if not _READY:
         return None
+    q = question.strip()
+
+    # ① 計劃基本資料優先（學校名稱 + 基本資料型關鍵字 → 不被 qa_custom 通用答案攔截）
+    plan_ans = _match_plan_basics(q)
+    if plan_ans:
+        return plan_ans
+
+    # ② qa_custom
     qa_list = _CUSTOM_QA_BY_YEAR.get(year, _CUSTOM_QA_BY_YEAR["114"])
-    return _match_custom_qa(question.strip(), qa_list)
+    return _match_custom_qa(q, qa_list)
+
+
+# ── 計劃基本資料載入與比對 ────────────────────────────────
+
+def _load_plan_basics(path: Path) -> None:
+    global _PLAN_BASIC_SCHOOLS
+    text = _read_text(path)
+    if not text:
+        print(f"[QA] 找不到 {path.name}，計劃基本資料停用。")
+        return
+
+    current_school: str | None = None
+    current_plan: str | None = None
+    current_lines: list[str] = []
+
+    def _flush():
+        if current_school and current_plan and current_lines:
+            content = "\n".join(current_lines).strip()
+            if content:
+                _PLAN_BASICS.setdefault(current_school, []).append({
+                    "plan_name": current_plan,
+                    "text": content,
+                })
+
+    for raw in text.split("\n"):
+        # header pattern: === school_plan(id).txt ===
+        m = re.match(r'===\s*(.+?)_(.+?)(?:\([^)]*\))*\.txt\s*===', raw)
+        if m:
+            _flush()
+            current_school = m.group(1).strip()
+            # 去掉計畫名稱裡的識別碼括號，如 (114USR-RMF-TKU-SF1)、(1)
+            current_plan = re.sub(r'\s*\([^)]*\)', '', m.group(2)).strip()
+            current_lines = []
+        elif current_school is not None:
+            current_lines.append(raw)
+
+    _flush()
+
+    # sort school names by length desc so longer names match first
+    _PLAN_BASIC_SCHOOLS = sorted(_PLAN_BASICS.keys(), key=len, reverse=True)
+    total = sum(len(v) for v in _PLAN_BASICS.values())
+    print(f"[QA] 計劃總覽基本資料：{len(_PLAN_BASICS)} 間學校，{total} 件計畫。")
+
+
+def _match_plan_basics(question: str) -> str | None:
+    if not _PLAN_BASICS:
+        return None
+
+    q_norm = _half(question).replace(" ", "").replace("　", "")
+
+    # must contain school name（支援「財團法人」開頭的全稱 → 取財團法人後面的短名）
+    matched_school: str | None = None
+    for school in _PLAN_BASIC_SCHOOLS:
+        if school in q_norm:
+            matched_school = school
+            break
+        # alias: 財團法人後面的部分才是常用校名，如「淡江大學學校財團法人淡江大學」→「淡江大學」
+        m_fa = re.search(r'財團法人(.+)', school)
+        if m_fa and m_fa.group(1).strip() in q_norm:
+            matched_school = school
+            break
+
+    if not matched_school:
+        return None
+
+    # must be asking about basic info
+    if not _PLAN_INFO_RE.search(question):
+        return None
+
+    plans = _PLAN_BASICS.get(matched_school, [])
+    if not plans:
+        return None
+
+    # try to find specific plan by plan name keyword matching
+    best_plan: dict | None = None
+    best_score = 0.0
+    for entry in plans:
+        score = _phrase_score(q_norm, _half(entry["plan_name"]).lower())
+        if score > best_score:
+            best_score = score
+            best_plan = entry
+
+    if best_score >= 0.5 and best_plan:
+        return f"**{matched_school} — {best_plan['plan_name']}** 基本資料\n\n{best_plan['text']}"
+
+    # no specific plan → output all school's plans
+    parts = [f"**{matched_school}** 共有 {len(plans)} 件計畫基本資料："]
+    for i, entry in enumerate(plans, 1):
+        parts.append(f"\n{'─' * 40}\n**計畫 {i}：{entry['plan_name']}**\n{entry['text']}")
+    return "\n".join(parts)
 
 
 # ── 自訂 QA 載入與比對 ────────────────────────────────────
