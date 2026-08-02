@@ -221,9 +221,9 @@ embeddings = _CachedEmbeddings(_base_embeddings)
 
 # ── RAG Prompt ────────────────────────────────────────
 RAG_PROMPT = PromptTemplate(
-    input_variables=["context", "question"],
+    input_variables=["context", "question", "user_profile"],
     template="""你是一位熟悉大學 USR（University Social Responsibility）社會責任計畫的專業助理。
-請根據以下從計畫書中擷取的內容來回答問題。
+請根據以下從計畫書中擷取的內容來回答問題。{user_profile}
 
 【計畫書內容】
 {context}
@@ -818,6 +818,62 @@ def load_or_build_index(year: str = "114") -> FAISS:
 _chat_history: dict[str, list] = {}   # chat_id -> [{q, a}]
 _chat_history_lock = threading.Lock()
 _MAX_HISTORY  = 5                      # 每個 session 保留最近幾輪
+
+# ── 使用者 profile cache ──────────────────────────────
+_user_profile_cache: dict[str, tuple[str, float]] = {}  # user_id -> (profile, timestamp)
+_USER_PROFILE_TTL = 300  # 5 分鐘
+
+
+def _build_user_profile(user_id: str) -> str:
+    """從使用者歷史問題統計常問議題與學校，回傳注入 prompt 的描述字串。"""
+    if not user_id or user_id == "user":
+        return ""
+    try:
+        with _get_db() as conn:
+            rows = conn.execute("""
+                SELECT m.content FROM conv_messages m
+                JOIN conversations c ON m.conversation_id = c.id
+                WHERE c.user_id = ? AND m.role = 'user'
+                ORDER BY m.timestamp DESC LIMIT 50
+            """, (user_id,)).fetchall()
+    except Exception:
+        return ""
+
+    if not rows:
+        return ""
+
+    topic_counts: dict[str, int] = {}
+    school_counts: dict[str, int] = {}
+    for (q,) in rows:
+        topic, _ = _detect_usr_topic(q)
+        if topic:
+            topic_counts[topic] = topic_counts.get(topic, 0) + 1
+        school = _extract_school(q)
+        if school:
+            school_counts[school] = school_counts.get(school, 0) + 1
+
+    if not topic_counts and not school_counts:
+        return ""
+
+    parts: list[str] = []
+    if topic_counts:
+        top = sorted(topic_counts.items(), key=lambda x: x[1], reverse=True)[:3]
+        parts.append("常詢問議題：" + "、".join(f"{t}（{c}次）" for t, c in top))
+    if school_counts:
+        top = sorted(school_counts.items(), key=lambda x: x[1], reverse=True)[:3]
+        parts.append("常查詢學校：" + "、".join(f"{s}（{c}次）" for s, c in top))
+
+    return "\n【使用者背景參考】此使用者過去" + "；".join(parts) + "，可作為回答時的參考方向。"
+
+
+def _get_user_profile(user_id: str) -> str:
+    now = time.time()
+    cached = _user_profile_cache.get(user_id)
+    if cached and now - cached[1] < _USER_PROFILE_TTL:
+        return cached[0]
+    profile = _build_user_profile(user_id)
+    _user_profile_cache[user_id] = (profile, now)
+    return profile
 
 _FOLLOWUP_RE = re.compile(
     r'此計畫|這個計畫|這計畫|該計畫|這所學校|這間學校|該校|這所|此所'
@@ -2326,8 +2382,9 @@ def ask():
                         peer_ctx = "\n\n".join(_clean_plan_code(d.page_content) for d in peer_docs)
                         context = f"{context}\n\n【同類型計畫參考（{plan_type}）】\n{peer_ctx}"
 
+            _user_profile = "" if user_type == "reviewer" else _get_user_profile(user_id)
             prompt_value = (REVIEWER_PROMPT if user_type == "reviewer" else RAG_PROMPT).invoke(
-                {"context": context, "question": question}
+                {"context": context, "question": question, "user_profile": _user_profile}
             )
 
             sources = []
