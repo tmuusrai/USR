@@ -1252,55 +1252,41 @@ def _annotate_docs_by_topic(docs, topic: str, kws: list[str]) -> list[str]:
     return high + mid
 
 
-def _prepare_search_query(question: str, history: list) -> tuple[str, str | None]:
+def _prepare_search_query(question: str, history: list) -> str:
     """
-    單次 LLM call 同時完成：
-    1. 追問判斷與改寫（有 history 時）
-    2. 詞義展開 → 擴充搜尋 query
-    回傳 (search_question, expand_query)
+    有對話歷史時，用 LLM 改寫問題：
+    - 若是追問（含代名詞/省略指涉），替換為具體名稱
+    - 若是全新主題，原樣回傳
+    回傳 search_question
     """
     from langchain_core.messages import HumanMessage as _HM
-    if history:
-        last = history[-1]
-        prompt = (
-            "你是 USR 計畫書搜尋助理。請同時完成兩件事，輸出 JSON。\n\n"
-            f"【前一輪問題】\n{last['q']}\n\n"
-            f"【前一輪回答摘要】\n{last['a'][:3000]}\n\n"
-            f"【新問題】\n{question}\n\n"
-            "任務一（追問改寫）：\n"
-            "・若新問題是追問（含代名詞/省略指涉/延伸前一輪主題），替換為具體名稱，輸出改寫後的完整問題\n"
-            "・若非追問（全新主題），原樣輸出新問題\n\n"
-            "任務二（詞義展開）：\n"
-            "・找出 search_q 的 1~3 個核心概念\n"
-            "・列出在 USR 計畫書中可能出現的同義詞與相關詞\n"
-            "・輸出空格分隔的擴充 query（不超過 60 字）\n\n"
-            '只輸出 JSON，不要其他文字：{"search_q": "最終問題", "expand_q": "擴充query"}'
-        )
-    else:
-        prompt = (
-            "你是 USR 計畫書搜尋助理。請展開問題的詞義，輸出 JSON。\n\n"
-            f"問題：{question}\n\n"
-            "找出 1~3 個核心概念，列出在 USR 計畫書中可能出現的同義詞與相關詞，"
-            "輸出空格分隔的擴充 query（不超過 60 字）。\n\n"
-            '只輸出 JSON，不要其他文字：{"search_q": "原問題照抄", "expand_q": "擴充query"}'
-        )
+    last = history[-1]
+    prompt = (
+        "你是 USR 計畫書搜尋助理。請判斷新問題是否為追問，輸出 JSON。\n\n"
+        f"【前一輪問題】\n{last['q']}\n\n"
+        f"【前一輪回答摘要】\n{last['a'][:3000]}\n\n"
+        f"【新問題】\n{question}\n\n"
+        "任務（追問改寫）：\n"
+        "・若新問題是追問（含代名詞/省略指涉/延伸前一輪主題），替換為具體名稱，輸出改寫後的完整問題\n"
+        "・若非追問（全新主題），原樣輸出新問題\n\n"
+        '只輸出 JSON，不要其他文字：{"search_q": "最終問題"}'
+    )
     try:
         res = llm_fast.bind(temperature=0, thinking_budget=0).invoke([_HM(content=prompt)])
         text = res.content.strip()
         m = re.search(r'\{.*?\}', text, re.DOTALL)
         if m:
             data = json.loads(m.group())
-            search_q  = (data.get("search_q") or question).strip() or question
-            expand_q  = (data.get("expand_q") or "").strip() or None
-            if history and search_q != question:
+            search_q = (data.get("search_q") or question).strip() or question
+            if search_q != question:
                 prev_school = _extract_school(history[-1]['q'])
                 if prev_school and prev_school not in search_q:
                     search_q = f"{prev_school}：{search_q}"
-            print(f"[PREP] search={search_q!r} expand={expand_q!r}")
-            return search_q, expand_q
+            print(f"[PREP] search={search_q!r}")
+            return search_q
     except Exception as e:
         print(f"[PREP] 失敗：{e}")
-    return question, None
+    return question
 
 
 # ── 啟動時初始化 ──────────────────────────────────────
@@ -1791,12 +1777,13 @@ def ask():
             history = (_chat_history.get(chat_id, []) if chat_id else []) if use_context else []
             t_prepare_start = time.perf_counter()
             if history:
-                search_question, expand_query = _prepare_search_query(question, history)
+                search_question = _prepare_search_query(question, history)
             else:
-                search_question, expand_query = question, None
+                search_question = question
             t_prepare_end = time.perf_counter()
 
-            # ── USR 議題關鍵字偵測：補強 expand_query ──
+            # ── USR 議題關鍵字偵測：建立 expand_query 供 FAISS 多輪搜尋 ──
+            expand_query: str | None = None
             _list_check = bool(_LIST_INTENT_RE.search(search_question)) and not _LIST_CONCEPT_RE.search(search_question)
             if _list_check:
                 # 列舉型：合併所有命中類別的關鍵字，廣度優先
@@ -1804,11 +1791,7 @@ def ask():
             else:
                 _usr_topic, _usr_topic_kws = _detect_usr_topic(question)
             if _usr_topic and _usr_topic_kws:
-                topic_expand = " ".join(_usr_topic_kws)
-                if expand_query:
-                    expand_query = f"{expand_query} {topic_expand}"
-                else:
-                    expand_query = topic_expand
+                expand_query = " ".join(_usr_topic_kws)
                 print(f"[TOPIC] 議題展開 query（前60字）：{expand_query[:60]}")
 
             # ── LLM：議題語意分類 ──
