@@ -1794,35 +1794,7 @@ def ask():
                         if not _usr_topic:
                             _usr_topic = _lt
 
-            # ✦ 主觀評量／開放式如何做問題：反問使用者定義判斷準則或回答角度
-            if not skip_eval and (_is_evaluation_question(question) or _is_howto_question(question, list_check=_list_check)):
-                _clarify_msg = _generate_clarify_msg(question)
-                yield f"data: {json.dumps({'type': 'sources', 'sources': []}, ensure_ascii=False)}\n\n"
-                yield f"data: {json.dumps({'type': 'chunk', 'text': _clarify_msg}, ensure_ascii=False)}\n\n"
-                total_ms = round((time.perf_counter() - t0) * 1000)
-                if conv_id:
-                    try:
-                        _now = time.time()
-                        with _get_db() as _conn:
-                            _conn.execute(
-                                "INSERT OR IGNORE INTO conversations (id, user_id, title, created_at, updated_at) VALUES (?,?,?,?,?)",
-                                (conv_id, user_id, question[:30] if question else "新對話", _now, _now)
-                            )
-                            _conn.execute(
-                                "INSERT OR IGNORE INTO conv_messages (id, conversation_id, role, content, timestamp) VALUES (?,?,?,?,?)",
-                                (str(_uuid.uuid4()), conv_id, "user", question, _now - 0.001)
-                            )
-                            _conn.execute(
-                                "INSERT OR IGNORE INTO conv_messages (id, conversation_id, role, content, timestamp) VALUES (?,?,?,?,?)",
-                                (str(_uuid.uuid4()), conv_id, "assistant", _clarify_msg, _now)
-                            )
-                            _conn.execute("UPDATE conversations SET updated_at=? WHERE id=?", (_now, conv_id))
-                    except Exception as _e:
-                        print(f"[CONV] 儲存對話失敗: {_e}")
-                yield f"data: {json.dumps({'type': 'done', 'timing': {'total_ms': total_ms}, 'mode': 'clarify', 'original_question': question}, ensure_ascii=False)}\n\n"
-                return
-
-            # ① 結構化 QA 優先（列舉型問題直接回傳，不走 FAISS / LLM）
+            # ① qa_custom 優先攔截（有現成答案直接給，最快不浪費資源）
             structured_ctx = try_structured_answer(question, year=year)
             if structured_ctx:
                 yield f"data: {json.dumps({'type': 'sources', 'sources': []}, ensure_ascii=False)}\n\n"
@@ -1856,7 +1828,7 @@ def ask():
                     yield f"data: {json.dumps({'type': 'suggested_questions', 'questions': suggestions}, ensure_ascii=False)}\n\n"
                 return
 
-            # ① 完整計畫摘要攔截：直接讀 md 檔，不走 FAISS
+            # ② 指定學校整體介紹攔截：直接讀 md 檔，不走 FAISS
             _school_for_full = _extract_school(search_question) or (
                 _extract_school(history[-1]['q']) if history else None
             )
@@ -1907,6 +1879,34 @@ def ask():
                     if suggestions:
                         yield f"data: {json.dumps({'type': 'suggested_questions', 'questions': suggestions}, ensure_ascii=False)}\n\n"
                     return
+
+            # ③ 主觀評量／開放式如何做：反問使用者定義判斷準則或回答角度
+            if not skip_eval and (_is_evaluation_question(question) or _is_howto_question(question, list_check=_list_check)):
+                _clarify_msg = _generate_clarify_msg(question)
+                yield f"data: {json.dumps({'type': 'sources', 'sources': []}, ensure_ascii=False)}\n\n"
+                yield f"data: {json.dumps({'type': 'chunk', 'text': _clarify_msg}, ensure_ascii=False)}\n\n"
+                total_ms = round((time.perf_counter() - t0) * 1000)
+                if conv_id:
+                    try:
+                        _now = time.time()
+                        with _get_db() as _conn:
+                            _conn.execute(
+                                "INSERT OR IGNORE INTO conversations (id, user_id, title, created_at, updated_at) VALUES (?,?,?,?,?)",
+                                (conv_id, user_id, question[:30] if question else "新對話", _now, _now)
+                            )
+                            _conn.execute(
+                                "INSERT OR IGNORE INTO conv_messages (id, conversation_id, role, content, timestamp) VALUES (?,?,?,?,?)",
+                                (str(_uuid.uuid4()), conv_id, "user", question, _now - 0.001)
+                            )
+                            _conn.execute(
+                                "INSERT OR IGNORE INTO conv_messages (id, conversation_id, role, content, timestamp) VALUES (?,?,?,?,?)",
+                                (str(_uuid.uuid4()), conv_id, "assistant", _clarify_msg, _now)
+                            )
+                            _conn.execute("UPDATE conversations SET updated_at=? WHERE id=?", (_now, conv_id))
+                    except Exception as _e:
+                        print(f"[CONV] 儲存對話失敗: {_e}")
+                yield f"data: {json.dumps({'type': 'done', 'timing': {'total_ms': total_ms}, 'mode': 'clarify', 'original_question': question}, ensure_ascii=False)}\n\n"
+                return
 
             # ② 本地預計算（不需 API call）
             _school = _extract_school(search_question)
