@@ -1795,7 +1795,6 @@ def ask():
                 print(f"[TOPIC] 議題展開 query（前60字）：{expand_query[:60]}")
 
             # ── LLM：議題語意分類 ──
-            _llm_kw_list: list[str] = []
             _explicit_followup = bool(_MULTI_REF_RE.search(question) and history)
             _is_followup: bool = _explicit_followup
 
@@ -1977,8 +1976,8 @@ def ask():
                 if _list:
                     # 列舉型：直接用整個議題的所有關鍵字廣搜，同議題都算相關
                     _seq_kws = list(_usr_topic_kws) if _usr_topic_kws else []
-                    # 問題提取詞 + LLM生成詞，只要有在分類表裡 → 觸發整個分類擴充
-                    for kw in (_q_terms + _llm_kw_list):
+                    # 問題直接提取詞，只要有在分類表裡 → 觸發整個分類擴充
+                    for kw in _q_terms:
                         for topic_kws in USR_TOPIC_KEYWORDS.values():
                             if kw in topic_kws:
                                 for tk in topic_kws:
@@ -1988,12 +1987,6 @@ def ask():
                     for k in _q_terms:
                         if k in inv and k not in _seq_kws:
                             _seq_kws.append(k)
-                    # 加入 LLM 生成詞中有在索引的詞（提升召回）
-                    if _llm_kw_list:
-                        _inv_kws_from_llm = [k for k in _llm_kw_list if k in inv]
-                        for k in _inv_kws_from_llm:
-                            if k not in _seq_kws:
-                                _seq_kws.append(k)
                 else:
                     # 非列舉型：問題命中議題 → 用議題所有關鍵字掃全庫
                     _seq_kws = _usr_topic_kws
@@ -2007,7 +2000,7 @@ def ask():
                 # 列舉型：只掃描「有意義的問題詞且不在倒排索引」的詞（如「海洋」「流浪動物」）
                 # 排除 _seq_kws 已涵蓋的詞（倒排索引已搜過）和 <4 字的通用縮寫（如 USR）
                 _live_scan_kws = [
-                    k for k in (_q_terms + _llm_kw_list)
+                    k for k in _q_terms
                     if k not in _seq_kws and len(k) >= 4
                 ]
                 if _list and _live_scan_kws:
@@ -2045,8 +2038,8 @@ def ask():
                 _tier1: list[str] = []  # 直接命中問題詞
                 _tier2_scored: list[tuple[int, str]] = []  # (相關度分數, 行文字)
                 _plan_to_snippet: dict[str, str] = {}  # plan_line → SEQ snippet
-                # T2 評分依據：query詞 + LLM擴充詞 在 entry 裡出現幾個
-                _t2_score_kws = [k for k in (_q_priority_kws + _q_terms + _llm_kw_list) if len(k) >= 2]
+                # T2 評分依據：query詞在 entry 裡出現幾個
+                _t2_score_kws = [k for k in (_q_priority_kws + _q_terms) if len(k) >= 2]
                 for _entry in annotated:
                     _m = re.match(r'【(.+)】', _entry.split('\n', 1)[0])  # greedy on first line; handles plan names with 【】 inside
                     if not _m:
@@ -2510,17 +2503,6 @@ AGENT_PLAN_PROMPT = """針對以下問題，請列出 2~3 個最適合的繁體�
 只輸出 JSON 陣列，不要其他文字，例如：
 ["高齡照護 USR 計畫", "青銀共創 大學社會責任", "失智症 照護"]"""
 
-KW_EXPAND_PROMPT = """你是台灣 USR（大學社會責任）計畫書的搜尋專家。
-針對以下使用者問題，生成 10～15 個台灣大學計畫書中可能直接出現的詞彙，用來擴大搜尋範圍。
-要求：
-- 優先選擇 2～4 字的常用短詞（計畫書中直接出現頻率最高）
-- 涵蓋同義詞、俗稱、縮寫、相關場域或對象名稱
-- 純繁體中文（英文縮寫除外），每個詞 2～8 字
-只輸出 JSON 陣列，不要其他文字。
-
-問題：{question}
-
-輸出範例：["長照", "樂齡", "銀髮族", "失智症", "長者", "高齡"]"""
 
 _USR_TOPIC_NAMES = list(USR_TOPIC_KEYWORDS.keys())
 
@@ -2576,28 +2558,6 @@ def _extract_query_terms(q: str) -> list[str]:
             result.append(p)
     return list(dict.fromkeys(result))
 
-
-def _expand_keywords_by_llm(question: str) -> str:
-    """呼叫 LLM 動態生成問題相關關鍵詞，回傳空白分隔的詞串。"""
-    try:
-        from langchain_core.messages import HumanMessage
-        prompt = KW_EXPAND_PROMPT.format(question=question)
-        res = llm_fast.bind(temperature=0.1, thinking_budget=0).invoke([HumanMessage(content=prompt)])
-        try:
-            _um = getattr(res, 'usage_metadata', None) or {}
-            _log_api_cost("gemini", "expand_kw", _LLM_FAST_MODEL_NAME, _um.get('input_tokens', 0), _um.get('output_tokens', 0))
-        except Exception:
-            pass
-        text = _normalize_content(res.content).strip()
-        m = re.search(r'\[.*?\]', text, re.DOTALL)
-        if m:
-            kws = json.loads(m.group())
-            result = " ".join(k for k in kws if isinstance(k, str))
-            print(f"[KW_EXPAND] 動態關鍵詞：{result[:100]}")
-            return result
-    except Exception as e:
-        print(f"[KW_EXPAND] 失敗：{e}")
-    return ""
 
 
 FOLLOWUP_CHECK_PROMPT = """判斷目前問題是否在追問或延伸前一輪問題的查詢結果，只輸出「是」或「否」。
