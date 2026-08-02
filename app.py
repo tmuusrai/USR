@@ -26,7 +26,6 @@ from langchain_community.vectorstores import FAISS
 from langchain_voyageai import VoyageAIEmbeddings
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_core.prompts import PromptTemplate
-from langchain_core.runnables import RunnableLambda  # noqa: F401 (kept for rebuild compatibility)
 from langchain_core.embeddings import Embeddings
 
 load_dotenv()
@@ -182,7 +181,6 @@ TOP_K           = int(os.getenv("TOP_K_RESULTS", 15))
 PDF_DIR         = Path("pdfs")
 EXTRA_DIR       = Path("extra_docs")
 MD_DIR          = Path("114md")
-LLM_WIKI_DIR    = Path("llm_wiki_data")
 QA_DIR          = Path("qa_data")
 INDEX_DIR       = Path(os.getenv("INDEX_DIR",     "faiss_index"))
 
@@ -1304,17 +1302,13 @@ llm_fast = ChatGoogleGenerativeAI(
 )
 
 vectorstores: dict = {}
-retriever = None
 try:
     vs = load_or_build_index("114")
     vectorstores["114"] = vs
-    retriever = vs.as_retriever(search_type="similarity", search_kwargs={"k": TOP_K})
     print("[APP] RAG 114 就緒。")
 except FileNotFoundError as e:
     vectorstores["114"] = None
     print(f"[APP] 警告 114：{e}")
-
-vectorstore = vectorstores.get("114")  # backwards-compat alias
 
 # ── 倒排索引（啟動時建立，涵蓋所有 USR_TOPIC_KEYWORDS）──
 _inv_indexes: dict[str, dict] = {}
@@ -1351,7 +1345,6 @@ if vectorstores.get("114"):
 _load_or_build_sdg_maps()
 
 # ── 懶載入鎖（113 年首次請求時才載）──
-import threading
 _lazy_load_lock = threading.Lock()
 
 def _ensure_year_loaded(year: str) -> None:
@@ -1699,7 +1692,7 @@ def ask():
     if SITE_PASSWORD and not session.get("authenticated"):
         return jsonify({"error": "請先登入。"}), 401
 
-    if retriever is None:
+    if vectorstores.get("114") is None:
         return jsonify({"error": "索引尚未建立，請先將 PDF 放入 pdfs/ 資料夾後重啟伺服器。"}), 503
 
     data = request.get_json(silent=True) or {}
@@ -3204,7 +3197,7 @@ def subagent_ask():
 @app.route("/rebuild-index", methods=["POST"])
 def rebuild_index():
     """重新建立索引（上傳新 PDF 後呼叫）。"""
-    global vectorstore, retriever, vectorstores
+    global vectorstores
 
     req_data = request.get_json(silent=True) or {}
     year = req_data.get("year", "114")
@@ -3220,12 +3213,6 @@ def rebuild_index():
     try:
         vs = load_or_build_index(year)
         vectorstores[year] = vs
-        if year == "114":
-            vectorstore = vs
-            retriever   = vs.as_retriever(
-                search_type="similarity",
-                search_kwargs={"k": TOP_K},
-            )
         return jsonify({"message": f"{year} 年索引重建完成。"})
     except FileNotFoundError as e:
         return jsonify({"error": str(e)}), 400
