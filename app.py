@@ -1753,6 +1753,40 @@ def ask():
             if _hl_terms:
                 yield f"data: {json.dumps({'type': 'highlight_terms', 'terms': _hl_terms}, ensure_ascii=False)}\n\n"
 
+            # ── ① qa_custom 最優先攔截（字典查詢，不需任何 API）──
+            structured_ctx = try_structured_answer(question, year=year)
+            if structured_ctx:
+                yield f"data: {json.dumps({'type': 'sources', 'sources': []}, ensure_ascii=False)}\n\n"
+                yield f"data: {json.dumps({'type': 'chunk', 'text': structured_ctx}, ensure_ascii=False)}\n\n"
+                total_ms = round((time.perf_counter() - t0) * 1000)
+                if conv_id:
+                    try:
+                        _now = time.time()
+                        with _get_db() as _conn:
+                            _conn.execute(
+                                "INSERT OR IGNORE INTO conversations (id, user_id, title, created_at, updated_at) VALUES (?,?,?,?,?)",
+                                (conv_id, user_id, question[:30] if question else "新對話", _now, _now)
+                            )
+                            _existing = _conn.execute("SELECT title FROM conversations WHERE id=?", (conv_id,)).fetchone()
+                            if _existing and _existing["title"] == "新對話" and question:
+                                _conn.execute("UPDATE conversations SET title=? WHERE id=?", (question[:30], conv_id))
+                            _conn.execute(
+                                "INSERT OR IGNORE INTO conv_messages (id, conversation_id, role, content, timestamp) VALUES (?,?,?,?,?)",
+                                (str(_uuid.uuid4()), conv_id, "user", question, _now - 0.001)
+                            )
+                            _conn.execute(
+                                "INSERT OR IGNORE INTO conv_messages (id, conversation_id, role, content, timestamp) VALUES (?,?,?,?,?)",
+                                (str(_uuid.uuid4()), conv_id, "assistant", structured_ctx, _now)
+                            )
+                            _conn.execute("UPDATE conversations SET updated_at=? WHERE id=?", (_now, conv_id))
+                    except Exception as _e:
+                        print(f"[CONV] 儲存對話失敗: {_e}")
+                yield f"data: {json.dumps({'type': 'done', 'timing': {'total_ms': total_ms}, 'mode': 'structured'})}\n\n"
+                suggestions = _generate_suggestions(question, structured_ctx)
+                if suggestions:
+                    yield f"data: {json.dumps({'type': 'suggested_questions', 'questions': suggestions}, ensure_ascii=False)}\n\n"
+                return
+
             # ── 對話記憶 + 搜尋問題準備 ──
             history = (_chat_history.get(chat_id, []) if chat_id else []) if use_context else []
             t_prepare_start = time.perf_counter()
@@ -1793,40 +1827,6 @@ def ask():
                                 _usr_topic_kws.append(_tk)
                         if not _usr_topic:
                             _usr_topic = _lt
-
-            # ① qa_custom 優先攔截（有現成答案直接給，最快不浪費資源）
-            structured_ctx = try_structured_answer(question, year=year)
-            if structured_ctx:
-                yield f"data: {json.dumps({'type': 'sources', 'sources': []}, ensure_ascii=False)}\n\n"
-                yield f"data: {json.dumps({'type': 'chunk', 'text': structured_ctx}, ensure_ascii=False)}\n\n"
-                total_ms = round((time.perf_counter() - t0) * 1000)
-                if conv_id:
-                    try:
-                        _now = time.time()
-                        with _get_db() as _conn:
-                            _conn.execute(
-                                "INSERT OR IGNORE INTO conversations (id, user_id, title, created_at, updated_at) VALUES (?,?,?,?,?)",
-                                (conv_id, user_id, question[:30] if question else "新對話", _now, _now)
-                            )
-                            _existing = _conn.execute("SELECT title FROM conversations WHERE id=?", (conv_id,)).fetchone()
-                            if _existing and _existing["title"] == "新對話" and question:
-                                _conn.execute("UPDATE conversations SET title=? WHERE id=?", (question[:30], conv_id))
-                            _conn.execute(
-                                "INSERT OR IGNORE INTO conv_messages (id, conversation_id, role, content, timestamp) VALUES (?,?,?,?,?)",
-                                (str(_uuid.uuid4()), conv_id, "user", question, _now - 0.001)
-                            )
-                            _conn.execute(
-                                "INSERT OR IGNORE INTO conv_messages (id, conversation_id, role, content, timestamp) VALUES (?,?,?,?,?)",
-                                (str(_uuid.uuid4()), conv_id, "assistant", structured_ctx, _now)
-                            )
-                            _conn.execute("UPDATE conversations SET updated_at=? WHERE id=?", (_now, conv_id))
-                    except Exception as _e:
-                        print(f"[CONV] 儲存對話失敗: {_e}")
-                yield f"data: {json.dumps({'type': 'done', 'timing': {'total_ms': total_ms}, 'mode': 'structured'})}\n\n"
-                suggestions = _generate_suggestions(question, structured_ctx)
-                if suggestions:
-                    yield f"data: {json.dumps({'type': 'suggested_questions', 'questions': suggestions}, ensure_ascii=False)}\n\n"
-                return
 
             # ② 指定學校整體介紹攔截：直接讀 md 檔，不走 FAISS
             _school_for_full = _extract_school(search_question) or (
