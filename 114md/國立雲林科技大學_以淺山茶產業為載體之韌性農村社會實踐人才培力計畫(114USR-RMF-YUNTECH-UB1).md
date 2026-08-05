@@ -1,18 +1,15 @@
 教育部推動第四期（114-116年）大學社會責任實踐計畫 114年度個案計畫執行成果報告書 大學特色類 報告期程：114 年 1 月 1 日至 114 年9 月30日 中華民國114年 10月20日 （本頁由系統自動帶出）
 
-計畫名稱 以淺山茶產業為載體之韌性農村社會實踐人才培力計畫 Resilient Rural Social Practical Talent Training Planbased on the Tea Industry of Shallow Mountain Areas.
-申請學校 國立雲林科技大學 National Yunlin University of Science & Technolog
+計畫名稱 以淺山茶產業為載體之韌性農村社會實踐人才培力計畫 
+申請學校 國立雲林科技大學 
 核定類型　■大學特色類深耕型（系統帶入）
 
-學校名稱 國立雲林科技大學 National Yunlin University of Science & Technology
-計畫名稱 以淺山茶產業為載體之韌性農村社會實踐人才培力計畫 Resilient Rural Social Practical Talent Training Planbased on the Tea Industry of Shallow Mountain Areas.
+學校名稱 國立雲林科技大學 
+計畫名稱 以淺山茶產業為載體之韌性農村社會實踐人才培力計畫
 計畫類別 ■大學特色類深耕型（系統帶入）
 計畫議題 ■產業鏈結與經濟永續；
-
 SDGs關聯議題　■11永續城市及社區； ■12負責任的消費及生產； ■13 氣候行動； . . .
-
 計畫實踐場域　1 固定實踐場域： 雲林縣縣市 ， 古坑鄉 ，鄉/鎮/市/區： 桂林社區 .
-
 計畫實踐場域  2 其他性質實踐場域： 縣市 ， 鄉/鎮/市/區：
 
 計畫主持人

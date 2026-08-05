@@ -1,13 +1,13 @@
 育部推動第四期（114-116 年）大學社會責任實踐計畫 114 年度個案計畫執行成果報告書 大學特色類
-計畫名稱：長庚長耕-建構高齡健康與科技應用之社區共好時代 Chang Gung Longevity and Sustainability: Building a Well-being Era in the Community through Healthy Aging and Technological Applications
-申請學校：長庚大學 Chang Gung University
+計畫名稱：長庚長耕-建構高齡健康與科技應用之社區共好時代 
+申請學校：長庚大學
 核定類型：☑大學特色類深耕型（系統帶入）
 報告期程：114 年 1 月 1 日至 114 年9 月30 日 中華民國 114 年 10 月 15 日 （本頁由系統自動帶出）
 
 教育部推動第四期（114-116年）大學社會責任實踐計畫
 基本資料表
-學校名稱：長庚大學 Chang Gung University
-計畫名稱：長庚長耕-建構高齡健康與科技應用之社區共好時代 Chang Gung Longevity and Sustainability: Building a Well-being Era in the Community through Healthy Aging and Technological Applications
+學校名稱：長庚大學 
+計畫名稱：長庚長耕-建構高齡健康與科技應用之社區共好時代 
 計畫類別：☑大學特色類深耕型（系統帶入）
 計畫議題：☑健康促進與食品安全；
 SDGs 關聯議題：☑3.良好健康與福祉； ☑4.優質教育； ☑10.減少不平等；
