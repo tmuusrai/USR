@@ -1902,7 +1902,8 @@ def ask():
                 print(f"[ASK] 追問偵測（{_src}），{len(_listed_schools)} 件：{_listed_schools[:3]}")
 
             # ③-b 關鍵字索引快速過濾
-            _kw_list_hit: str | None = None  # 列舉型 keyword_index 命中的關鍵字
+            _kw_list_hit: str | None = None   # 列舉型 keyword_index 命中的關鍵字
+            _kw_plan_list: list[str] = []      # 列舉型 keyword_index 候選清單（不觸發早期 FAISS）
             if not _listed_schools and not _school:
                 if not _list:
                     # 非列舉型：keyword_index 縮小學校範圍
@@ -1911,13 +1912,13 @@ def ask():
                         _listed_schools = _kw_hit
                         print(f"[KW] 關鍵字索引命中 {len(_listed_schools)} 間：{_listed_schools}")
                 else:
-                    # 列舉型：keyword_index 先縮範圍，讓 FAISS 針對這些學校搜內文
+                    # 列舉型：keyword_index 先確定候選清單（FAISS 在 extraction 後才跑）
                     _kw_idx_pre = _keyword_index.get(year, {})
                     for _kw_pre, _entries_pre in _kw_idx_pre.items():
                         if _kw_pre in search_question:
                             _kw_list_hit = _kw_pre
-                            _listed_schools = list(_entries_pre)
-                            print(f"[KW-PRE] 列舉型 keyword_index 命中「{_kw_pre}」→ {len(_listed_schools)} 件")
+                            _kw_plan_list = list(_entries_pre)
+                            print(f"[KW-PRE] 列舉型 keyword_index 命中「{_kw_pre}」→ {len(_kw_plan_list)} 件")
                             # 複合查詢：問題含額外詞 → live scan 過濾
                             _kw_stop_pre = {'計畫', '學校', '大學', '哪些', '相關', '有關', '年度', 'USR'}
                             _extra_pre = [k for k in _extract_query_terms(search_question)
@@ -1930,10 +1931,10 @@ def ask():
                                     _fschools = {m.group(1) for r in _fres
                                                  if (m := re.match(r'【(.+?)_', r))}
                                     if _fschools:
-                                        _orig_n = len(_listed_schools)
-                                        _listed_schools = [e for e in _listed_schools
-                                                           if e.split('：', 1)[0] in _fschools]
-                                        print(f"[KW-PRE] 篩選後 {len(_listed_schools)}/{_orig_n} 件")
+                                        _orig_n = len(_kw_plan_list)
+                                        _kw_plan_list = [e for e in _kw_plan_list
+                                                         if e.split('：', 1)[0] in _fschools]
+                                        print(f"[KW-PRE] 篩選後 {len(_kw_plan_list)}/{_orig_n} 件")
                             break
 
             # ③-c 多校追問（>5 間）→ 強制列舉型（壓縮+60k limit），但跳過 Seq Query
@@ -1963,6 +1964,11 @@ def ask():
                 _school = None
                 expand_query = None
                 t_faiss = time.perf_counter()
+            elif _list:
+                # 列舉型（無歷史追問學校）：跳過 FAISS，等 extraction 後做 per-school FAISS
+                docs = []
+                t_voyage = t_faiss = time.perf_counter()
+                print("[FAISS] 列舉型跳過 general FAISS，等 extraction 後 per-school")
             else:
                 # 一般模式：所有已知 query（含 expand）同時 embed
                 embed_tasks: dict[str, str] = {'main': search_question}
@@ -2097,9 +2103,9 @@ def ask():
             _plan_list_lines: list[str] = []
             _MAX_PLAN_LIST = 150  # LLM 輸出上限（超過會被截斷）
 
-            # ── keyword_index 清單（已在 FAISS 前設好，直接用 _listed_schools）──
-            if _kw_list_hit and _listed_schools:
-                _plan_list_lines = list(_listed_schools)
+            # ── keyword_index 清單（FAISS 前確定，直接設為計畫清單）──
+            if _kw_list_hit and _kw_plan_list:
+                _plan_list_lines = list(_kw_plan_list)
                 print(f"[KW-LIST] 使用 keyword_index 清單：{len(_plan_list_lines)} 件")
 
             _plan_to_snippet: dict[str, str] = {}
@@ -2151,6 +2157,25 @@ def ask():
                         print(f"[LIST-REGION] 縣市過濾={_question_counties}，剩餘 {len(_plan_list_lines)} 件")
                     else:
                         print(f"[LIST-REGION] 縣市過濾={_question_counties}，無匹配，不過濾")
+
+                # ── 列舉型 per-school FAISS（確定清單後取各計畫內文）──────────
+                if not faiss_texts and _plan_list_lines:
+                    _pq = re.sub(r'以上\S*間\S*計劃?|上述\S*計劃?|這些計劃?', '', question).strip()
+                    with ThreadPoolExecutor() as ex:
+                        _pfuts = {s: ex.submit(embeddings.embed_query,
+                                               f"{s.replace('：', ' ')} {_pq}")
+                                  for s in _plan_list_lines[:_MAX_PLAN_LIST]}
+                        _pvecs = {s: f.result() for s, f in _pfuts.items()}
+                    for _s in _plan_list_lines[:_MAX_PLAN_LIST]:
+                        if _s in _plan_to_snippet:
+                            continue
+                        _sd = vs.similarity_search_by_vector(_pvecs[_s], k=TOP_K * 2)
+                        _sf = _school_filter_docs(_sd, _s, k=5)
+                        if _sf:
+                            _plan_to_snippet[_s] = '\n'.join(
+                                _clean_plan_code(d.page_content)[:200] for d in _sf
+                            )[:500]
+                    print(f"[FAISS-PLAN] per-school FAISS 完成，_plan_to_snippet {len(_plan_to_snippet)} 件")
 
                 # 偵測分析型子問題（多個？分隔），有則限制清單件數
                 _extra_sub_qs = [p for p in [p.strip() for p in re.split(r'[？?]', question) if p.strip()][1:]
