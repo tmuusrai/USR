@@ -2041,6 +2041,7 @@ def ask():
             )
             _q_priority_kws: list[str] = []
             _q_terms: list[str] = []
+            _live_scan_kws: list[str] = []
             if _seq_trigger:
                 _seq_topic = _usr_topic or "列舉"
                 _q_terms = _extract_query_terms(question) if _list else []
@@ -2202,6 +2203,12 @@ def ask():
                         _sd = vs.similarity_search_by_vector(_pvecs[_s], k=TOP_K * 2)
                         _sf = _school_filter_docs(_sd, _s, k=5)
                         if _sf:
+                            # re-ranking：含 live scan 關鍵詞的 chunk 優先排前面
+                            if _live_scan_kws:
+                                _sf.sort(key=lambda d: -sum(
+                                    _clean_plan_code(d.page_content).count(kw)
+                                    for kw in _live_scan_kws
+                                ))
                             _plan_to_snippet[_s] = '\n'.join(
                                 _clean_plan_code(d.page_content)[:200] for d in _sf
                             )[:500]
