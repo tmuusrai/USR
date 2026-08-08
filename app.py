@@ -1835,6 +1835,7 @@ def ask():
             # ── LLM：議題語意分類 ──
             _explicit_followup = bool(_MULTI_REF_RE.search(question) and history)
             _is_followup: bool = _explicit_followup
+            _kw_list_hit: str | None = None
 
             if _list_check and not _kw_list_hit:
                 _llm_topics = _llm_classify_topics(question)
