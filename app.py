@@ -1906,6 +1906,7 @@ def ask():
             # ③-b 關鍵字索引快速過濾
             _kw_list_hit: str | None = None   # 列舉型 keyword_index 命中的關鍵字
             _kw_plan_list: list[str] = []      # 列舉型 keyword_index 候選清單（不觸發早期 FAISS）
+            _kw_pre_schools: set[str] = set()  # 複合查詢時 live scan 命中的學校（供 SEQ 補充過濾）
             if not _listed_schools and not _school:
                 if _list:
                     # 列舉型：keyword_index 只用 SDG key（SDG1～SDG17），其餘交給 SEQ 倒排索引
@@ -1932,6 +1933,7 @@ def ask():
                                         _orig_n = len(_kw_plan_list)
                                         _kw_plan_list = [e for e in _kw_plan_list
                                                          if e.split('：', 1)[0] in _fschools]
+                                        _kw_pre_schools = _fschools
                                         print(f"[KW-PRE] 篩選後 {len(_kw_plan_list)}/{_orig_n} 件")
                             break
 
@@ -2042,7 +2044,7 @@ def ask():
                 _seq_topic = _usr_topic or "列舉"
                 _q_terms = _extract_query_terms(question) if _list else []
                 if _list:
-                    # 列舉型：直接用整個議題的所有關鍵字廣搜，同議題都算相關
+                    # 列舉型：有議題用議題關鍵字，沒議題用問題提取詞掃
                     _seq_kws = list(_usr_topic_kws) if _usr_topic_kws else []
                     # 問題直接提取詞，只要有在分類表裡 → 觸發整個分類擴充
                     for kw in _q_terms:
@@ -2145,7 +2147,9 @@ def ask():
                 else:
                     # keyword_index 已提供基礎清單，SEQ 補充 keyword_index 沒有的學校
                     _kw_schools = {e.split('：')[0] for e in _plan_list_lines}
-                    _seq_extra = [l for l in (_tier1 + _tier2) if l.split('：')[0] not in _kw_schools]
+                    _seq_extra = [l for l in (_tier1 + _tier2)
+                                  if l.split('：')[0] not in _kw_schools
+                                  and (not _kw_pre_schools or l.split('：')[0] in _kw_pre_schools)]
                     if _seq_extra:
                         _plan_list_lines = _plan_list_lines + _seq_extra
                         print(f"[LIST-DEBUG] keyword_index {len(_kw_plan_list)} 件 + SEQ 補充 {len(_seq_extra)} 件 = {len(_plan_list_lines)} 件")
