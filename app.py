@@ -1836,7 +1836,7 @@ def ask():
             _explicit_followup = bool(_MULTI_REF_RE.search(question) and history)
             _is_followup: bool = _explicit_followup
 
-            if _list_check:
+            if _list_check and not _kw_list_hit:
                 _llm_topics = _llm_classify_topics(question)
                 for _lt in _llm_topics:
                     if _lt not in (_usr_topic or ""):
