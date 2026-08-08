@@ -2021,6 +2021,8 @@ def ask():
                         # 非列舉非單校：每間學校只保留最相關一個 chunk，避免一間壟斷 context
                         docs = _dedup_by_school(docs_all, k=_fetch)
                 t_faiss = time.perf_counter()
+                _faiss_srcs = [Path(d.metadata.get("source","")).stem for d in docs]
+                print(f"[FAISS-DOCS] {len(docs)} 筆：{_faiss_srcs}")
 
             # ── Sequential Query：議題偵測到時全庫掃描補足 TOP_K 限制 ──
             # 列舉型（_list）：偵測到議題就直接掃，不等 FAISS 檔案數（因為 list 本來就是廣義搜尋）
@@ -2643,7 +2645,7 @@ def _llm_classify_topics(question: str) -> list[str]:
         print(f"[TOPIC_LLM] 失敗：{e}")
     return []
 
-_QUERY_FILLER_RE = re.compile(r'(相關|有關|計畫|哪些|有哪|有幾|哪幾|多少|大學|學校|告訴|說明|介紹|如何|列出|請問)')
+_QUERY_FILLER_RE = re.compile(r'(相關|有關|計畫|哪些|哪幾|有幾|多少|大學|學校|告訴|說明|介紹|如何|列出|請問)')
 
 def _extract_query_terms(q: str) -> list[str]:
     """從問題直接提取內容關鍵字（排除虛詞），補充 Sequential Query 掃描詞。"""
