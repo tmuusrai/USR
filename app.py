@@ -2074,8 +2074,29 @@ def ask():
                     if k not in _seq_kws and len(k) >= 4
                 ]
                 if _list and _live_scan_kws:
-                    _live_results = _seq_query_live(_live_scan_kws, _seq_topic, vs,
-                                                    condense=True)
+                    if len(_live_scan_kws) >= 2:
+                        # 多詞：各自掃一次取學校交集（AND 邏輯）
+                        _live_school_sets = []
+                        _live_per_kw: dict[str, list[str]] = {}
+                        for _lk in _live_scan_kws:
+                            _res = _seq_query_live([_lk], _seq_topic, vs, condense=True)
+                            _live_per_kw[_lk] = _res
+                            _schools = {re.match(r'【(.+?)(?:_|】)', r).group(1)
+                                        for r in _res if re.match(r'【(.+?)(?:_|】)', r)}
+                            _live_school_sets.append(_schools)
+                            print(f"[SEQ-LIVE] 「{_lk}」→ {len(_schools)} 間學校")
+                        _and_schools = _live_school_sets[0].intersection(*_live_school_sets[1:])
+                        print(f"[SEQ-LIVE] AND 交集 {len(_and_schools)} 間學校")
+                        if _and_schools:
+                            _live_results = [r for kw_res in _live_per_kw.values()
+                                             for r in kw_res
+                                             if any(s in r for s in _and_schools)]
+                        else:
+                            # 交集為空，退回 OR
+                            _live_results = _seq_query_live(_live_scan_kws, _seq_topic, vs, condense=True)
+                            print(f"[SEQ-LIVE] AND 交集為空，退回 OR")
+                    else:
+                        _live_results = _seq_query_live(_live_scan_kws, _seq_topic, vs, condense=True)
                     if _live_results:
                         seen_heads = {a[:80] for a in annotated}
                         annotated += [r for r in _live_results if r[:80] not in seen_heads]
