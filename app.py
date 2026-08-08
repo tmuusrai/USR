@@ -27,6 +27,7 @@ from langchain_voyageai import VoyageAIEmbeddings
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_core.prompts import PromptTemplate
 from langchain_core.embeddings import Embeddings
+from langchain_core.documents import Document
 
 load_dotenv()
 
@@ -695,11 +696,34 @@ def _compute_docs_hash(year: str) -> str:
         overview = QA_DIR / "計劃總覽.txt"
         if overview.exists():
             paths.append(overview)
+        qa_custom_path = QA_DIR / "qa_custom_114.txt"
+        if qa_custom_path.exists():
+            paths.append(qa_custom_path)
     h = hashlib.md5()
     for p in paths:
         h.update(p.name.encode())
         h.update(p.read_bytes())
     return h.hexdigest()
+
+
+def _load_qa_custom_as_docs(qa_path: Path) -> list:
+    """將 qa_custom 每個 Q/A 對拆成獨立 Document，保留 Q 與 A 的完整配對。"""
+    try:
+        text = qa_path.read_text(encoding="utf-8")
+        raw_pairs = re.split(r"(?=\nQ:)", "\n" + text)
+        docs = []
+        for pair in raw_pairs:
+            pair = pair.strip()
+            if pair and "Q:" in pair and "A:" in pair:
+                docs.append(Document(
+                    page_content=pair,
+                    metadata={"source": str(qa_path), "type": "qa_custom"},
+                ))
+        print(f"[INDEX] qa_custom 共 {len(docs)} 個 Q/A 對")
+        return docs
+    except Exception as e:
+        print(f"[INDEX] qa_custom 載入失敗：{e}")
+        return []
 
 
 def load_or_build_index(year: str = "114") -> FAISS:
@@ -751,6 +775,12 @@ def load_or_build_index(year: str = "114") -> FAISS:
                 break
             except Exception:
                 continue
+
+    if year == "114":
+        qa_custom_path = QA_DIR / "qa_custom_114.txt"
+        if qa_custom_path.exists():
+            print(f"  讀取：{qa_custom_path.name}（Q/A 對模式）")
+            docs.extend(_load_qa_custom_as_docs(qa_custom_path))
 
     md_plan_types: dict[str, str] = {}  # md_path str -> 計畫類型
 
@@ -1788,39 +1818,9 @@ def ask():
             if _hl_terms:
                 yield f"data: {json.dumps({'type': 'highlight_terms', 'terms': _hl_terms}, ensure_ascii=False)}\n\n"
 
-            # ── ① qa_custom 最優先攔截（字典查詢，不需任何 API）──
-            structured_ctx = try_structured_answer(question, year=year)
-            if structured_ctx:
-                yield f"data: {json.dumps({'type': 'sources', 'sources': []}, ensure_ascii=False)}\n\n"
-                yield f"data: {json.dumps({'type': 'chunk', 'text': structured_ctx}, ensure_ascii=False)}\n\n"
-                total_ms = round((time.perf_counter() - t0) * 1000)
-                if conv_id:
-                    try:
-                        _now = time.time()
-                        with _get_db() as _conn:
-                            _conn.execute(
-                                "INSERT OR IGNORE INTO conversations (id, user_id, title, created_at, updated_at) VALUES (?,?,?,?,?)",
-                                (conv_id, user_id, question[:30] if question else "新對話", _now, _now)
-                            )
-                            _existing = _conn.execute("SELECT title FROM conversations WHERE id=?", (conv_id,)).fetchone()
-                            if _existing and _existing["title"] == "新對話" and question:
-                                _conn.execute("UPDATE conversations SET title=? WHERE id=?", (question[:30], conv_id))
-                            _conn.execute(
-                                "INSERT OR IGNORE INTO conv_messages (id, conversation_id, role, content, timestamp) VALUES (?,?,?,?,?)",
-                                (str(_uuid.uuid4()), conv_id, "user", question, _now - 0.001)
-                            )
-                            _conn.execute(
-                                "INSERT OR IGNORE INTO conv_messages (id, conversation_id, role, content, timestamp) VALUES (?,?,?,?,?)",
-                                (str(_uuid.uuid4()), conv_id, "assistant", structured_ctx, _now)
-                            )
-                            _conn.execute("UPDATE conversations SET updated_at=? WHERE id=?", (_now, conv_id))
-                    except Exception as _e:
-                        print(f"[CONV] 儲存對話失敗: {_e}")
-                yield f"data: {json.dumps({'type': 'done', 'timing': {'total_ms': total_ms}, 'mode': 'structured'})}\n\n"
-                suggestions = _generate_suggestions(question, structured_ctx)
-                if suggestions:
-                    yield f"data: {json.dumps({'type': 'suggested_questions', 'questions': suggestions}, ensure_ascii=False)}\n\n"
-                return
+            # ── ① qa_custom 字典攔截（已停用，qa_custom 改放入 FAISS）──
+            # structured_ctx = try_structured_answer(question, year=year)
+            # if structured_ctx: ... return
 
             # ── 對話記憶 + 搜尋問題準備 ──
             history = (_chat_history.get(chat_id, []) if chat_id else []) if use_context else []
