@@ -1901,12 +1901,40 @@ def ask():
                 _src = "明確追問詞" if _explicit_followup else "LLM判斷"
                 print(f"[ASK] 追問偵測（{_src}），{len(_listed_schools)} 件：{_listed_schools[:3]}")
 
-            # ③-b 關鍵字索引快速過濾（歷史追問未命中時才跑；列舉型已走 Sequential Query，不限縮）
-            if not _listed_schools and not _school and not _list:
-                _kw_hit = _keyword_lookup(search_question, year)
-                if _kw_hit:
-                    _listed_schools = _kw_hit
-                    print(f"[KW] 關鍵字索引命中 {len(_listed_schools)} 間：{_listed_schools}")
+            # ③-b 關鍵字索引快速過濾
+            _kw_list_hit: str | None = None  # 列舉型 keyword_index 命中的關鍵字
+            if not _listed_schools and not _school:
+                if not _list:
+                    # 非列舉型：keyword_index 縮小學校範圍
+                    _kw_hit = _keyword_lookup(search_question, year)
+                    if _kw_hit:
+                        _listed_schools = _kw_hit
+                        print(f"[KW] 關鍵字索引命中 {len(_listed_schools)} 間：{_listed_schools}")
+                else:
+                    # 列舉型：keyword_index 先縮範圍，讓 FAISS 針對這些學校搜內文
+                    _kw_idx_pre = _keyword_index.get(year, {})
+                    for _kw_pre, _entries_pre in _kw_idx_pre.items():
+                        if _kw_pre in search_question:
+                            _kw_list_hit = _kw_pre
+                            _listed_schools = list(_entries_pre)
+                            print(f"[KW-PRE] 列舉型 keyword_index 命中「{_kw_pre}」→ {len(_listed_schools)} 件")
+                            # 複合查詢：問題含額外詞 → live scan 過濾
+                            _kw_stop_pre = {'計畫', '學校', '大學', '哪些', '相關', '有關', '年度', 'USR'}
+                            _extra_pre = [k for k in _extract_query_terms(search_question)
+                                          if k != _kw_pre and k not in _kw_pre
+                                          and k not in _kw_stop_pre and len(k) >= 2]
+                            if _extra_pre:
+                                print(f"[KW-PRE] 複合查詢額外詞：{_extra_pre}")
+                                _fres = _seq_query_live(_extra_pre, "列舉", vs, condense=True)
+                                if _fres:
+                                    _fschools = {m.group(1) for r in _fres
+                                                 if (m := re.match(r'【(.+?)_', r))}
+                                    if _fschools:
+                                        _orig_n = len(_listed_schools)
+                                        _listed_schools = [e for e in _listed_schools
+                                                           if e.split('：', 1)[0] in _fschools]
+                                        print(f"[KW-PRE] 篩選後 {len(_listed_schools)}/{_orig_n} 件")
+                            break
 
             # ③-c 多校追問（>5 間）→ 強制列舉型（壓縮+60k limit），但跳過 Seq Query
             _multi_enumerate = bool(_listed_schools and len(_listed_schools) > 5 and not _list)
@@ -2006,6 +2034,7 @@ def ask():
                 (_list or (_usr_topic and _usr_topic_kws and _faiss_src_count > 10))
             )
             _q_priority_kws: list[str] = []
+            _q_terms: list[str] = []
             if _seq_trigger:
                 _seq_topic = _usr_topic or "列舉"
                 _q_terms = _extract_query_terms(question) if _list else []
@@ -2068,74 +2097,50 @@ def ask():
             _plan_list_lines: list[str] = []
             _MAX_PLAN_LIST = 150  # LLM 輸出上限（超過會被截斷）
 
-            # ── keyword_index 快速查詢（列舉型優先）──────────────────────────────
-            if _list and not _school:
-                _kw_idx = _keyword_index.get(year, {})
-                for _kw, _entries in _kw_idx.items():
-                    if _kw in search_question:
-                        _plan_list_lines = list(_entries)
-                        print(f"[KW-LIST] keyword_index 命中「{_kw}」→ {len(_plan_list_lines)} 件")
-                        # 複合查詢：問題含有額外內容詞（如「SDG8跟漁業有關」）→ 用 live scan 過濾
-                        _kw_stopwords = {'計畫', '學校', '大學', '哪些', '相關', '有關', '年度', 'USR'}
-                        _all_q_terms = _extract_query_terms(question)
-                        _extra_kws = [k for k in _all_q_terms
-                                      if k != _kw and k not in _kw and k not in _kw_stopwords and len(k) >= 2]
-                        if _extra_kws:
-                            print(f"[KW-LIST] 複合查詢，額外篩選詞：{_extra_kws}")
-                            _filter_results = _seq_query_live(_extra_kws, "列舉", vs, condense=True)
-                            if _filter_results:
-                                _filter_schools: set[str] = set()
-                                for _fr in _filter_results:
-                                    _fm = re.match(r'【(.+?)_', _fr)
-                                    if _fm:
-                                        _filter_schools.add(_fm.group(1))
-                                if _filter_schools:
-                                    _orig_count = len(_plan_list_lines)
-                                    _plan_list_lines = [
-                                        e for e in _plan_list_lines
-                                        if e.split('：', 1)[0] in _filter_schools
-                                    ]
-                                    print(f"[KW-LIST] 篩選後 {len(_plan_list_lines)}/{_orig_count} 件（命中學校：{sorted(_filter_schools)[:5]}）")
-                        break
+            # ── keyword_index 清單（已在 FAISS 前設好，直接用 _listed_schools）──
+            if _kw_list_hit and _listed_schools:
+                _plan_list_lines = list(_listed_schools)
+                print(f"[KW-LIST] 使用 keyword_index 清單：{len(_plan_list_lines)} 件")
 
-            if not _plan_list_lines and annotated and _list:
-                print(f"[LIST-DEBUG] SEQ annotated 共 {len(annotated)} 筆，開始提取計畫名稱")
+            _plan_to_snippet: dict[str, str] = {}
+            if _list:
+                # faiss_texts（per-school FAISS 結果）+ annotated（SEQ 結果）合併補 snippet
+                _combined_src = list(faiss_texts) + (annotated or [])
                 _seen_plan_srcs: set[str] = set()
-                _tier1: list[str] = []  # 直接命中問題詞
-                _tier2_scored: list[tuple[int, str]] = []  # (相關度分數, 行文字)
-                _plan_to_snippet: dict[str, str] = {}  # plan_line → SEQ snippet
-                # T2 評分依據：query詞在 entry 裡出現幾個
+                _tier1: list[str] = []
+                _tier2_scored: list[tuple[int, str]] = []
                 _t2_score_kws = [k for k in (_q_priority_kws + _q_terms) if len(k) >= 2]
-                for _entry in annotated:
-                    _m = re.match(r'【(.+)】', _entry.split('\n', 1)[0])  # greedy on first line; handles plan names with 【】 inside
+                for _entry in _combined_src:
+                    _m = re.match(r'【(.+)】', _entry.split('\n', 1)[0])
                     if not _m:
                         continue
                     _src = _m.group(1)
-                    if _src in _seen_plan_srcs:  # 同一計畫書不同 chunk → 去重
+                    if _src in _seen_plan_srcs:
                         continue
                     _parts = _src.split('_', 1)
-                    if len(_parts) < 2:  # 沒有 _ → 非「學校_計畫」格式（如基本資料表合集、計劃總覽）
+                    if len(_parts) < 2:
                         continue
                     _seen_plan_srcs.add(_src)
                     _line = f"{_parts[0]}：{_parts[1]}"
                     _plan_to_snippet[_line] = _entry[_m.end():].strip()[:500]
                     if _q_priority_kws and any(pk in _entry for pk in _q_priority_kws):
-                        _tier1.append(_line)  # 直接命中問題詞 → 排前面
+                        _tier1.append(_line)
                     else:
                         _score = sum(1 for k in _t2_score_kws if k in _entry)
                         _tier2_scored.append((_score, _line))
-                # T2 依分數由高到低排序；只保留 score>0（有 query 詞交集）；上限 50 件
                 _tier2_scored.sort(key=lambda x: x[0], reverse=True)
                 _T2_CAP = 50
                 if _q_priority_kws:
-                    # 有明確 query 詞時：優先保留有交集的（score>0），其次補無交集的
                     _t2_nonzero = [(s, l) for s, l in _tier2_scored if s > 0]
                     _t2_zero    = [(s, l) for s, l in _tier2_scored if s == 0]
                     _tier2 = [l for _, l in (_t2_nonzero + _t2_zero)[:_T2_CAP]]
                 else:
                     _tier2 = [l for _, l in _tier2_scored[:_T2_CAP]]
-                _plan_list_lines = _tier1 + _tier2
-                print(f"[LIST-DEBUG] 提取到 {len(_plan_list_lines)} 件（T1={len(_tier1)}直接命中，T2={len(_tier2)}議題相關，其中score>0={len([s for s,_ in _tier2_scored if s>0])}件，priority_kws={_q_priority_kws[:3]}）")
+                if not _plan_list_lines:
+                    _plan_list_lines = _tier1 + _tier2
+                    print(f"[LIST-DEBUG] SEQ 提取 {len(_plan_list_lines)} 件（T1={len(_tier1)}，T2={len(_tier2)}，priority_kws={_q_priority_kws[:3]}）")
+                else:
+                    print(f"[LIST-DEBUG] keyword_index 已提供清單，SEQ 補充 snippet {len(_plan_to_snippet)} 件")
 
                 # 地區過濾：問題含縣市/大區域關鍵字時只保留對應縣市學校
                 _question_counties = _detect_question_counties(question)
