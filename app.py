@@ -1002,7 +1002,7 @@ def _extract_listed_schools(text: str) -> list[str]:
 _KW_THRESHOLD = 15  # 命中學校數超過此值就退回 FAISS
 
 def _keyword_lookup(question: str, year: str = "114") -> list[str]:
-    """直接關鍵字比對：問題詞 → keyword_index → 學校清單（命中 >_KW_THRESHOLD 間則退 FAISS）。"""
+    """直接關鍵字比對：問題詞 → keyword_index → 學校清單。"""
     idx = _keyword_index.get(year, {})
     if not idx:
         return []
@@ -1014,8 +1014,6 @@ def _keyword_lookup(question: str, year: str = "114") -> list[str]:
             for s in schools:
                 matched[s] = matched.get(s, 0) + 1
     ranked = [s for s, _ in sorted(matched.items(), key=lambda x: -x[1])]
-    if not ranked or len(ranked) > _KW_THRESHOLD:
-        return []
     return ranked
 
 
@@ -2077,6 +2075,27 @@ def ask():
                     if _kw in search_question:
                         _plan_list_lines = list(_entries)
                         print(f"[KW-LIST] keyword_index 命中「{_kw}」→ {len(_plan_list_lines)} 件")
+                        # 複合查詢：問題含有額外內容詞（如「SDG8跟漁業有關」）→ 用 live scan 過濾
+                        _kw_stopwords = {'計畫', '學校', '大學', '哪些', '相關', '有關', '年度', 'USR'}
+                        _all_q_terms = _extract_query_terms(question)
+                        _extra_kws = [k for k in _all_q_terms
+                                      if k != _kw and k not in _kw and k not in _kw_stopwords and len(k) >= 2]
+                        if _extra_kws:
+                            print(f"[KW-LIST] 複合查詢，額外篩選詞：{_extra_kws}")
+                            _filter_results = _seq_query_live(_extra_kws, "列舉", vs, condense=True)
+                            if _filter_results:
+                                _filter_schools: set[str] = set()
+                                for _fr in _filter_results:
+                                    _fm = re.match(r'【(.+?)_', _fr)
+                                    if _fm:
+                                        _filter_schools.add(_fm.group(1))
+                                if _filter_schools:
+                                    _orig_count = len(_plan_list_lines)
+                                    _plan_list_lines = [
+                                        e for e in _plan_list_lines
+                                        if e.split('：', 1)[0] in _filter_schools
+                                    ]
+                                    print(f"[KW-LIST] 篩選後 {len(_plan_list_lines)}/{_orig_count} 件（命中學校：{sorted(_filter_schools)[:5]}）")
                         break
 
             if not _plan_list_lines and annotated and _list:
@@ -2594,7 +2613,7 @@ def _llm_classify_topics(question: str) -> list[str]:
         print(f"[TOPIC_LLM] 失敗：{e}")
     return []
 
-_QUERY_FILLER_RE = re.compile(r'(相關|計畫|哪些|有哪|有幾|哪幾|多少|大學|學校|告訴|說明|介紹|如何|列出|請問|永續)')
+_QUERY_FILLER_RE = re.compile(r'(相關|有關|計畫|哪些|有哪|有幾|哪幾|多少|大學|學校|告訴|說明|介紹|如何|列出|請問)')
 
 def _extract_query_terms(q: str) -> list[str]:
     """從問題直接提取內容關鍵字（排除虛詞），補充 Sequential Query 掃描詞。"""
