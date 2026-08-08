@@ -776,12 +776,6 @@ def load_or_build_index(year: str = "114") -> FAISS:
             except Exception:
                 continue
 
-    if year == "114":
-        qa_custom_path = QA_DIR / "qa_custom_114.txt"
-        if qa_custom_path.exists():
-            print(f"  讀取：{qa_custom_path.name}（Q/A 對模式）")
-            docs.extend(_load_qa_custom_as_docs(qa_custom_path))
-
     md_plan_types: dict[str, str] = {}  # md_path str -> 計畫類型
 
     if md_files:
@@ -836,6 +830,15 @@ def load_or_build_index(year: str = "114") -> FAISS:
             vectorstore.add_documents(batch)
         done = min(i + BATCH, total)
         print(f"  [{done}/{total}] {done*100//total}% 完成", flush=True)
+
+    if year == "114":
+        qa_custom_path = QA_DIR / "qa_custom_114.txt"
+        if qa_custom_path.exists():
+            print(f"  讀取：{qa_custom_path.name}（Q/A 對，不切割直接加入）")
+            qa_docs = _load_qa_custom_as_docs(qa_custom_path)
+            if qa_docs:
+                vectorstore.add_documents(qa_docs)
+                print(f"[INDEX] qa_custom {len(qa_docs)} 個 Q/A 對已加入索引")
 
     index_dir.mkdir(exist_ok=True)
     vectorstore.save_local(str(index_dir))
