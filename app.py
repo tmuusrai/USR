@@ -1,6 +1,7 @@
 import os
 import sys
 import re
+import jieba
 import json
 import hashlib
 import time
@@ -14,6 +15,7 @@ from pathlib import Path
 
 sys.stdout.reconfigure(encoding="utf-8")
 sys.stderr.reconfigure(encoding="utf-8")
+jieba.initialize()
 
 from dotenv import load_dotenv
 from flask import Flask, request, jsonify, render_template, session, redirect, url_for, Response, stream_with_context
@@ -2605,6 +2607,12 @@ AGENT_PLAN_PROMPT = """針對以下問題，請列出 2~3 個最適合的繁體�
 
 _USR_TOPIC_NAMES = list(USR_TOPIC_KEYWORDS.keys())
 
+# 將 USR 領域詞加入 jieba 詞庫，避免複合詞被拆開（如「循環經濟」→「循環」+「經濟」）
+for _kws in USR_TOPIC_KEYWORDS.values():
+    for _kw in _kws:
+        if len(_kw) >= 3:
+            jieba.add_word(_kw)
+
 TOPIC_CLASSIFY_PROMPT = """你是台灣 USR（大學社會責任）計畫的議題分類專家。
 請判斷以下問題**最核心**屬於哪些 USR 議題類別。
 
@@ -2645,16 +2653,22 @@ def _llm_classify_topics(question: str) -> list[str]:
         print(f"[TOPIC_LLM] 失敗：{e}")
     return []
 
-_QUERY_FILLER_RE = re.compile(r'(相關|有關|計畫|哪些|哪幾|有幾|多少|大學|學校|告訴|說明|介紹|如何|列出|請問)')
+_JIEBA_STOPWORDS: set[str] = {
+    '相關', '有關', '計畫', '哪些', '哪幾', '有幾', '多少', '大學', '學校',
+    '告訴', '說明', '介紹', '如何', '列出', '請問', '跟', '與', '和', '或',
+    '及', '的', '等', '有', '在', '是', '了', '嗎', '呢', '吧', '啊',
+    '哪', '什麼', '為何', '為什麼', '怎麼', '怎樣', '幾個', '幾間', '幾所',
+    '幾件', '這些', '那些', '所有', '全部', '各', '每個', '請', '問',
+    '想', '知道', '了解',
+}
 
 def _extract_query_terms(q: str) -> list[str]:
-    """從問題直接提取內容關鍵字（排除虛詞），補充 Sequential Query 掃描詞。"""
-    parts = re.split(r'[或及跟與和，、（）？！\s的等]+', q)
+    """從問題用 jieba 分詞提取內容關鍵字，補充 Sequential Query 掃描詞。"""
     result = []
-    for p in parts:
-        p = _QUERY_FILLER_RE.sub('', p).strip().rstrip('有')
-        if 2 <= len(p) <= 10:
-            result.append(p)
+    for w in jieba.cut(q):
+        w = w.strip()
+        if len(w) >= 2 and w not in _JIEBA_STOPWORDS:
+            result.append(w)
     return list(dict.fromkeys(result))
 
 
