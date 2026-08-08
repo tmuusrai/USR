@@ -2070,6 +2070,15 @@ def ask():
             _plan_list_lines: list[str] = []
             _MAX_PLAN_LIST = 150  # LLM 輸出上限（超過會被截斷）
 
+            # ── keyword_index 快速查詢（列舉型優先）──────────────────────────────
+            if _list and not _school:
+                _kw_idx = _keyword_index.get(year, {})
+                for _kw, _entries in _kw_idx.items():
+                    if _kw in search_question:
+                        _plan_list_lines = list(_entries)
+                        print(f"[KW-LIST] keyword_index 命中「{_kw}」→ {len(_plan_list_lines)} 件")
+                        break
+
             if not _plan_list_lines and annotated and _list:
                 print(f"[LIST-DEBUG] SEQ annotated 共 {len(annotated)} 筆，開始提取計畫名稱")
                 _seen_plan_srcs: set[str] = set()
