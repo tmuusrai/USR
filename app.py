@@ -2037,7 +2037,7 @@ def ask():
             _seq_trigger = (
                 inv and
                 not _multi_enumerate and  # 多校追問不跑 Seq Query（_q_terms 無效）
-                (_list or (_usr_topic and _usr_topic_kws and _faiss_src_count > 10))
+                _list
             )
             _q_priority_kws: list[str] = []
             _q_terms: list[str] = []
