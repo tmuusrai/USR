@@ -1835,19 +1835,6 @@ def ask():
             # ── LLM：議題語意分類 ──
             _explicit_followup = bool(_MULTI_REF_RE.search(question) and history)
             _is_followup: bool = _explicit_followup
-            _kw_list_hit: str | None = None
-
-            if _list_check and not _kw_list_hit:
-                _llm_topics = _llm_classify_topics(question)
-                for _lt in _llm_topics:
-                    if _lt not in (_usr_topic or ""):
-                        for _tk in USR_TOPIC_KEYWORDS.get(_lt, []):
-                            if _tk not in (_usr_topic_kws or []):
-                                if _usr_topic_kws is None:
-                                    _usr_topic_kws = []
-                                _usr_topic_kws.append(_tk)
-                        if not _usr_topic:
-                            _usr_topic = _lt
 
             # ③ 主觀評量：含排名/比較/最佳等詞，需釐清評估標準（列舉型問題不觸發）
             if not skip_eval and not _list_check and _is_evaluation_question(question):
@@ -1937,6 +1924,19 @@ def ask():
                                         _kw_pre_schools = _fschools
                                         print(f"[KW-PRE] 篩選後 {len(_kw_plan_list)}/{_orig_n} 件")
                             break
+
+            # ── LLM：議題語意分類（keyword_index 未命中才跑）──
+            if _list_check and not _kw_list_hit:
+                _llm_topics = _llm_classify_topics(question)
+                for _lt in _llm_topics:
+                    if _lt not in (_usr_topic or ""):
+                        for _tk in USR_TOPIC_KEYWORDS.get(_lt, []):
+                            if _tk not in (_usr_topic_kws or []):
+                                if _usr_topic_kws is None:
+                                    _usr_topic_kws = []
+                                _usr_topic_kws.append(_tk)
+                        if not _usr_topic:
+                            _usr_topic = _lt
 
             # ③-c 多校追問（>5 間）→ 強制列舉型（壓縮+60k limit），但跳過 Seq Query
             _multi_enumerate = bool(_listed_schools and len(_listed_schools) > 5 and not _list)
