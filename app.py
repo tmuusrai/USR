@@ -1905,16 +1905,12 @@ def ask():
             _kw_list_hit: str | None = None   # 列舉型 keyword_index 命中的關鍵字
             _kw_plan_list: list[str] = []      # 列舉型 keyword_index 候選清單（不觸發早期 FAISS）
             if not _listed_schools and not _school:
-                if not _list:
-                    # 非列舉型：keyword_index 縮小學校範圍
-                    _kw_hit = _keyword_lookup(search_question, year)
-                    if _kw_hit:
-                        _listed_schools = _kw_hit
-                        print(f"[KW] 關鍵字索引命中 {len(_listed_schools)} 間：{_listed_schools}")
-                else:
-                    # 列舉型：keyword_index 先確定候選清單（FAISS 在 extraction 後才跑）
+                if _list:
+                    # 列舉型：keyword_index 只用 SDG key（SDG1～SDG17），其餘交給 SEQ 倒排索引
                     _kw_idx_pre = _keyword_index.get(year, {})
                     for _kw_pre, _entries_pre in _kw_idx_pre.items():
+                        if not re.match(r'^SDG\d{1,2}$', _kw_pre):
+                            continue
                         if _kw_pre in search_question:
                             _kw_list_hit = _kw_pre
                             _kw_plan_list = list(_entries_pre)
@@ -1944,6 +1940,8 @@ def ask():
                 print(f"[ASK] 多校追問({len(_listed_schools)}間) → 強制列舉型（跳過SeqQuery）")
 
             # ④ Voyage AI 平行 embed
+            docs = []
+            t_voyage = t_faiss = time.perf_counter()
             if _listed_schools:
                 # 多校模式：各計畫 query 同時送出（entry 可為「學校：計畫名」或「學校名」）
                 _topic_q = re.sub(r'以上\S*間\S*計劃?|上述\S*計劃?|這些計劃?', '', question).strip()
@@ -1964,12 +1962,7 @@ def ask():
                 _school = None
                 expand_query = None
                 t_faiss = time.perf_counter()
-            elif _list:
-                # 列舉型（無歷史追問學校）：跳過 FAISS，等 extraction 後做 per-school FAISS
-                docs = []
-                t_voyage = t_faiss = time.perf_counter()
-                print("[FAISS] 列舉型跳過 general FAISS，等 extraction 後 per-school")
-            else:
+            elif not _list:
                 # 一般模式：所有已知 query（含 expand）同時 embed
                 embed_tasks: dict[str, str] = {'main': search_question}
                 if _kw:
@@ -2146,7 +2139,14 @@ def ask():
                     _plan_list_lines = _tier1 + _tier2
                     print(f"[LIST-DEBUG] SEQ 提取 {len(_plan_list_lines)} 件（T1={len(_tier1)}，T2={len(_tier2)}，priority_kws={_q_priority_kws[:3]}）")
                 else:
-                    print(f"[LIST-DEBUG] keyword_index 已提供清單，SEQ 補充 snippet {len(_plan_to_snippet)} 件")
+                    # keyword_index 已提供基礎清單，SEQ 補充 keyword_index 沒有的學校
+                    _kw_schools = {e.split('：')[0] for e in _plan_list_lines}
+                    _seq_extra = [l for l in (_tier1 + _tier2) if l.split('：')[0] not in _kw_schools]
+                    if _seq_extra:
+                        _plan_list_lines = _plan_list_lines + _seq_extra
+                        print(f"[LIST-DEBUG] keyword_index {len(_kw_plan_list)} 件 + SEQ 補充 {len(_seq_extra)} 件 = {len(_plan_list_lines)} 件")
+                    else:
+                        print(f"[LIST-DEBUG] keyword_index {len(_plan_list_lines)} 件，SEQ 無新增學校")
 
                 # 地區過濾：問題含縣市/大區域關鍵字時只保留對應縣市學校
                 _question_counties = _detect_question_counties(question)
