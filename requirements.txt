@@ -25,6 +25,9 @@ python-dotenv==1.2.1
 # Production server
 gunicorn==23.0.0
 
+# Chinese tokenization
+jieba==0.42.1
+
 # Knowledge graph / Wiki Map
 networkx==3.4.2
 pyvis==0.3.2
