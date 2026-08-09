@@ -684,7 +684,7 @@ def _compute_docs_hash(year: str) -> str:
         overview = QA_DIR / "計劃總覽.txt"
         if overview.exists():
             paths.append(overview)
-        qa_custom_path = QA_DIR / "qa_custom_114.txt"
+        qa_custom_path = QA_DIR / f"qa_custom_{year}.txt"
         if qa_custom_path.exists():
             paths.append(qa_custom_path)
     h = hashlib.md5()
@@ -819,14 +819,13 @@ def load_or_build_index(year: str = "114") -> FAISS:
         done = min(i + BATCH, total)
         print(f"  [{done}/{total}] {done*100//total}% 完成", flush=True)
 
-    if year == "114":
-        qa_custom_path = QA_DIR / "qa_custom_114.txt"
-        if qa_custom_path.exists():
-            print(f"  讀取：{qa_custom_path.name}（Q/A 對，不切割直接加入）")
-            qa_docs = _load_qa_custom_as_docs(qa_custom_path)
-            if qa_docs:
-                vectorstore.add_documents(qa_docs)
-                print(f"[INDEX] qa_custom {len(qa_docs)} 個 Q/A 對已加入索引")
+    qa_custom_path = QA_DIR / f"qa_custom_{year}.txt"
+    if qa_custom_path.exists():
+        print(f"  讀取：{qa_custom_path.name}（Q/A 對，不切割直接加入）")
+        qa_docs = _load_qa_custom_as_docs(qa_custom_path)
+        if qa_docs:
+            vectorstore.add_documents(qa_docs)
+            print(f"[INDEX] qa_custom {len(qa_docs)} 個 Q/A 對已加入索引")
 
     index_dir.mkdir(exist_ok=True)
     vectorstore.save_local(str(index_dir))
