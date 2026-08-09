@@ -654,6 +654,17 @@ def _clean_plan_code(text: str) -> str:
     """移除 chunk 內容或檔名中的計畫編號與 _formatted。"""
     return _PLAN_CODE_RE.sub('', text).strip()
 
+def _trunc_at_sent(text: str, max_len: int) -> str:
+    """在 max_len 字元內，優先在句號/換行處截斷，避免截到字中間。"""
+    if len(text) <= max_len:
+        return text
+    sub = text[:max_len]
+    for sep in ('。', '\n', '！', '？', '；'):
+        pos = sub.rfind(sep)
+        if pos > max_len // 2:
+            return sub[:pos + 1]
+    return sub
+
 
 def _extract_plan_type(content: str) -> str:
     """從 md 內容前 600 字提取計畫類型（萌芽型/深耕型/國際合作型/特色永續型）。"""
@@ -2134,8 +2145,11 @@ def ask():
                             _plan_list_lines = _plan_list_lines + _extra
                             print(f"[KW-IDX] 補充 {len(_extra)} 件計畫，共 {len(_plan_list_lines)} 件")
 
-                # ── live scan：只掃 keyword_index 沒有的詞 ──
-                _live_scan_kws = [k for k in _q_terms if k not in _all_topic_kws]
+                # ── live scan：KW-IDX 已有結果則跳過；無結果才掃問題詞中不在議題詞典的詞 ──
+                _live_scan_kws = (
+                    [] if _plan_list_lines
+                    else [k for k in _q_terms if k not in _all_topic_kws]
+                )
                 annotated = []
                 if _live_scan_kws:
                     _cached_kws = set(_kw_pre_extra)
@@ -2274,9 +2288,9 @@ def ask():
                                     _clean_plan_code(d.page_content).count(kw)
                                     for kw in _live_scan_kws
                                 ))
-                            _plan_to_snippet[_s] = '\n'.join(
-                                _clean_plan_code(d.page_content)[:200] for d in _sf
-                            )[:500]
+                            _plan_to_snippet[_s] = _trunc_at_sent('\n'.join(
+                                _trunc_at_sent(_clean_plan_code(d.page_content), 200) for d in _sf
+                            ), 600)
                     print(f"[FAISS-PLAN] per-school FAISS 完成，_plan_to_snippet {len(_plan_to_snippet)} 件")
 
                 # 偵測分析型子問題（多個？分隔），有則限制清單件數
