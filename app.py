@@ -1806,9 +1806,14 @@ def ask():
             if _hl_terms:
                 yield f"data: {json.dumps({'type': 'highlight_terms', 'terms': _hl_terms}, ensure_ascii=False)}\n\n"
 
-            # ── ① qa_custom 字典攔截（已停用，qa_custom 改放入 FAISS）──
-            # structured_ctx = try_structured_answer(question, year=year)
-            # if structured_ctx: ... return
+            # ── ① qa_custom 短路攔截（優先於所有流程）──
+            structured_ctx = try_structured_answer(question, year=year)
+            if structured_ctx:
+                yield f"data: {json.dumps({'type': 'sources', 'sources': []}, ensure_ascii=False)}\n\n"
+                yield f"data: {json.dumps({'type': 'chunk', 'text': structured_ctx}, ensure_ascii=False)}\n\n"
+                total_ms = round((time.perf_counter() - t0) * 1000)
+                yield f"data: {json.dumps({'type': 'done', 'timing': {'total_ms': total_ms}, 'mode': 'qa_custom'}, ensure_ascii=False)}\n\n"
+                return
 
             # ── 對話記憶 + 搜尋問題準備 ──
             history = (_chat_history.get(chat_id, []) if chat_id else []) if use_context else []
