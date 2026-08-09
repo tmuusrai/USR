@@ -2105,6 +2105,7 @@ def ask():
             _q_terms: list[str] = []
             _live_scan_kws: list[str] = []
             annotated: list[str] | None = None
+            _plan_list_lines: list[str] = []
 
             if _list and not _multi_enumerate:
                 _q_terms = _extract_query_terms(question)
@@ -2192,13 +2193,7 @@ def ask():
             else:
                 faiss_texts = [_clean_plan_code(doc.page_content) for doc in docs]
             print(f"[LIST-GATE] _list={_list} annotated={type(annotated).__name__ if annotated is not None else 'None'}({len(annotated) if annotated else 0}) _usr_topic={_usr_topic} plan_list={len(_plan_list_lines)}")
-            _plan_list_lines: list[str] = []
             _MAX_PLAN_LIST = 150  # LLM 輸出上限（超過會被截斷）
-
-            # ── keyword_index 清單（FAISS 前確定，直接設為計畫清單）──
-            if _kw_list_hit and _kw_plan_list:
-                _plan_list_lines = list(_kw_plan_list)
-                print(f"[KW-LIST] 使用 keyword_index 清單：{len(_plan_list_lines)} 件")
 
             _plan_to_snippet: dict[str, str] = {}
             if _list:
