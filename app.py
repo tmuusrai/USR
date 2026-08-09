@@ -1403,8 +1403,20 @@ def _ensure_year_loaded(year: str) -> None:
         try:
             _vs = load_or_build_index(year)
             vectorstores[year] = _vs
-            if year not in _sdg_maps:  # sdg_map.json 若無此年才重建
+            if year not in _sdg_maps:
                 _sdg_maps[year] = _build_sdg_map(_vs)
+            # 補建 keyword_index（若此年尚未建議題詞索引）
+            _all_topic_kws = {kw for kws in USR_TOPIC_KEYWORDS.values() for kw in kws}
+            yr_idx = _keyword_index.setdefault(year, {})
+            if _all_topic_kws - set(yr_idx.keys()):
+                yr_idx.update(_build_topic_kw_index(year, _vs))
+                try:
+                    _KW_INDEX_PATH.write_text(
+                        json.dumps(_keyword_index, ensure_ascii=False, indent=2),
+                        encoding="utf-8"
+                    )
+                except Exception:
+                    pass
             print(f"[APP] {year} 年索引就緒。")
         except FileNotFoundError as e:
             vectorstores[year] = None
@@ -1412,19 +1424,67 @@ def _ensure_year_loaded(year: str) -> None:
 
 init_qa()
 
-# ── 關鍵字索引（build_keyword_index.py 產出）──────────
+# ── 關鍵字索引 ────────────────────────────────────────
 _keyword_index: dict[str, dict[str, list[str]]] = {}
 _KW_INDEX_PATH = Path("keyword_index.json")
-if _KW_INDEX_PATH.exists():
-    try:
-        with open(_KW_INDEX_PATH, encoding="utf-8") as _f:
-            _kw_data = json.load(_f)
-            _keyword_index = {yr: _kw_data.get(yr, {}) for yr in ("114", "113")}
-        print(f"[APP] 關鍵字索引就緒：{sum(len(v) for v in _keyword_index.values())} 個關鍵字")
-    except Exception as _e:
-        print(f"[APP] 關鍵字索引載入失敗：{_e}")
-else:
-    print("[APP] 未找到 keyword_index.json，跳過關鍵字索引。")
+
+def _build_topic_kw_index(year: str, vs) -> dict[str, list[str]]:
+    """掃 vectorstore，建立 USR_TOPIC_KEYWORDS 詞 → 計畫名單。"""
+    all_kws: set[str] = {kw for kws in USR_TOPIC_KEYWORDS.values() for kw in kws}
+    kw_plans: dict[str, set[str]] = {kw: set() for kw in all_kws}
+    t0 = time.perf_counter()
+    for doc in vs.docstore._dict.values():
+        text = _clean_plan_code(doc.page_content)
+        stem = Path(doc.metadata.get("source", "")).stem
+        parts = stem.split('_', 1)
+        if len(parts) < 2:
+            continue
+        plan = f"{parts[0]}：{parts[1]}"
+        for kw in all_kws:
+            if kw in text:
+                kw_plans[kw].add(plan)
+    elapsed = round((time.perf_counter() - t0) * 1000)
+    result = {kw: sorted(plans) for kw, plans in kw_plans.items() if plans}
+    print(f"[KW-BUILD] {year} 年：{len(result)} 個詞，耗時 {elapsed}ms")
+    return result
+
+def _load_or_build_kw_index() -> None:
+    """載入 keyword_index.json；若某年缺少 USR_TOPIC_KEYWORDS 就自動掃 vectorstore 補建。"""
+    _all_topic_kws: set[str] = {kw for kws in USR_TOPIC_KEYWORDS.values() for kw in kws}
+    if _KW_INDEX_PATH.exists():
+        try:
+            with open(_KW_INDEX_PATH, encoding="utf-8") as _f:
+                _kw_data = json.load(_f)
+            for yr in ("114", "113"):
+                _keyword_index[yr] = _kw_data.get(yr, {})
+            print(f"[KW-IDX] 載入：{sum(len(v) for v in _keyword_index.values())} 個關鍵字")
+        except Exception as _e:
+            print(f"[KW-IDX] 載入失敗：{_e}")
+
+    # 補建缺少的年份（USR_TOPIC_KEYWORDS 詞不在索引裡）
+    _updated = False
+    for yr, vs in vectorstores.items():
+        if not vs:
+            continue
+        yr_idx = _keyword_index.setdefault(yr, {})
+        _missing = _all_topic_kws - set(yr_idx.keys())
+        if _missing:
+            print(f"[KW-BUILD] {yr} 年缺少 {len(_missing)} 個議題詞，自動建索引...")
+            _new = _build_topic_kw_index(yr, vs)
+            yr_idx.update(_new)
+            _updated = True
+
+    if _updated:
+        try:
+            _KW_INDEX_PATH.write_text(
+                json.dumps(_keyword_index, ensure_ascii=False, indent=2),
+                encoding="utf-8"
+            )
+            print(f"[KW-IDX] 已更新並存檔")
+        except Exception as _e:
+            print(f"[KW-IDX] 存檔失敗：{_e}")
+
+_load_or_build_kw_index()
 
 
 # ── 路由 ──────────────────────────────────────────────
