@@ -1,6 +1,6 @@
 """
 建立完整 keyword_index.json：
-  - SDG1~17 → 計畫名單（從 計劃總覽.txt 讀取）
+  - SDG1~17 → 計畫名單（從 計劃總覽_114.txt 讀取）
   - USR_TOPIC_KEYWORDS 每個詞 → 計畫名單（掃 vectorstore chunk）
 
 執行方式：
@@ -24,7 +24,7 @@ from langchain_voyageai import VoyageAIEmbeddings
 import os
 
 # ── 路徑設定 ──────────────────────────────────────────
-PLAN_FILE     = Path("qa_data/計劃總覽.txt")
+PLAN_FILE     = Path("qa_data/計劃總覽_114.txt")
 KW_INDEX_FILE = Path("keyword_index.json")
 
 INDEX_DIRS = {
@@ -142,7 +142,7 @@ def _source_to_plan(source: str) -> str | None:
 
 
 def build_sdg_plans(year: str) -> dict[str, list[str]]:
-    """從 計劃總覽.txt 建立 SDG → 計畫名單。"""
+    """從 計劃總覽_114.txt 建立 SDG → 計畫名單。"""
     sdg_plans: dict[str, list[str]] = {f"SDG{i}": [] for i in range(1, 18)}
     if not PLAN_FILE.exists():
         print(f"[WARN] 找不到 {PLAN_FILE}，跳過 SDG 建索引")

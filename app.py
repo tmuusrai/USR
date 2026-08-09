@@ -681,7 +681,7 @@ def _compute_docs_hash(year: str) -> str:
     if year == "114":
         if EXTRA_DIR.exists():
             paths += sorted(EXTRA_DIR.rglob("*.txt"))
-        overview = QA_DIR / "計劃總覽.txt"
+        overview = QA_DIR / "計劃總覽_114.txt"
         if overview.exists():
             paths.append(overview)
         qa_custom_path = QA_DIR / f"qa_custom_{year}.txt"
@@ -738,9 +738,9 @@ def load_or_build_index(year: str = "114") -> FAISS:
     # 問答索引使用 md_dir/ 原始計畫書；llm_wiki_data/ 僅供知識地圖用
     md_files = list(md_dir.glob("*.md")) if md_dir.exists() else []
     print(f"[INDEX] 使用 {md_dir}/ 原始版（{len(md_files)} 份）")
-    overview  = QA_DIR / "計劃總覽.txt"
+    overview  = QA_DIR / "計劃總覽_114.txt"
     if not pdf_files and not md_files and not (year == "114" and overview.exists()):
-        raise FileNotFoundError(f"{md_dir}/、qa_data/計劃總覽.txt 都找不到，請先放入 {year} 年度計畫書。")
+        raise FileNotFoundError(f"{md_dir}/、qa_data/計劃總覽_114.txt 都找不到，請先放入 {year} 年度計畫書。")
 
     docs = []
     for pdf_path in pdf_files:
