@@ -648,7 +648,7 @@ def _get_theme(title: str) -> dict:
     return _THEME_DEFAULT
 
 # 清理計畫編號與 _formatted 後綴
-_PLAN_CODE_RE = re.compile(r'\s*\(114USR-[^)]*\)|_formatted', re.IGNORECASE)
+_PLAN_CODE_RE = re.compile(r'\s*\(\d{3}USR-[^)]*\)?|_formatted', re.IGNORECASE)
 
 def _clean_plan_code(text: str) -> str:
     """移除 chunk 內容或檔名中的計畫編號與 _formatted。"""
@@ -2322,6 +2322,7 @@ def ask():
                         f"- 說明重點：做了什麼活動、服務對象是誰、在哪裡執行、達成什麼效果\n"
                         f"- 若有具體合作對象（企業、社區、機構名稱）或數字（場次、人次、件數），必須保留\n"
                         f"- 用流暢白話整理，不要照抄原文，不要條列，不要輸出「此計畫致力於…」「本計畫旨在…」等開頭\n"
+                        f"- 提及地名（縣市、鄉鎮、村里、社區、場域、山川等）時，一律用〔〕標記，例：〔三芝區〕、〔萬年溪〕\n"
                         f"- 將與查詢議題語意相關的詞語（含同義詞、相關概念）用**標記**\n"
                         f"- 若內容僅含章節標題（如「一、」「（一）」「叁、」「## 標題」等）或單位名稱清單、聯絡表格等無具體描述，直接輸出「#RAW」\n"
                         f"只輸出說明句，不要其他文字。\n\n{_snip}"
