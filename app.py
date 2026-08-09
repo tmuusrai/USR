@@ -2340,11 +2340,11 @@ def ask():
                             return ""
                         _refusal_hints = ("並未包含", "無法擷取", "沒有具體", "僅列出", "不包含描述")
                         if any(h in _out for h in _refusal_hints) or len(_out) < 10:
-                            return _snip[:200]
+                            return _trunc_at_sent(_snip, 200)
                         return _out
                     except Exception as _pe:
                         print(f"[LIST-PARA] 擷取失敗: {_pe}")
-                        return _snip[:200]
+                        return _trunc_at_sent(_snip, 200)
 
                 # ── 舊標籤保留（後面程式碼用到）──
                 # 補送更完整的 highlight 詞：query 詞 + 所有議題關鍵字（不限 25 個）
