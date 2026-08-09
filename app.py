@@ -1897,9 +1897,11 @@ def ask():
                 print(f"[ASK] 追問偵測（{_src}），{len(_listed_schools)} 件：{_listed_schools[:3]}")
 
             # ③-b 關鍵字索引快速過濾
-            _kw_list_hit: str | None = None   # 列舉型 keyword_index 命中的關鍵字
-            _kw_plan_list: list[str] = []      # 列舉型 keyword_index 候選清單（不觸發早期 FAISS）
-            _kw_pre_schools: set[str] = set()  # 複合查詢時 live scan 命中的學校（供 SEQ 補充過濾）
+            _kw_list_hit: str | None = None       # 列舉型 keyword_index 命中的關鍵字
+            _kw_plan_list: list[str] = []          # 列舉型 keyword_index 候選清單（不觸發早期 FAISS）
+            _kw_pre_schools: set[str] = set()      # 複合查詢時 live scan 命中的學校（供 SEQ 補充過濾）
+            _kw_pre_live_results: list[str] = []   # KW-PRE live scan 結果快取（避免 SEQ 重複掃）
+            _kw_pre_extra: list[str] = []          # KW-PRE 額外詞（對應快取的詞）
             if not _listed_schools and not _school:
                 if _list:
                     # 列舉型：keyword_index 只用 SDG key（SDG1～SDG17），其餘交給 SEQ 倒排索引
@@ -1919,6 +1921,8 @@ def ask():
                             if _extra_pre:
                                 print(f"[KW-PRE] 複合查詢額外詞：{_extra_pre}（OR={_query_is_or}）")
                                 _fres = _seq_query_live(_extra_pre, "列舉", vs, condense=True)
+                                _kw_pre_live_results = _fres
+                                _kw_pre_extra = _extra_pre
                                 if _fres:
                                     _fschools = {m.group(1) for r in _fres
                                                  if (m := re.match(r'【(.+?)_', r))}
@@ -2084,11 +2088,18 @@ def ask():
                     if k not in _seq_kws
                 ]
                 if _list and _live_scan_kws:
-                    if len(_live_scan_kws) >= 2 and not _query_is_or:
+                    # 若 KW-PRE 已掃過相同詞，直接用快取不重掃
+                    _cached_kws = set(_kw_pre_extra)
+                    _need_scan_kws = [k for k in _live_scan_kws if k not in _cached_kws]
+                    _cached_results = _kw_pre_live_results if any(k in _cached_kws for k in _live_scan_kws) else []
+                    if _cached_results:
+                        print(f"[SEQ-LIVE] 使用 KW-PRE 快取（{len(_cached_results)} 筆），跳過重掃：{[k for k in _live_scan_kws if k in _cached_kws]}")
+
+                    if _need_scan_kws and len(_need_scan_kws) >= 2 and not _query_is_or:
                         # 多詞 AND 邏輯：各自掃一次取學校交集
                         _live_school_sets = []
                         _live_per_kw: dict[str, list[str]] = {}
-                        for _lk in _live_scan_kws:
+                        for _lk in _need_scan_kws:
                             _res = _seq_query_live([_lk], _seq_topic, vs, condense=True)
                             _live_per_kw[_lk] = _res
                             _schools = {re.match(r'【(.+?)(?:_|】)', r).group(1)
@@ -2103,13 +2114,18 @@ def ask():
                                              if any(s in r for s in _and_schools)]
                         else:
                             # 交集為空，退回 OR
-                            _live_results = _seq_query_live(_live_scan_kws, _seq_topic, vs, condense=True)
+                            _live_results = _seq_query_live(_need_scan_kws, _seq_topic, vs, condense=True)
                             print(f"[SEQ-LIVE] AND 交集為空，退回 OR")
-                    else:
+                    elif _need_scan_kws:
                         # 單詞 或 OR 模式：直接掃全庫取聯集
-                        if _query_is_or and len(_live_scan_kws) >= 2:
-                            print(f"[SEQ-LIVE] OR 模式，{len(_live_scan_kws)} 詞取聯集")
-                        _live_results = _seq_query_live(_live_scan_kws, _seq_topic, vs, condense=True)
+                        if _query_is_or and len(_need_scan_kws) >= 2:
+                            print(f"[SEQ-LIVE] OR 模式，{len(_need_scan_kws)} 詞取聯集")
+                        _live_results = _seq_query_live(_need_scan_kws, _seq_topic, vs, condense=True)
+                    else:
+                        _live_results = []
+                    # 合併快取結果
+                    _seen_cache = {r[:80] for r in _live_results}
+                    _live_results += [r for r in _cached_results if r[:80] not in _seen_cache]
                     if _live_results:
                         seen_heads = {a[:80] for a in annotated}
                         annotated += [r for r in _live_results if r[:80] not in seen_heads]
