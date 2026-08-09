@@ -1926,48 +1926,67 @@ def ask():
                 _src = "明確追問詞" if _explicit_followup else "LLM判斷"
                 print(f"[ASK] 追問偵測（{_src}），{len(_listed_schools)} 件：{_listed_schools[:3]}")
 
-            # ③-b 關鍵字索引快速過濾
-            _kw_list_hit: str | None = None       # 列舉型 keyword_index 命中的關鍵字
-            _kw_plan_list: list[str] = []          # 列舉型 keyword_index 候選清單（不觸發早期 FAISS）
-            _kw_pre_schools: set[str] = set()      # 複合查詢時 live scan 命中的學校（供 SEQ 補充過濾）
-            _kw_pre_live_results: list[str] = []   # KW-PRE live scan 結果快取（避免 SEQ 重複掃）
-            _kw_pre_extra: list[str] = []          # KW-PRE 額外詞（對應快取的詞）
-            if not _listed_schools and not _school:
-                if _list:
-                    # 列舉型：keyword_index 只用 SDG key（SDG1～SDG17），其餘交給 SEQ 倒排索引
-                    _kw_idx_pre = _keyword_index.get(year, {})
-                    for _kw_pre, _entries_pre in _kw_idx_pre.items():
-                        if not re.match(r'^SDG\d{1,2}$', _kw_pre):
-                            continue
-                        if _kw_pre in search_question:
-                            _kw_list_hit = _kw_pre
-                            _kw_plan_list = list(_entries_pre)
-                            print(f"[KW-PRE] 列舉型 keyword_index 命中「{_kw_pre}」→ {len(_kw_plan_list)} 件")
-                            # 複合查詢：問題含額外詞 → live scan 過濾
-                            _kw_stop_pre = {'計畫', '學校', '大學', '哪些', '相關', '有關', '年度', 'USR'}
-                            _extra_pre = [k for k in _extract_query_terms(search_question)
-                                          if k != _kw_pre and k not in _kw_pre
-                                          and k not in _kw_stop_pre and len(k) >= 2]
-                            if _extra_pre:
-                                print(f"[KW-PRE] 複合查詢額外詞：{_extra_pre}（OR={_query_is_or}）")
-                                _fres = _seq_query_live(_extra_pre, "列舉", vs, condense=True)
-                                _kw_pre_live_results = _fres
-                                _kw_pre_extra = _extra_pre
-                                if _fres:
-                                    _fschools = {m.group(1) for r in _fres
-                                                 if (m := re.match(r'【(.+?)_', r))}
-                                    if _fschools and not _query_is_or:
-                                        _orig_n = len(_kw_plan_list)
-                                        _kw_plan_list = [e for e in _kw_plan_list
-                                                         if e.split('：', 1)[0] in _fschools]
-                                        _kw_pre_schools = _fschools
-                                        print(f"[KW-PRE] AND 篩選後 {len(_kw_plan_list)}/{_orig_n} 件")
-                                    elif _fschools and _query_is_or:
-                                        _kw_pre_schools = _fschools
-                                        print(f"[KW-PRE] OR 模式，不篩選，額外命中學校 {len(_fschools)} 間")
-                            break
+            # ③-b 關鍵字索引查詢（USR議題詞 + SDG，優先於 TOPIC_LLM）
+            _kw_list_hit: str | None = None
+            _kw_plan_list: list[str] = []
+            _kw_pre_schools: set[str] = set()
+            _kw_pre_live_results: list[str] = []
+            _kw_pre_extra: list[str] = []
+            if not _listed_schools and not _school and _list:
+                _kw_idx_pre = _keyword_index.get(year, {})
+                _all_topic_kws_set: set[str] = {kw for kws in USR_TOPIC_KEYWORDS.values() for kw in kws}
+                _q_terms_pre = _extract_query_terms(search_question)
+                _kw_stop_pre = {'計畫', '學校', '大學', '哪些', '相關', '有關', '年度', 'USR'}
+                _plan_set_pre: set[str] = set()
+                _matched_kws: list[str] = []
 
-            # ── LLM：議題語意分類（keyword_index 未命中才跑）──
+                # 1. _usr_topic_kws（_detect_usr_topic 已偵測到的議題關鍵字）
+                for _tk in (_usr_topic_kws or []):
+                    if _tk in _kw_idx_pre:
+                        _plan_set_pre.update(_kw_idx_pre[_tk])
+                        if _tk not in _matched_kws:
+                            _matched_kws.append(_tk)
+
+                # 2. 問題裡其他 USR_TOPIC_KEYWORDS 詞
+                for _qt in _q_terms_pre:
+                    if _qt in _all_topic_kws_set and _qt in _kw_idx_pre and _qt not in _matched_kws:
+                        _plan_set_pre.update(_kw_idx_pre[_qt])
+                        _matched_kws.append(_qt)
+
+                # 3. SDG key 直接出現在問題裡
+                for _kw_pre in _kw_idx_pre:
+                    if re.match(r'^SDG\d{1,2}$', _kw_pre) and _kw_pre in search_question:
+                        if _kw_pre not in _matched_kws:
+                            _matched_kws.append(_kw_pre)
+                            _plan_set_pre.update(_kw_idx_pre[_kw_pre])
+
+                if _matched_kws:
+                    _kw_list_hit = _matched_kws[0]
+                    _kw_plan_list = sorted(_plan_set_pre)
+                    print(f"[KW-PRE] 命中 {_matched_kws[:3]} → {len(_kw_plan_list)} 件")
+                    # 額外未知詞 live scan 過濾
+                    _extra_pre = [k for k in _q_terms_pre
+                                  if k not in _matched_kws and k not in _kw_stop_pre
+                                  and len(k) >= 2 and k not in _all_topic_kws_set]
+                    if _extra_pre:
+                        print(f"[KW-PRE] 額外詞：{_extra_pre}（OR={_query_is_or}）")
+                        _fres = _seq_query_live(_extra_pre, "列舉", vs, condense=True)
+                        _kw_pre_live_results = _fres
+                        _kw_pre_extra = _extra_pre
+                        if _fres:
+                            _fschools = {m.group(1) for r in _fres
+                                         if (m := re.match(r'【(.+?)_', r))}
+                            if _fschools and not _query_is_or:
+                                _orig_n = len(_kw_plan_list)
+                                _kw_plan_list = [e for e in _kw_plan_list
+                                                 if e.split('：', 1)[0] in _fschools]
+                                _kw_pre_schools = _fschools
+                                print(f"[KW-PRE] AND 篩選後 {len(_kw_plan_list)}/{_orig_n} 件")
+                            elif _fschools and _query_is_or:
+                                _kw_pre_schools = _fschools
+                                print(f"[KW-PRE] OR 模式，額外命中學校 {len(_fschools)} 間")
+
+            # ── LLM：議題語意分類（keyword_index 完全未命中才跑）──
             if _list_check and not _kw_list_hit:
                 _llm_topics = _llm_classify_topics(question)
                 for _lt in _llm_topics:
@@ -2162,7 +2181,7 @@ def ask():
                 ]
             else:
                 faiss_texts = [_clean_plan_code(doc.page_content) for doc in docs]
-            print(f"[LIST-GATE] _list={_list} annotated={type(annotated).__name__ if annotated is not None else 'None'}({len(annotated) if annotated else 0}) _usr_topic={_usr_topic} _seq_kws={len(_seq_kws) if '_seq_kws' in dir() else 'undef'}")
+            print(f"[LIST-GATE] _list={_list} annotated={type(annotated).__name__ if annotated is not None else 'None'}({len(annotated) if annotated else 0}) _usr_topic={_usr_topic} plan_list={len(_plan_list_lines)}")
             _plan_list_lines: list[str] = []
             _MAX_PLAN_LIST = 150  # LLM 輸出上限（超過會被截斷）
 
