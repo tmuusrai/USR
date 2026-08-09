@@ -2362,6 +2362,13 @@ def ask():
                     if (_ps, _pp) not in _para_seen:
                         _para_seen.add((_ps, _pp))
                         _para_sources.append({"source": _ps, "page": _pp})
+                # docs 在 list 路徑為空；改從 _plan_list_lines 補 sources
+                if not _para_sources:
+                    for _pl_src in _plan_list_lines[:100]:
+                        _ps = _clean_plan_code(_pl_src).replace('：', '_', 1)
+                        if _ps not in _para_seen:
+                            _para_seen.add(_ps)
+                            _para_sources.append({"source": _ps, "page": 1})
                 yield f"data: {json.dumps({'type': 'sources', 'sources': _para_sources}, ensure_ascii=False)}\n\n"
 
                 _t1_label = (
