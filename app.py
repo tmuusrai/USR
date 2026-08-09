@@ -1119,30 +1119,6 @@ def _build_sdg_map(vs) -> dict[str, list[str]]:
     return result
 
 
-def _build_inverted_index(vs) -> dict[str, list]:
-    """
-    啟動時掃整個 docstore 一次，建立 {關鍵字: [(doc, 出現次數), ...]} 的倒排索引。
-    只涵蓋 USR_TOPIC_KEYWORDS 的所有關鍵字。
-    """
-    all_kws: set[str] = set()
-    for kws in USR_TOPIC_KEYWORDS.values():
-        all_kws.update(kws)
-
-    index: dict[str, list] = {kw: [] for kw in all_kws}
-    docs = list(vs.docstore._dict.values())
-    t0 = time.perf_counter()
-    for doc in docs:
-        text = _clean_plan_code(doc.page_content)
-        for kw in all_kws:
-            cnt = text.count(kw)
-            if cnt:
-                index[kw].append((doc, cnt))
-    elapsed = round((time.perf_counter() - t0) * 1000)
-    total = sum(len(v) for v in index.values())
-    print(f"[INV] 倒排索引建立：{len(all_kws)} 個關鍵字，{total} 筆對應，耗時 {elapsed}ms")
-    return index
-
-
 def _seq_query_by_index(kws: list[str], topic: str, index: dict,
                         dedup_by_source: int = 0,
                         min_hits: int = 3,
@@ -1384,9 +1360,6 @@ except FileNotFoundError as e:
     vectorstores["114"] = None
     print(f"[APP] 警告 114：{e}")
 
-# ── 倒排索引（啟動時建立，涵蓋所有 USR_TOPIC_KEYWORDS）──
-_inv_indexes: dict[str, dict] = {}
-
 # ── SDG 對應表（優先從 sdg_map.json 讀取，不存在才掃 vectorstore 並存檔）──
 _sdg_maps: dict[str, dict[str, list[str]]] = {}
 _SDG_MAP_PATH = Path("sdg_map.json")
@@ -1414,15 +1387,13 @@ def _load_or_build_sdg_maps() -> None:
     except Exception as _e:
         print(f"[SDG-MAP] 存檔失敗：{_e}")
 
-if vectorstores.get("114"):
-    _inv_indexes["114"] = _build_inverted_index(vectorstores["114"])
 _load_or_build_sdg_maps()
 
 # ── 懶載入鎖（113 年首次請求時才載）──
 _lazy_load_lock = threading.Lock()
 
 def _ensure_year_loaded(year: str) -> None:
-    """113 年索引懶載入，只有第一次被請求時才從磁碟載入並建倒排索引。"""
+    """113 年索引懶載入，只有第一次被請求時才從磁碟載入。"""
     if year == "114" or vectorstores.get(year) is not None:
         return
     with _lazy_load_lock:
@@ -1432,7 +1403,6 @@ def _ensure_year_loaded(year: str) -> None:
         try:
             _vs = load_or_build_index(year)
             vectorstores[year] = _vs
-            _inv_indexes[year] = _build_inverted_index(_vs)
             if year not in _sdg_maps:  # sdg_map.json 若無此年才重建
                 _sdg_maps[year] = _build_sdg_map(_vs)
             print(f"[APP] {year} 年索引就緒。")
@@ -2041,101 +2011,85 @@ def ask():
                 _faiss_srcs = [Path(d.metadata.get("source","")).stem for d in docs]
                 print(f"[FAISS-DOCS] {len(docs)} 筆：{_faiss_srcs}")
 
-            # ── Sequential Query：議題偵測到時全庫掃描補足 TOP_K 限制 ──
-            # 列舉型（_list）：偵測到議題就直接掃，不等 FAISS 檔案數（因為 list 本來就是廣義搜尋）
-            # 非列舉型：FAISS 命中 >15 個不同檔案才掃（窄義問題用 FAISS 即可）
-            _faiss_src_count = len({doc.metadata.get("source", "") for doc in docs})
-            inv = _inv_indexes.get(year) or _inv_indexes.get("114")
-            _seq_trigger = (
-                inv and
-                not _multi_enumerate and  # 多校追問不跑 Seq Query（_q_terms 無效）
-                _list
-            )
+            # ── 議題關鍵字索引查詢（keyword_index）+ live scan ──────────────
             _q_priority_kws: list[str] = []
             _q_terms: list[str] = []
             _live_scan_kws: list[str] = []
-            if _seq_trigger:
-                _seq_topic = _usr_topic or "列舉"
-                _q_terms = _extract_query_terms(question) if _list else []
-                if _list:
-                    # 列舉型：有議題用議題關鍵字，沒議題用問題提取詞掃
-                    _seq_kws = list(_usr_topic_kws) if _usr_topic_kws else []
-                    # 問題直接提取詞，只要有在分類表裡 → 觸發整個分類擴充
-                    for kw in _q_terms:
-                        for topic_kws in USR_TOPIC_KEYWORDS.values():
-                            if kw in topic_kws:
-                                for tk in topic_kws:
-                                    if tk not in _seq_kws:
-                                        _seq_kws.append(tk)
-                    # 加入問題直接提取的詞（補足 topic kws 沒有的問題詞，如「海洋」）
-                    for k in _q_terms:
-                        if k in inv and k not in _seq_kws:
-                            _seq_kws.append(k)
-                else:
-                    # 非列舉型：問題命中議題 → 用議題所有關鍵字掃全庫
-                    _seq_kws = _usr_topic_kws
-                print(f"[SEQ] 啟動全庫掃描（議題：{_seq_topic}，list={_list}，faiss_src={_faiss_src_count}，關鍵字數={len(_seq_kws)}）")
-                _q_priority_kws = [kw for kw in _seq_kws if kw in search_question]
-                annotated = _seq_query_by_index(_seq_kws, _seq_topic, inv,
-                                                dedup_by_source=1,
-                                                min_hits=1,
-                                                condense=_list,
-                                                priority_kws=_q_priority_kws or None)
-                # 列舉型：只掃描「有意義的問題詞且不在倒排索引」的詞（如「海洋」「流浪動物」）
-                # 排除 _seq_kws 已涵蓋的詞（倒排索引已搜過）和 <4 字的通用縮寫（如 USR）
-                _live_scan_kws = [
-                    k for k in _q_terms
-                    if k not in _seq_kws
-                ]
-                if _list and _live_scan_kws:
-                    # 若 KW-PRE 已掃過相同詞，直接用快取不重掃
+            annotated: list[str] | None = None
+
+            if _list and not _multi_enumerate:
+                _q_terms = _extract_query_terms(question)
+                _q_priority_kws = [k for k in _q_terms if k in search_question]
+                _kw_idx = _keyword_index.get(year) or _keyword_index.get("114", {})
+                _all_topic_kws: set[str] = {kw for kws in USR_TOPIC_KEYWORDS.values() for kw in kws}
+
+                # ── keyword_index 查詢：_usr_topic_kws + 問題中的已知議題詞 ──
+                _topic_plan_set: set[str] = set()
+                _lookup_kws = list(dict.fromkeys(
+                    list(_usr_topic_kws or []) + [k for k in _q_terms if k in _all_topic_kws]
+                ))
+                for _lk in _lookup_kws:
+                    if _lk in _kw_idx:
+                        _topic_plan_set.update(_kw_idx[_lk])
+                if _topic_plan_set:
+                    print(f"[KW-IDX] 議題詞 {len(_lookup_kws)} 個 → {len(_topic_plan_set)} 件計畫")
+                    if not _plan_list_lines:
+                        _plan_list_lines = sorted(_topic_plan_set)
+                    else:
+                        _kw_schools = {e.split('：')[0] for e in _plan_list_lines}
+                        _extra = [p for p in sorted(_topic_plan_set)
+                                  if p.split('：')[0] not in _kw_schools
+                                  and (not _kw_pre_schools or p.split('：')[0] in _kw_pre_schools)]
+                        if _extra:
+                            _plan_list_lines = _plan_list_lines + _extra
+                            print(f"[KW-IDX] 補充 {len(_extra)} 件計畫，共 {len(_plan_list_lines)} 件")
+
+                # ── live scan：只掃 keyword_index 沒有的詞 ──
+                _live_scan_kws = [k for k in _q_terms if k not in _all_topic_kws]
+                annotated = []
+                if _live_scan_kws:
                     _cached_kws = set(_kw_pre_extra)
                     _need_scan_kws = [k for k in _live_scan_kws if k not in _cached_kws]
                     _cached_results = _kw_pre_live_results if any(k in _cached_kws for k in _live_scan_kws) else []
                     if _cached_results:
-                        print(f"[SEQ-LIVE] 使用 KW-PRE 快取（{len(_cached_results)} 筆），跳過重掃：{[k for k in _live_scan_kws if k in _cached_kws]}")
+                        print(f"[LIVE] 使用 KW-PRE 快取（{len(_cached_results)} 筆）：{[k for k in _live_scan_kws if k in _cached_kws]}")
 
+                    _live_results: list[str] = []
                     if _need_scan_kws and len(_need_scan_kws) >= 2 and not _query_is_or:
-                        # 多詞 AND 邏輯：各自掃一次取學校交集
+                        # 多詞 AND：各自掃一次取學校交集
                         _live_school_sets = []
                         _live_per_kw: dict[str, list[str]] = {}
                         for _lk in _need_scan_kws:
-                            _res = _seq_query_live([_lk], _seq_topic, vs, condense=True)
+                            _res = _seq_query_live([_lk], "列舉", vs, condense=True)
                             _live_per_kw[_lk] = _res
                             _schools = {re.match(r'【(.+?)(?:_|】)', r).group(1)
                                         for r in _res if re.match(r'【(.+?)(?:_|】)', r)}
                             _live_school_sets.append(_schools)
-                            print(f"[SEQ-LIVE] 「{_lk}」→ {len(_schools)} 間學校")
+                            print(f"[LIVE] 「{_lk}」→ {len(_schools)} 間學校")
                         _and_schools = _live_school_sets[0].intersection(*_live_school_sets[1:])
-                        print(f"[SEQ-LIVE] AND 交集 {len(_and_schools)} 間學校")
+                        print(f"[LIVE] AND 交集 {len(_and_schools)} 間學校")
                         if _and_schools:
                             _live_results = [r for kw_res in _live_per_kw.values()
-                                             for r in kw_res
-                                             if any(s in r for s in _and_schools)]
+                                             for r in kw_res if any(s in r for s in _and_schools)]
                         else:
-                            # 交集為空，退回 OR
-                            _live_results = _seq_query_live(_need_scan_kws, _seq_topic, vs, condense=True)
-                            print(f"[SEQ-LIVE] AND 交集為空，退回 OR")
+                            _live_results = _seq_query_live(_need_scan_kws, "列舉", vs, condense=True)
+                            print(f"[LIVE] AND 交集為空，退回 OR")
                     elif _need_scan_kws:
-                        # 單詞 或 OR 模式：直接掃全庫取聯集
                         if _query_is_or and len(_need_scan_kws) >= 2:
-                            print(f"[SEQ-LIVE] OR 模式，{len(_need_scan_kws)} 詞取聯集")
-                        _live_results = _seq_query_live(_need_scan_kws, _seq_topic, vs, condense=True)
-                    else:
-                        _live_results = []
-                    # 合併快取結果
+                            print(f"[LIVE] OR 模式，{len(_need_scan_kws)} 詞取聯集")
+                        _live_results = _seq_query_live(_need_scan_kws, "列舉", vs, condense=True)
+
+                    # 合併快取
                     _seen_cache = {r[:80] for r in _live_results}
                     _live_results += [r for r in _cached_results if r[:80] not in _seen_cache]
                     if _live_results:
-                        seen_heads = {a[:80] for a in annotated}
-                        annotated += [r for r in _live_results if r[:80] not in seen_heads]
-                        print(f"[SEQ-LIVE] 合併後共 {len(annotated)} 篇")
-                # 若有前輪學校清單（追問），只保留那些學校的 chunk
+                        annotated = _live_results
+                        print(f"[LIVE] 共 {len(annotated)} 筆")
+
+                # 追問過濾
                 if _listed_schools and annotated:
                     annotated = [a for a in annotated if any(s.split('：')[0] in a for s in _listed_schools)]
-                    print(f"[SEQ] 追問學校過濾後 {len(annotated)} 篇")
-            else:
-                annotated = None
+                    print(f"[LIVE] 追問學校過濾後 {len(annotated)} 筆")
 
             # 列舉型用 Flash 處理大 context 很快，給更多空間；其他問題截短避免拖慢 Pro
             _CTX_CHAR_LIMIT = 60000 if _list else 30000
