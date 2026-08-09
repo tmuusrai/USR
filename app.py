@@ -1875,6 +1875,7 @@ def ask():
                 if _school:
                     print(f"[ASK] 從歷史補充學校：{_school}")
             _list      = bool(_LIST_INTENT_RE.search(search_question)) and not _school and not _LIST_CONCEPT_RE.search(search_question)
+            _query_is_or = '或' in question
             _personnel = bool(_PERSONNEL_RE.search(search_question))
             _kw        = _extract_keywords(search_question)
             _role      = _extract_role_term(question) if _personnel else None
@@ -1916,17 +1917,20 @@ def ask():
                                           if k != _kw_pre and k not in _kw_pre
                                           and k not in _kw_stop_pre and len(k) >= 2]
                             if _extra_pre:
-                                print(f"[KW-PRE] 複合查詢額外詞：{_extra_pre}")
+                                print(f"[KW-PRE] 複合查詢額外詞：{_extra_pre}（OR={_query_is_or}）")
                                 _fres = _seq_query_live(_extra_pre, "列舉", vs, condense=True)
                                 if _fres:
                                     _fschools = {m.group(1) for r in _fres
                                                  if (m := re.match(r'【(.+?)_', r))}
-                                    if _fschools:
+                                    if _fschools and not _query_is_or:
                                         _orig_n = len(_kw_plan_list)
                                         _kw_plan_list = [e for e in _kw_plan_list
                                                          if e.split('：', 1)[0] in _fschools]
                                         _kw_pre_schools = _fschools
-                                        print(f"[KW-PRE] 篩選後 {len(_kw_plan_list)}/{_orig_n} 件")
+                                        print(f"[KW-PRE] AND 篩選後 {len(_kw_plan_list)}/{_orig_n} 件")
+                                    elif _fschools and _query_is_or:
+                                        _kw_pre_schools = _fschools
+                                        print(f"[KW-PRE] OR 模式，不篩選，額外命中學校 {len(_fschools)} 間")
                             break
 
             # ── LLM：議題語意分類（keyword_index 未命中才跑）──
@@ -2080,8 +2084,8 @@ def ask():
                     if k not in _seq_kws and len(k) >= 4
                 ]
                 if _list and _live_scan_kws:
-                    if len(_live_scan_kws) >= 2:
-                        # 多詞：各自掃一次取學校交集（AND 邏輯）
+                    if len(_live_scan_kws) >= 2 and not _query_is_or:
+                        # 多詞 AND 邏輯：各自掃一次取學校交集
                         _live_school_sets = []
                         _live_per_kw: dict[str, list[str]] = {}
                         for _lk in _live_scan_kws:
@@ -2102,6 +2106,9 @@ def ask():
                             _live_results = _seq_query_live(_live_scan_kws, _seq_topic, vs, condense=True)
                             print(f"[SEQ-LIVE] AND 交集為空，退回 OR")
                     else:
+                        # 單詞 或 OR 模式：直接掃全庫取聯集
+                        if _query_is_or and len(_live_scan_kws) >= 2:
+                            print(f"[SEQ-LIVE] OR 模式，{len(_live_scan_kws)} 詞取聯集")
                         _live_results = _seq_query_live(_live_scan_kws, _seq_topic, vs, condense=True)
                     if _live_results:
                         seen_heads = {a[:80] for a in annotated}
