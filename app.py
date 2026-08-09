@@ -2081,7 +2081,7 @@ def ask():
                 # 排除 _seq_kws 已涵蓋的詞（倒排索引已搜過）和 <4 字的通用縮寫（如 USR）
                 _live_scan_kws = [
                     k for k in _q_terms
-                    if k not in _seq_kws and len(k) >= 4
+                    if k not in _seq_kws
                 ]
                 if _list and _live_scan_kws:
                     if len(_live_scan_kws) >= 2 and not _query_is_or:
