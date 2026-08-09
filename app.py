@@ -755,11 +755,19 @@ def load_or_build_index(year: str = "114") -> FAISS:
             docs.extend(loader.load())
 
     if year == "114" and overview.exists():
-        print(f"  讀取：{overview.name}")
+        print(f"  讀取：{overview.name}（按計畫邊界切割）")
         for enc in ["utf-8-sig", "utf-8", "cp950", "big5"]:
             try:
-                loader = TextLoader(str(overview), encoding=enc)
-                docs.extend(loader.load())
+                text = overview.read_text(encoding=enc)
+                blocks = re.split(r'===.+?===', text)
+                for block in blocks:
+                    block = block.strip()
+                    if len(block) > 50:
+                        docs.append(Document(
+                            page_content=block,
+                            metadata={"source": str(overview)},
+                        ))
+                print(f"  計劃總覽切出 {len([b for b in blocks if b.strip()])} 個計畫 chunk")
                 break
             except Exception:
                 continue
