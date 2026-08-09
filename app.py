@@ -2374,7 +2374,7 @@ def ask():
                 # 先收集所有結果，才能在標頭寫正確件數
                 _para_collected: list[tuple[str, str]] = []
                 _skipped = 0
-                with ThreadPoolExecutor(max_workers=10) as _para_ex:
+                with ThreadPoolExecutor(max_workers=25) as _para_ex:
                     _para_futs = [(_pl, _para_ex.submit(_sum_one_plan, _pl)) for _pl in _display_lines]
                     for _pl, _pf in _para_futs:
                         _ps2 = _pf.result()
