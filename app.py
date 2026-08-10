@@ -1424,8 +1424,11 @@ def _build_topic_kw_index(year: str, vs) -> tuple[dict[str, list[str]], dict[str
     chunk_idx: dict[str, list[str]] = {}
     t0 = time.perf_counter()
     for doc in vs.docstore._dict.values():
+        src = doc.metadata.get("source", "")
+        if "qa_custom" in src:
+            continue
         text = _clean_plan_code(doc.page_content)
-        stem = Path(doc.metadata.get("source", "")).stem
+        stem = Path(src).stem
         parts = stem.split('_', 1)
         if len(parts) < 2:
             continue
@@ -1469,19 +1472,8 @@ def _load_or_build_kw_index() -> None:
             _updated = True
         elif yr not in _plan_chunk_index and vs:
             # keyword_index 從 JSON 載入，chunk_index 仍需從 vectorstore 建
-            _plan_chunk_index[yr] = {
-                f"{parts[0]}：{parts[1]}": []
-                for doc in vs.docstore._dict.values()
-                if len(parts := Path(doc.metadata.get("source","")).stem.split('_',1)) >= 2
-            }
-            for doc in vs.docstore._dict.values():
-                text = _clean_plan_code(doc.page_content)
-                stem = Path(doc.metadata.get("source","")).stem
-                parts2 = stem.split('_', 1)
-                if len(parts2) < 2 or not text.strip():
-                    continue
-                _plan_chunk_index[yr][f"{parts2[0]}：{parts2[1]}"].append(text)
-            print(f"[CHUNK-IDX] {yr} 年：{len(_plan_chunk_index[yr])} 份計畫 chunk 索引就緒")
+            _, _chunks = _build_topic_kw_index(yr, vs)
+            _plan_chunk_index[yr] = _chunks
 
     if _updated:
         try:
