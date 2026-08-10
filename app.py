@@ -1280,47 +1280,6 @@ def _seq_query_live(kws: list[str], topic: str, vs,
     return result
 
 
-def _count_inv_matches(kws: list[str], inv: dict) -> int:
-    """用倒排索引快速計算命中任一關鍵字的不重複 doc 數量。"""
-    doc_ids: set[int] = set()
-    for kw in kws:
-        for doc, _ in inv.get(kw, []):
-            doc_ids.add(id(doc))
-    return len(doc_ids)
-
-
-def _annotate_docs_by_topic(docs, topic: str, kws: list[str]) -> list[str]:
-    """
-    Sequential 掃描所有文件，依關鍵字命中次數標記相關程度：
-      5+  次 → 【高度相關】完整內容送入 context
-      3-4 次 → 【部分相關】加標記說明命中的關鍵字，再送完整內容
-      <3  次 → 跳過（不納入 context）
-
-    回傳已排序、已標記的 context 字串清單（高度相關排前面）。
-    """
-    high, mid = [], []
-
-    for doc in docs:
-        text = _clean_plan_code(doc.page_content)
-        hits = _count_kw_hits(text, kws)
-        total = sum(hits.values())
-        if total < 1:
-            continue
-        hit_summary = "、".join(f"{kw}×{cnt}" for kw, cnt in hits.items())
-        if total >= 5:
-            label = f"【高度相關｜{topic}｜命中：{hit_summary}】"
-            high.append(f"{label}\n{text}")
-        elif total >= 3:
-            label = f"【部分相關｜{topic}｜命中：{hit_summary}】"
-            mid.append(f"{label}\n{text}")
-        else:
-            label = f"【少量相關｜{topic}｜命中：{hit_summary}】"
-            mid.append(f"{label}\n{text}")
-
-    print(f"[SEQ] 高度相關 {len(high)} 篇，部分相關 {len(mid)} 篇")
-    return high + mid
-
-
 def _prepare_search_query(question: str, history: list) -> str:
     """
     有對話歷史時，用 LLM 改寫問題：
@@ -1426,11 +1385,13 @@ def _ensure_year_loaded(year: str) -> None:
             vectorstores[year] = _vs
             if year not in _sdg_maps:
                 _sdg_maps[year] = _build_sdg_map(_vs)
-            # 補建 keyword_index（若此年尚未建議題詞索引）
+            # 補建 keyword_index + chunk_index（若此年尚未建立）
             _all_topic_kws = {kw for kws in USR_TOPIC_KEYWORDS.values() for kw in kws}
             yr_idx = _keyword_index.setdefault(year, {})
             if _all_topic_kws - set(yr_idx.keys()):
-                yr_idx.update(_build_topic_kw_index(year, _vs))
+                _new, _chunks = _build_topic_kw_index(year, _vs)
+                yr_idx.update(_new)
+                _plan_chunk_index[year] = _chunks
                 try:
                     _KW_INDEX_PATH.write_text(
                         json.dumps(_keyword_index, ensure_ascii=False, indent=2),
@@ -1438,6 +1399,9 @@ def _ensure_year_loaded(year: str) -> None:
                     )
                 except Exception:
                     pass
+            elif year not in _plan_chunk_index:
+                _, _chunks = _build_topic_kw_index(year, _vs)
+                _plan_chunk_index[year] = _chunks
             print(f"[APP] {year} 年索引就緒。")
         except FileNotFoundError as e:
             vectorstores[year] = None
@@ -1448,11 +1412,16 @@ init_qa()
 # ── 關鍵字索引 ────────────────────────────────────────
 _keyword_index: dict[str, dict[str, list[str]]] = {}
 _KW_INDEX_PATH = Path("keyword_index.json")
+_plan_chunk_index: dict[str, dict[str, list[str]]] = {}  # year → plan → chunks
 
-def _build_topic_kw_index(year: str, vs) -> dict[str, list[str]]:
-    """掃 vectorstore，建立 USR_TOPIC_KEYWORDS 詞 → 計畫名單。"""
+def _build_topic_kw_index(year: str, vs) -> tuple[dict[str, list[str]], dict[str, list[str]]]:
+    """掃 vectorstore，同一個 loop 同時建立：
+    - USR_TOPIC_KEYWORDS 詞 → 計畫名單（keyword_index）
+    - 計畫名 → chunk 文字清單（plan_chunk_index）
+    """
     all_kws: set[str] = {kw for kws in USR_TOPIC_KEYWORDS.values() for kw in kws}
     kw_plans: dict[str, set[str]] = {kw: set() for kw in all_kws}
+    chunk_idx: dict[str, list[str]] = {}
     t0 = time.perf_counter()
     for doc in vs.docstore._dict.values():
         text = _clean_plan_code(doc.page_content)
@@ -1464,10 +1433,13 @@ def _build_topic_kw_index(year: str, vs) -> dict[str, list[str]]:
         for kw in all_kws:
             if kw in text:
                 kw_plans[kw].add(plan)
+        if text.strip():
+            chunk_idx.setdefault(plan, []).append(text)
     elapsed = round((time.perf_counter() - t0) * 1000)
-    result = {kw: sorted(plans) for kw, plans in kw_plans.items() if plans}
-    print(f"[KW-BUILD] {year} 年：{len(result)} 個詞，耗時 {elapsed}ms")
-    return result
+    kw_result = {kw: sorted(plans) for kw, plans in kw_plans.items() if plans}
+    print(f"[KW-BUILD] {year} 年：{len(kw_result)} 個詞，{len(chunk_idx)} 份計畫，"
+          f"{sum(len(v) for v in chunk_idx.values())} chunks，耗時 {elapsed}ms")
+    return kw_result, chunk_idx
 
 def _load_or_build_kw_index() -> None:
     """載入 keyword_index.json；若某年缺少 USR_TOPIC_KEYWORDS 就自動掃 vectorstore 補建。"""
@@ -1491,9 +1463,25 @@ def _load_or_build_kw_index() -> None:
         _missing = _all_topic_kws - set(yr_idx.keys())
         if _missing:
             print(f"[KW-BUILD] {yr} 年缺少 {len(_missing)} 個議題詞，自動建索引...")
-            _new = _build_topic_kw_index(yr, vs)
+            _new, _chunks = _build_topic_kw_index(yr, vs)
             yr_idx.update(_new)
+            _plan_chunk_index[yr] = _chunks
             _updated = True
+        elif yr not in _plan_chunk_index and vs:
+            # keyword_index 從 JSON 載入，chunk_index 仍需從 vectorstore 建
+            _plan_chunk_index[yr] = {
+                f"{parts[0]}：{parts[1]}": []
+                for doc in vs.docstore._dict.values()
+                if len(parts := Path(doc.metadata.get("source","")).stem.split('_',1)) >= 2
+            }
+            for doc in vs.docstore._dict.values():
+                text = _clean_plan_code(doc.page_content)
+                stem = Path(doc.metadata.get("source","")).stem
+                parts2 = stem.split('_', 1)
+                if len(parts2) < 2 or not text.strip():
+                    continue
+                _plan_chunk_index[yr][f"{parts2[0]}：{parts2[1]}"].append(text)
+            print(f"[CHUNK-IDX] {yr} 年：{len(_plan_chunk_index[yr])} 份計畫 chunk 索引就緒")
 
     if _updated:
         try:
@@ -2268,30 +2256,22 @@ def ask():
                     else:
                         print(f"[LIST-REGION] 縣市過濾={_question_counties}，無匹配，不過濾")
 
-                # ── 列舉型 per-school FAISS（確定清單後取各計畫內文）──────────
-                if not faiss_texts and _plan_list_lines:
-                    _pq = re.sub(r'以上\S*間\S*計劃?|上述\S*計劃?|這些計劃?', '', question).strip()
-                    with ThreadPoolExecutor() as ex:
-                        _pfuts = {s: ex.submit(embeddings.embed_query,
-                                               f"{s.replace('：', ' ')} {_pq}")
-                                  for s in _plan_list_lines[:_MAX_PLAN_LIST]}
-                        _pvecs = {s: f.result() for s, f in _pfuts.items()}
+                # ── 列舉型：從 plan_chunk_index 直接取各計畫內文（不走 per-plan FAISS）──
+                if _plan_list_lines:
+                    _pci = _plan_chunk_index.get(year, {})
+                    _score_kws = list(dict.fromkeys(_q_terms + list(_usr_topic_kws or [])))
                     for _s in _plan_list_lines[:_MAX_PLAN_LIST]:
                         if _s in _plan_to_snippet:
                             continue
-                        _sd = vs.similarity_search_by_vector(_pvecs[_s], k=TOP_K * 2)
-                        _sf = _school_filter_docs(_sd, _s, k=5)
-                        if _sf:
-                            # re-ranking：含 live scan 關鍵詞的 chunk 優先排前面
-                            if _live_scan_kws:
-                                _sf.sort(key=lambda d: -sum(
-                                    _clean_plan_code(d.page_content).count(kw)
-                                    for kw in _live_scan_kws
-                                ))
+                        _chunks = _pci.get(_s, [])
+                        if _chunks:
+                            _scored = sorted(_chunks,
+                                             key=lambda c: sum(1 for k in _score_kws if k in c),
+                                             reverse=True)
                             _plan_to_snippet[_s] = _trunc_at_sent('\n'.join(
-                                _trunc_at_sent(_clean_plan_code(d.page_content), 200) for d in _sf
+                                _trunc_at_sent(c, 200) for c in _scored[:5]
                             ), 600)
-                    print(f"[FAISS-PLAN] per-school FAISS 完成，_plan_to_snippet {len(_plan_to_snippet)} 件")
+                    print(f"[CHUNK-IDX] per-plan lookup 完成，_plan_to_snippet {len(_plan_to_snippet)} 件")
 
                 # 偵測分析型子問題（多個？分隔），有則限制清單件數
                 _extra_sub_qs = [p for p in [p.strip() for p in re.split(r'[？?]', question) if p.strip()][1:]
@@ -2479,10 +2459,6 @@ def ask():
                             del _chat_history[_hk]
                 return  # 跳過原本的大 LLM call
 
-                # 列舉型：SEQ（精確命中）+ FAISS（語意補充）合併，確保廣度
-                seen_heads = {a[:80] for a in annotated}
-                extra = [t for t in faiss_texts if t[:80] not in seen_heads]
-                context = "\n\n".join(annotated + extra)
             elif annotated:
                 context = "\n\n".join(annotated)
             else:
@@ -2792,33 +2768,6 @@ def _extract_query_terms(q: str) -> list[str]:
 
 
 
-FOLLOWUP_CHECK_PROMPT = """判斷目前問題是否在追問或延伸前一輪問題的查詢結果，只輸出「是」或「否」。
-
-前一輪問題：{prev_q}
-目前問題：{curr_q}"""
-
-
-def _check_is_followup(question: str, prev_turn: dict) -> bool:
-    """用 LLM 判斷目前問題是否追問前一輪結果。失敗時回傳 False（保守視為新問題）。"""
-    try:
-        from langchain_core.messages import HumanMessage
-        prev_q = (prev_turn.get('q') or '')[:120]
-        if not prev_q:
-            return False
-        prompt = FOLLOWUP_CHECK_PROMPT.format(prev_q=prev_q, curr_q=question[:120])
-        res = llm_fast.bind(temperature=0, thinking_budget=0).invoke([HumanMessage(content=prompt)])
-        try:
-            _um = getattr(res, 'usage_metadata', None) or {}
-            _log_api_cost("gemini", "followup_check", _LLM_FAST_MODEL_NAME, _um.get('input_tokens', 0), _um.get('output_tokens', 0))
-        except Exception:
-            pass
-        text = _normalize_content(res.content).strip()
-        result = text.startswith('是')
-        print(f"[FOLLOWUP] {'追問' if result else '新問題'}（LLM）：{question[:40]!r}")
-        return result
-    except Exception as e:
-        print(f"[FOLLOWUP] 檢查失敗：{e}")
-        return False
 
 
 SUGGEST_PROMPT = """根據以下 USR 計畫書問答，生成 3 個使用者可能想繼續追問的問題。
@@ -3026,13 +2975,6 @@ def _detect_question_counties(q: str) -> set[str]:
             counties.add(county)
     return counties
 
-# 保留舊名供舊程式碼相容
-_SCHOOL_REGION = {k: '' for k in _SCHOOL_COUNTY}
-def _get_school_region(school_name: str) -> str:
-    return _get_school_county(school_name)
-def _detect_question_region(q: str) -> str:
-    return 'any' if _detect_question_counties(q) else ''
-
 _EVAL_RE = re.compile(
     # 「最」字系列：明確排名意圖
     r'最(?:好|棒|佳|優|優秀|值得|推薦|有效|成功|傑出|具代表|有特色|突出|厲害|強大|重要)'
@@ -3097,9 +3039,11 @@ def _extract_school(text: str) -> str | None:
     return None
 
 
-def _school_filter_docs(docs, entry: str, k: int):
-    """過濾含學校名稱（及計畫名前綴）的 chunk，無結果則退回全部。
+def _school_filter_docs(docs, entry: str, k: int, strict: bool = False):
+    """過濾含學校名稱（及計畫名前綴）的 chunk。
     entry 可以是 '學校名' 或 '學校名：計畫名' 格式。
+    strict=True：找不到回傳 []，避免 per-plan 列舉時貼上其他學校的內容。
+    strict=False（預設）：找不到退回 docs[:k]，適合單校查詢。
     """
     parts = entry.split('：', 1)
     school = parts[0]
@@ -3111,7 +3055,7 @@ def _school_filter_docs(docs, entry: str, k: int):
             filtered = [d for d in docs if school in src(d)]
     else:
         filtered = [d for d in docs if school in src(d)]
-    return filtered[:k] if filtered else docs[:k]
+    return filtered[:k] if filtered else ([] if strict else docs[:k])
 
 
 def _extract_role_term(question: str) -> str | None:
