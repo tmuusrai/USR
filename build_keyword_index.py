@@ -170,14 +170,13 @@ def build_sdg_plans(year: str) -> dict[str, list[str]]:
     return sdg_plans
 
 
-def build_topic_plans(vs) -> dict[str, list[str]]:
-    """掃 vectorstore，建立 USR_TOPIC_KEYWORDS 詞 → 計畫名單。"""
+def build_topic_plans(vs) -> dict[str, list[dict]]:
+    """掃 vectorstore，建立 USR_TOPIC_KEYWORDS 詞 → chunk 清單（含 school/plan/text）。"""
     all_kws: set[str] = set()
     for kws in USR_TOPIC_KEYWORDS.values():
         all_kws.update(kws)
 
-    # 建 {kw: set(plan_name)}
-    kw_plans: dict[str, set[str]] = {kw: set() for kw in all_kws}
+    kw_chunks: dict[str, list[dict]] = {kw: [] for kw in all_kws}
 
     docs = list(vs.docstore._dict.values())
     t0 = time.perf_counter()
@@ -186,15 +185,16 @@ def build_topic_plans(vs) -> dict[str, list[str]]:
         plan = _source_to_plan(doc.metadata.get("source", ""))
         if not plan:
             continue
+        school = plan.split('：', 1)[0]
         for kw in all_kws:
             if kw in text:
-                kw_plans[kw].add(plan)
+                kw_chunks[kw].append({"school": school, "plan": plan, "text": text})
 
     elapsed = round((time.perf_counter() - t0) * 1000)
-    total = sum(len(v) for v in kw_plans.values())
-    print(f"  掃描完成：{len(all_kws)} 個關鍵字，{total} 筆對應，耗時 {elapsed}ms")
+    total = sum(len(v) for v in kw_chunks.values())
+    print(f"  掃描完成：{len(all_kws)} 個關鍵字，{total} 筆 chunks，耗時 {elapsed}ms")
 
-    return {kw: sorted(plans) for kw, plans in kw_plans.items() if plans}
+    return {kw: chunks for kw, chunks in kw_chunks.items() if chunks}
 
 
 def main():
@@ -211,7 +211,7 @@ def main():
     VOYAGE_API_KEY = os.getenv("VOYAGE_API_KEY")
     embeddings = VoyageAIEmbeddings(
         voyage_api_key=VOYAGE_API_KEY,
-        model="voyage-3-large",
+        model="voyage-4-large",
         batch_size=64,
     )
 
@@ -237,10 +237,10 @@ def main():
             if plans:
                 yr_data[key] = sorted(plans)
 
-        print("  建立 USR_TOPIC_KEYWORDS 計畫名單...")
+        print("  建立 USR_TOPIC_KEYWORDS chunk 索引...")
         topic_plans = build_topic_plans(vs)
-        for kw, plans in topic_plans.items():
-            yr_data[kw] = plans
+        for kw, chunks in topic_plans.items():
+            yr_data[kw] = chunks
 
         total_kws = len(yr_data)
         total_entries = sum(len(v) for v in yr_data.values())
