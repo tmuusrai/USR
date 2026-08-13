@@ -2242,6 +2242,17 @@ def ask():
                     annotated = [a for a in annotated if any(s.split('：')[0] in a for s in _listed_schools)]
                     print(f"[LIVE] 追問學校過濾後 {len(annotated)} 筆")
 
+            # ── 一般查詢：FAISS 結果過多時改用 live scan 精取 ──
+            if not _list and not _school and len(docs) > 45:
+                _ls_kws = _extract_query_terms(search_question)
+                if _ls_kws:
+                    _ls_results = _faiss_scan_kws(_ls_kws, vs, condense=False)
+                    if _ls_results:
+                        _orig_faiss_count = len(docs)
+                        annotated = _ls_results
+                        docs = []
+                        print(f"[LIVESCAN-FALLBACK] FAISS {_orig_faiss_count} 筆 > 45，改用 live scan {len(annotated)} 筆")
+
             # 列舉型用 Flash 處理大 context 很快，給更多空間；其他問題截短避免拖慢 Pro
             _CTX_CHAR_LIMIT = 60000 if _list else 30000
             if _list:
