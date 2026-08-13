@@ -171,12 +171,14 @@ def build_sdg_plans(year: str) -> dict[str, list[str]]:
 
 
 def build_topic_plans(vs) -> dict[str, list[dict]]:
-    """掃 vectorstore，建立 USR_TOPIC_KEYWORDS 詞 → chunk 清單（含 school/plan/text）。"""
+    """掃 vectorstore，建立 USR_TOPIC_KEYWORDS 詞 → chunk 清單（含 school/plan/text）。
+    每個 (keyword, plan) 只保留命中次數最多的一個 chunk，並截短至 400 字。
+    """
     all_kws: set[str] = set()
     for kws in USR_TOPIC_KEYWORDS.values():
         all_kws.update(kws)
 
-    kw_chunks: dict[str, list[dict]] = {kw: [] for kw in all_kws}
+    kw_best: dict[str, dict[str, dict]] = {kw: {} for kw in all_kws}
 
     docs = list(vs.docstore._dict.values())
     t0 = time.perf_counter()
@@ -187,14 +189,18 @@ def build_topic_plans(vs) -> dict[str, list[dict]]:
             continue
         school = plan.split('：', 1)[0]
         for kw in all_kws:
-            if kw in text:
-                kw_chunks[kw].append({"school": school, "plan": plan, "text": text})
+            hits = text.count(kw)
+            if hits > 0:
+                cur = kw_best[kw].get(plan)
+                if cur is None or hits > cur["hits"]:
+                    kw_best[kw][plan] = {"school": school, "plan": plan,
+                                         "text": text[:400], "hits": hits}
 
     elapsed = round((time.perf_counter() - t0) * 1000)
-    total = sum(len(v) for v in kw_chunks.values())
-    print(f"  掃描完成：{len(all_kws)} 個關鍵字，{total} 筆 chunks，耗時 {elapsed}ms")
+    total = sum(len(v) for v in kw_best.values())
+    print(f"  掃描完成：{len(all_kws)} 個關鍵字，{total} entries，耗時 {elapsed}ms")
 
-    return {kw: chunks for kw, chunks in kw_chunks.items() if chunks}
+    return {kw: list(plans.values()) for kw, plans in kw_best.items() if plans}
 
 
 def main():

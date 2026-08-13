@@ -1449,11 +1449,13 @@ def _kw_entry_plan(e) -> str:
     return e["plan"] if isinstance(e, dict) else e
 
 def _build_topic_kw_index(year: str, vs) -> dict[str, list[dict]]:
-    """掃 vectorstore，建立 USR_TOPIC_KEYWORDS 詞 → chunk 清單（含 school/plan/text）。"""
+    """掃 vectorstore，建立 USR_TOPIC_KEYWORDS 詞 → chunk 清單（含 school/plan/text）。
+    每個 (keyword, plan) 只保留命中次數最多的一個 chunk，並截短至 400 字。
+    """
     all_kws: set[str] = {kw for kws in USR_TOPIC_KEYWORDS.values() for kw in kws}
-    kw_chunks: dict[str, list[dict]] = {kw: [] for kw in all_kws}
+    # kw → plan → {"school", "plan", "text", "hits"}
+    kw_best: dict[str, dict[str, dict]] = {kw: {} for kw in all_kws}
     plan_count: set[str] = set()
-    chunk_total = 0
     t0 = time.perf_counter()
     for doc in vs.docstore._dict.values():
         src = doc.metadata.get("source", "")
@@ -1468,13 +1470,17 @@ def _build_topic_kw_index(year: str, vs) -> dict[str, list[dict]]:
         school = parts[0]
         plan_count.add(plan)
         for kw in all_kws:
-            if kw in text:
-                kw_chunks[kw].append({"school": school, "plan": plan, "text": text})
-                chunk_total += 1
+            hits = text.count(kw)
+            if hits > 0:
+                cur = kw_best[kw].get(plan)
+                if cur is None or hits > cur["hits"]:
+                    kw_best[kw][plan] = {"school": school, "plan": plan,
+                                         "text": text[:400], "hits": hits}
     elapsed = round((time.perf_counter() - t0) * 1000)
-    kw_result = {kw: chunks for kw, chunks in kw_chunks.items() if chunks}
+    kw_result = {kw: list(plans.values()) for kw, plans in kw_best.items() if plans}
+    total_entries = sum(len(v) for v in kw_result.values())
     print(f"[KW-BUILD] {year} 年：{len(kw_result)} 個詞，{len(plan_count)} 份計畫，"
-          f"{chunk_total} chunks，耗時 {elapsed}ms")
+          f"{total_entries} entries，耗時 {elapsed}ms")
     return kw_result
 
 def _load_or_build_kw_index() -> None:
