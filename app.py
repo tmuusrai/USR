@@ -981,6 +981,50 @@ def _read_plan_summary(school: str, year: str = "114") -> str | None:
     return '\n\n---\n\n'.join(blocks) if blocks else None
 
 
+_SUMMARY_INTENT_RE = re.compile(
+    r'計畫(總覽|內容|摘要|介紹|重點|概述|說明|成果|亮點|執行)'
+    r'|執行(內容|成果|重點|情形|進度)'
+    r'|成果(摘要|報告|亮點|說明)'
+    r'|做了什麼|做什麼|在幹嘛|在做什麼'
+)
+
+_SUMMARY_DIR = Path("114_output/summary")
+
+def _find_school_summaries(school: str) -> list[tuple[str, str]]:
+    """找出該學校所有 summary TXT，回傳 [(計畫名, 內容), ...]。"""
+    if not _SUMMARY_DIR.exists():
+        return []
+    results = []
+    for f in sorted(_SUMMARY_DIR.glob(f"{school}_*.txt")):
+        plan = f.stem.split("_", 1)[1] if "_" in f.stem else f.stem
+        # 去除括號內的計畫代號
+        plan = re.sub(r'\(114USR[^)]*\)', '', plan).strip()
+        plan = re.sub(r'_114USR.*$', '', plan).strip()
+        results.append((plan, f.read_text(encoding="utf-8")))
+    return results
+
+def _try_summary_answer(question: str, year: str) -> str | None:
+    """若問到特定學校計畫內容/總覽，直接回傳 summary TXT 內容。"""
+    if year != "114":
+        return None
+    if not _SUMMARY_INTENT_RE.search(question):
+        return None
+    school = _extract_school(question)
+    if not school:
+        return None
+    summaries = _find_school_summaries(school)
+    if not summaries:
+        return None
+    if len(summaries) == 1:
+        plan, content = summaries[0]
+        return f"## {school}｜{plan}\n\n{content}"
+    # 多個計畫 → 全部列出
+    parts = []
+    for plan, content in summaries:
+        parts.append(f"## {school}｜{plan}\n\n{content}")
+    return "\n\n---\n\n".join(parts)
+
+
 _MULTI_REF_RE = re.compile(
     r'以上\s*\d+\s*間|上述\s*\d+\s*間|這\s*\d+\s*間|那\s*\d+\s*間'
     r'|以上這些|上面這些|前面這些|上述計畫|以上計畫'
@@ -1878,6 +1922,15 @@ def ask():
                 yield f"data: {json.dumps({'type': 'chunk', 'text': structured_ctx}, ensure_ascii=False)}\n\n"
                 total_ms = round((time.perf_counter() - t0) * 1000)
                 yield f"data: {json.dumps({'type': 'done', 'timing': {'total_ms': total_ms}, 'mode': 'qa_custom'}, ensure_ascii=False)}\n\n"
+                return
+
+            # ── ①-b 計畫總覽/內容短路：直接回傳 summary TXT ──
+            summary_ctx = _try_summary_answer(question, year=year)
+            if summary_ctx:
+                yield f"data: {json.dumps({'type': 'sources', 'sources': []}, ensure_ascii=False)}\n\n"
+                yield f"data: {json.dumps({'type': 'chunk', 'text': summary_ctx}, ensure_ascii=False)}\n\n"
+                total_ms = round((time.perf_counter() - t0) * 1000)
+                yield f"data: {json.dumps({'type': 'done', 'timing': {'total_ms': total_ms}, 'mode': 'summary_direct'}, ensure_ascii=False)}\n\n"
                 return
 
             # ── 對話記憶 + 搜尋問題準備 ──
