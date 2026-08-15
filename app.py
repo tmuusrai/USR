@@ -1442,7 +1442,7 @@ init_qa()
 
 # ── 關鍵字索引 ────────────────────────────────────────
 _keyword_index: dict[str, dict] = {}
-_KW_INDEX_PATH = Path("keyword_index.json")
+_KW_INDEX_PATH = Path("114_output/keyword_index.json")
 
 def _kw_entry_plan(e) -> str:
     """從 keyword_index entry 取計畫名（dict 或舊格式 str 皆相容）。"""
@@ -1903,7 +1903,7 @@ def ask():
 
             # ── LLM：議題語意分類 ──
             _explicit_followup = bool(_MULTI_REF_RE.search(question) and history)
-            _is_followup: bool = _explicit_followup
+            _is_followup: bool = _explicit_followup or (use_context and bool(history))
 
             # ③ 主觀評量：含排名/比較/最佳等詞，需釐清評估標準（列舉型問題不觸發）
             if not skip_eval and not _list_check and _is_evaluation_question(question):
