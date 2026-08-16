@@ -2033,8 +2033,8 @@ def ask():
             _explicit_followup = bool(_MULTI_REF_RE.search(question) and history)
             _is_followup: bool = _explicit_followup or (use_context and bool(history))
 
-            # ③ 主觀評量：含排名/比較/最佳等詞，需釐清評估標準（列舉型問題不觸發）
-            if not skip_eval and not _list_check and _is_evaluation_question(question):
+            # ③ 主觀評量：含排名/比較/最佳等詞，或「哪些學校有完整/完善...制度」型，需釐清評估標準
+            if not skip_eval and _is_evaluation_question(question):
                 _clarify_msg = _generate_clarify_msg(question)
                 yield f"data: {json.dumps({'type': 'sources', 'sources': []}, ensure_ascii=False)}\n\n"
                 yield f"data: {json.dumps({'type': 'chunk', 'text': _clarify_msg}, ensure_ascii=False)}\n\n"
