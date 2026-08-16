@@ -2151,6 +2151,13 @@ def ask():
                             _matched_kws.append(_kw_pre)
                             _plan_set_pre.update(_kw_idx_pre[_kw_pre])
 
+                # 4. 計畫類型別名（萌芽型/深耕型/國際合作型/特色永續型 → 完整 key）
+                for _alias, _full_key in _PLAN_TYPE_ALIAS.items():
+                    if _alias in search_question and _full_key and _full_key in _kw_idx_pre:
+                        if _full_key not in _matched_kws:
+                            _matched_kws.append(_full_key)
+                            _plan_set_pre.update(_kw_entry_plan(e) for e in _kw_idx_pre[_full_key])
+
                 if _matched_kws:
                     _kw_list_hit = _matched_kws[0]
                     _kw_plan_list = sorted(_plan_set_pre)
