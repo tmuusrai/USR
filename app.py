@@ -1965,9 +1965,24 @@ def ask():
             if _hl_terms:
                 yield f"data: {json.dumps({'type': 'highlight_terms', 'terms': _hl_terms}, ensure_ascii=False)}\n\n"
 
+            # ── 對話記憶（提前載入，shortcut 路徑也能存取）──
+            history = (_chat_history.get(chat_id, []) if chat_id else []) if use_context else []
+
+            def _save_shortcut_history(ans: str, plans: list | None = None) -> None:
+                """shortcut 路徑用：將回答存入 _chat_history。"""
+                if not chat_id:
+                    return
+                _saved = plans if plans is not None else _extract_listed_plans(ans)
+                with _chat_history_lock:
+                    _h = _chat_history.setdefault(chat_id, [])
+                    _h.append({"q": question, "a": ans[:5000], "plans": _saved})
+                    if len(_h) > _MAX_HISTORY:
+                        _h.pop(0)
+
             # ── ① qa_custom 短路攔截（優先於所有流程）──
             structured_ctx = try_structured_answer(question, year=year)
             if structured_ctx:
+                _save_shortcut_history(structured_ctx)
                 yield f"data: {json.dumps({'type': 'sources', 'sources': []}, ensure_ascii=False)}\n\n"
                 yield f"data: {json.dumps({'type': 'chunk', 'text': structured_ctx}, ensure_ascii=False)}\n\n"
                 total_ms = round((time.perf_counter() - t0) * 1000)
@@ -1977,6 +1992,7 @@ def ask():
             # ── ①-b 計畫類型短路：問萌芽型/深耕型/國際合作型/特色永續型 ──
             plan_type_ctx = _try_plan_type_answer(question, year=year)
             if plan_type_ctx:
+                _save_shortcut_history(plan_type_ctx)
                 yield f"data: {json.dumps({'type': 'sources', 'sources': []}, ensure_ascii=False)}\n\n"
                 yield f"data: {json.dumps({'type': 'chunk', 'text': plan_type_ctx}, ensure_ascii=False)}\n\n"
                 total_ms = round((time.perf_counter() - t0) * 1000)
@@ -1986,14 +2002,14 @@ def ask():
             # ── ①-c 計畫總覽/內容短路：直接回傳 summary TXT ──
             summary_ctx = _try_summary_answer(question, year=year)
             if summary_ctx:
+                _save_shortcut_history(summary_ctx)
                 yield f"data: {json.dumps({'type': 'sources', 'sources': []}, ensure_ascii=False)}\n\n"
                 yield f"data: {json.dumps({'type': 'chunk', 'text': summary_ctx}, ensure_ascii=False)}\n\n"
                 total_ms = round((time.perf_counter() - t0) * 1000)
                 yield f"data: {json.dumps({'type': 'done', 'timing': {'total_ms': total_ms}, 'mode': 'summary_direct'}, ensure_ascii=False)}\n\n"
                 return
 
-            # ── 對話記憶 + 搜尋問題準備 ──
-            history = (_chat_history.get(chat_id, []) if chat_id else []) if use_context else []
+            # ── 搜尋問題準備 ──
             t_prepare_start = time.perf_counter()
             if history:
                 search_question = _prepare_search_query(question, history)
