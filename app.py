@@ -1939,8 +1939,9 @@ def ask():
         user_type = "applicant"
     original_question = _sanitize_prompt_input((data.get("original_question") or "").strip())
     skip_eval = bool(original_question)
+    _eval_criterion = _sanitize_prompt_input((data.get("question") or "").strip()) if original_question else ""
     if original_question:
-        question = f"{original_question}（請依以下標準評估：{question}）"
+        question = f"{original_question}（請依以下標準評估：{_eval_criterion}）"
     year = (data.get("year") or "114").strip()
     if year not in ("113", "114"):
         year = "114"
@@ -2011,7 +2012,10 @@ def ask():
 
             # ── 搜尋問題準備 ──
             t_prepare_start = time.perf_counter()
-            if history:
+            if _eval_criterion:
+                # 評量模式：用使用者給的標準當搜尋詞，精準找相關計畫
+                search_question = _eval_criterion
+            elif history:
                 search_question = _prepare_search_query(question, history)
             else:
                 search_question = question
@@ -2067,7 +2071,7 @@ def ask():
                 _school = _extract_school(history[-1]['q'])
                 if _school:
                     print(f"[ASK] 從歷史補充學校：{_school}")
-            _list      = bool(_LIST_INTENT_RE.search(search_question)) and not _school and not _LIST_CONCEPT_RE.search(search_question)
+            _list      = bool(_LIST_INTENT_RE.search(search_question)) and not _school and not _LIST_CONCEPT_RE.search(search_question) and not _eval_criterion
             _query_is_or = '或' in question
             _personnel = bool(_PERSONNEL_RE.search(search_question))
             _kw        = _extract_keywords(search_question)
@@ -2713,6 +2717,15 @@ def ask():
             # 多校追問：提示 LLM 針對每間學校分別回答，不得合併或省略
             if _multi_enumerate:
                 context = f"【本問題涉及前一輪列出的 {len(_listed_schools)} 件計畫，請在回答中針對 context 中每件計畫分別說明，不得合併舉例或省略任何一件。】\n\n" + context
+
+            # 評量模式：用使用者給的標準評估，只列出有具體符合的學校
+            if _eval_criterion:
+                context = (
+                    f"【評估任務】使用者原始問題：「{original_question}」\n"
+                    f"使用者指定評估標準：「{_eval_criterion}」\n"
+                    f"請根據以下計畫書資料，找出在「{_eval_criterion}」方面有具體做法或制度的學校，"
+                    f"說明其具體內容，並只列出真正符合標準的學校。沒有相關內容的計畫不要列出。\n\n"
+                ) + context
 
             # ── 委員模式：同儕比較（同類型計畫 2~3 所其他學校）──
             if user_type == "reviewer" and _school:
