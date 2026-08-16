@@ -2578,8 +2578,7 @@ def ask():
                         _para_collected.append((_pl, _ps2))
 
                 _out_idx = len(_para_collected)
-                _skip_note = f"，另 {_skipped} 件無具體描述略去" if _skipped else ""
-                _header_txt = f"找到 {_out_idx} 件相關計畫{_list_display_note}{_t1_label}{_skip_note}\n\n"
+                _header_txt = f"找到 {_out_idx} 件相關計畫{_list_display_note}{_t1_label}\n\n"
                 _para_ans_parts.append(_header_txt)
                 yield f"data: {json.dumps({'type': 'chunk', 'text': _header_txt}, ensure_ascii=False)}\n\n"
                 _para_t_first = time.perf_counter()
