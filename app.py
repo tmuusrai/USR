@@ -981,6 +981,56 @@ def _read_plan_summary(school: str, year: str = "114") -> str | None:
     return '\n\n---\n\n'.join(blocks) if blocks else None
 
 
+_PLAN_TYPE_QUERY_RE = re.compile(
+    r'(大學特色類(?:萌芽型|深耕型)|永續發展類(?:國際合作型|特色永續型)'
+    r'|(?:萌芽型|深耕型|國際合作型|特色永續型)(?:計畫|有哪些|的大學|的學校)?'
+    r'|永續發展類)'
+)
+
+_PLAN_TYPE_ALIAS: dict[str, str] = {
+    "大學特色類萌芽型": "大學特色類萌芽型",
+    "萌芽型": "大學特色類萌芽型",
+    "大學特色類深耕型": "大學特色類深耕型",
+    "深耕型": "大學特色類深耕型",
+    "永續發展類國際合作型": "永續發展類國際合作型",
+    "國際合作型": "永續發展類國際合作型",
+    "永續發展類特色永續型": "永續發展類特色永續型",
+    "特色永續型": "永續發展類特色永續型",
+    "永續發展類": None,  # 需進一步判斷，預設列出兩個子類型
+}
+
+def _try_plan_type_answer(question: str, year: str) -> str | None:
+    """若問到計畫類型（萌芽型/深耕型/國際合作型/特色永續型），直接回傳清單。"""
+    m = _PLAN_TYPE_QUERY_RE.search(question)
+    if not m:
+        return None
+    matched = m.group(1).rstrip("計畫有哪些的大學的學校")
+    idx = _keyword_index.get(year, {})
+    if not idx:
+        return None
+
+    def _format_type(type_key: str) -> str | None:
+        entries = idx.get(type_key)
+        if not entries:
+            return None
+        lines = "\n".join(f"{i+1}. {e}" for i, e in enumerate(entries))
+        return f"**{type_key}**（共 {len(entries)} 件）\n\n{lines}"
+
+    # 「永續發展類」不帶子類型 → 同時列出兩個子類型
+    if matched == "永續發展類":
+        parts = []
+        for sub in ("永續發展類國際合作型", "永續發展類特色永續型"):
+            r = _format_type(sub)
+            if r:
+                parts.append(r)
+        return "\n\n---\n\n".join(parts) if parts else None
+
+    kw_key = _PLAN_TYPE_ALIAS.get(matched)
+    if not kw_key:
+        return None
+    return _format_type(kw_key)
+
+
 _SUMMARY_INTENT_RE = re.compile(
     r'計畫(總覽|內容|摘要|介紹|重點|概述|說明|成果|亮點|執行)'
     r'|執行(內容|成果|重點|情形|進度)'
@@ -1924,7 +1974,16 @@ def ask():
                 yield f"data: {json.dumps({'type': 'done', 'timing': {'total_ms': total_ms}, 'mode': 'qa_custom'}, ensure_ascii=False)}\n\n"
                 return
 
-            # ── ①-b 計畫總覽/內容短路：直接回傳 summary TXT ──
+            # ── ①-b 計畫類型短路：問萌芽型/深耕型/國際合作型/特色永續型 ──
+            plan_type_ctx = _try_plan_type_answer(question, year=year)
+            if plan_type_ctx:
+                yield f"data: {json.dumps({'type': 'sources', 'sources': []}, ensure_ascii=False)}\n\n"
+                yield f"data: {json.dumps({'type': 'chunk', 'text': plan_type_ctx}, ensure_ascii=False)}\n\n"
+                total_ms = round((time.perf_counter() - t0) * 1000)
+                yield f"data: {json.dumps({'type': 'done', 'timing': {'total_ms': total_ms}, 'mode': 'plan_type_direct'}, ensure_ascii=False)}\n\n"
+                return
+
+            # ── ①-c 計畫總覽/內容短路：直接回傳 summary TXT ──
             summary_ctx = _try_summary_answer(question, year=year)
             if summary_ctx:
                 yield f"data: {json.dumps({'type': 'sources', 'sources': []}, ensure_ascii=False)}\n\n"
