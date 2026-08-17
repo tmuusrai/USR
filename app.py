@@ -2455,6 +2455,15 @@ def ask():
                     else:
                         print(f"[LIST-DEBUG] keyword_index {len(_plan_list_lines)} 件，SEQ 無新增學校")
 
+                # 依問題關鍵字重排：chunk 中含查詢詞的計畫優先顯示
+                if _plan_list_lines and (_q_priority_kws or _q_terms):
+                    _sort_kws = list(dict.fromkeys(_q_priority_kws + _q_terms))
+                    def _plan_kw_score(_p: str) -> int:
+                        _txt = " ".join(_kw_idx_chunks.get(_p, []))
+                        return sum(1 for _k in _sort_kws if _k in _txt)
+                    _plan_list_lines.sort(key=_plan_kw_score, reverse=True)
+                    print(f"[KW-SORT] 依查詢詞重排，優先詞={_sort_kws[:5]}")
+
                 # 地區過濾：問題含縣市/大區域關鍵字時只保留對應縣市學校
                 _question_counties = _detect_question_counties(question)
                 if _question_counties:
