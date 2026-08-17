@@ -1615,6 +1615,34 @@ def _load_or_build_kw_index() -> None:
 
 _load_or_build_kw_index()
 
+# ── 啟動時建立全計畫 chunk 對照表 ──────────────────────────
+_plan_chunk_map: dict[str, str] = {}
+
+def _build_plan_chunk_map() -> None:
+    """掃 FAISS docstore，建立 plan_line → snippet 對照表，涵蓋所有已索引計畫。"""
+    global _plan_chunk_map
+    _tmp: dict[str, list[str]] = {}
+    for _vs in vectorstores.values():
+        if not _vs:
+            continue
+        for _doc in _vs.docstore._dict.values():
+            _src = _doc.metadata.get("source", "")
+            if "qa_custom" in _src:
+                continue
+            _stem = _clean_plan_code(Path(_src).stem)
+            _parts = _stem.split('_', 1)
+            if len(_parts) < 2:
+                continue
+            _pl = f"{_parts[0]}：{_parts[1]}"
+            _tmp.setdefault(_pl, []).append(_doc.page_content)
+    _plan_chunk_map = {
+        _pl: _trunc_at_sent('\n'.join(_cks[:3]), 600)
+        for _pl, _cks in _tmp.items()
+    }
+    print(f"[PLAN-CHUNK-MAP] 建立完成，共 {len(_plan_chunk_map)} 件計畫")
+
+_build_plan_chunk_map()
+
 
 # ── 路由 ──────────────────────────────────────────────
 def _load_plans(year: str = "114"):
@@ -2477,7 +2505,7 @@ def ask():
                 # ── 列舉型：從 keyword_index chunks 取各計畫內文 ──
                 if _plan_list_lines:
                     _score_kws = list(dict.fromkeys(_q_terms + list(_usr_topic_kws or [])))
-                    for _s in _plan_list_lines[:_MAX_PLAN_LIST]:
+                    for _s in _plan_list_lines:
                         if _s in _plan_to_snippet:
                             continue
                         _chunks = _kw_idx_chunks.get(_s, [])
@@ -2488,7 +2516,13 @@ def ask():
                             _plan_to_snippet[_s] = _trunc_at_sent('\n'.join(
                                 _trunc_at_sent(c, 200) for c in _scored[:5]
                             ), 600)
-                    print(f"[CHUNK-IDX] per-plan lookup 完成，_plan_to_snippet {len(_plan_to_snippet)} 件")
+                    # 仍無 snippet 的計畫，從啟動時建立的全計畫對照表補入
+                    _filled_map = 0
+                    for _s in _plan_list_lines:
+                        if _s not in _plan_to_snippet and _s in _plan_chunk_map:
+                            _plan_to_snippet[_s] = _plan_chunk_map[_s]
+                            _filled_map += 1
+                    print(f"[CHUNK-IDX] per-plan lookup 完成，_plan_to_snippet {len(_plan_to_snippet)} 件（map補充 {_filled_map} 件）")
 
                 # 偵測分析型子問題（多個？分隔），有則限制清單件數
                 _extra_sub_qs = [p for p in [p.strip() for p in re.split(r'[？?]', question) if p.strip()][1:]
