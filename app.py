@@ -2278,7 +2278,7 @@ def ask():
                         docs_topic = vs.similarity_search_by_vector(vecs['topic'], k=TOP_K * 3)
                         docs_all = _merge_docs(docs_all, docs_topic)
                         print(f"[ASK] 學校主題輪「{_topic}」→ 合併後 {len(docs_all)} 筆")
-                    docs_school = vs.similarity_search_by_vector(vecs['school'], k=TOP_K * 10)
+                    docs_school = vs.similarity_search_by_vector(vecs['school'], k=9999 if _list else TOP_K * 10)
                     docs_all = _merge_docs(docs_all, docs_school)
                     print(f"[ASK] 學校名稱輪「{_school}」→ 合併後 {len(docs_all)} 筆")
                     docs = _school_filter_docs(docs_all, _school, k=9999)
@@ -2489,30 +2489,7 @@ def ask():
                             _plan_to_snippet[_s] = _trunc_at_sent('\n'.join(
                                 _trunc_at_sent(c, 200) for c in _scored[:5]
                             ), 600)
-                    # 仍無 snippet 的計畫，直接從 docstore 讀取
-                    _missing = [_s for _s in _plan_list_lines if _s not in _plan_to_snippet]
-                    if _missing and vs is not None:
-                        _miss_set = set(_missing)
-                        _ds_chunks: dict[str, list[str]] = {}
-                        for _fdoc in vs.docstore._dict.values():
-                            _fsrc = _fdoc.metadata.get("source", "")
-                            if "qa_custom" in _fsrc:
-                                continue
-                            _fstem = _clean_plan_code(Path(_fsrc).stem)
-                            _fparts = _fstem.split('_', 1)
-                            if len(_fparts) < 2:
-                                continue
-                            _fkey = f"{_fparts[0]}：{_fparts[1]}"
-                            if _fkey in _miss_set:
-                                _ds_chunks.setdefault(_fkey, []).append(_fdoc.page_content)
-                        _filled_ds = 0
-                        for _ms in _missing:
-                            if _ms in _ds_chunks:
-                                _plan_to_snippet[_ms] = _trunc_at_sent('\n'.join(_ds_chunks[_ms][:3]), 600)
-                                _filled_ds += 1
-                        print(f"[CHUNK-IDX] per-plan lookup 完成，_plan_to_snippet {len(_plan_to_snippet)} 件（docstore補充 {_filled_ds} 件）")
-                    else:
-                        print(f"[CHUNK-IDX] per-plan lookup 完成，_plan_to_snippet {len(_plan_to_snippet)} 件")
+                    print(f"[CHUNK-IDX] per-plan lookup 完成，_plan_to_snippet {len(_plan_to_snippet)} 件")
 
                 # 偵測分析型子問題（多個？分隔），有則限制清單件數
                 _extra_sub_qs = [p for p in [p.strip() for p in re.split(r'[？?]', question) if p.strip()][1:]
