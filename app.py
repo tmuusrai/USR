@@ -1615,33 +1615,6 @@ def _load_or_build_kw_index() -> None:
 
 _load_or_build_kw_index()
 
-# ── 啟動時建立全計畫 chunk 對照表 ──────────────────────────
-_plan_chunk_map: dict[str, str] = {}
-
-def _build_plan_chunk_map() -> None:
-    """掃 FAISS docstore，建立 plan_line → snippet 對照表，涵蓋所有已索引計畫。"""
-    global _plan_chunk_map
-    _tmp: dict[str, list[str]] = {}
-    for _vs in vectorstores.values():
-        if not _vs:
-            continue
-        for _doc in _vs.docstore._dict.values():
-            _src = _doc.metadata.get("source", "")
-            if "qa_custom" in _src:
-                continue
-            _stem = _clean_plan_code(Path(_src).stem)
-            _parts = _stem.split('_', 1)
-            if len(_parts) < 2:
-                continue
-            _pl = f"{_parts[0]}：{_parts[1]}"
-            _tmp.setdefault(_pl, []).append(_doc.page_content)
-    _plan_chunk_map = {
-        _pl: _trunc_at_sent('\n'.join(_cks[:3]), 600)
-        for _pl, _cks in _tmp.items()
-    }
-    print(f"[PLAN-CHUNK-MAP] 建立完成，共 {len(_plan_chunk_map)} 件計畫")
-
-_build_plan_chunk_map()
 
 
 # ── 路由 ──────────────────────────────────────────────
@@ -2516,13 +2489,30 @@ def ask():
                             _plan_to_snippet[_s] = _trunc_at_sent('\n'.join(
                                 _trunc_at_sent(c, 200) for c in _scored[:5]
                             ), 600)
-                    # 仍無 snippet 的計畫，從啟動時建立的全計畫對照表補入
-                    _filled_map = 0
-                    for _s in _plan_list_lines:
-                        if _s not in _plan_to_snippet and _s in _plan_chunk_map:
-                            _plan_to_snippet[_s] = _plan_chunk_map[_s]
-                            _filled_map += 1
-                    print(f"[CHUNK-IDX] per-plan lookup 完成，_plan_to_snippet {len(_plan_to_snippet)} 件（map補充 {_filled_map} 件）")
+                    # 仍無 snippet 的計畫，直接從 docstore 讀取
+                    _missing = [_s for _s in _plan_list_lines if _s not in _plan_to_snippet]
+                    if _missing and vs is not None:
+                        _miss_set = set(_missing)
+                        _ds_chunks: dict[str, list[str]] = {}
+                        for _fdoc in vs.docstore._dict.values():
+                            _fsrc = _fdoc.metadata.get("source", "")
+                            if "qa_custom" in _fsrc:
+                                continue
+                            _fstem = _clean_plan_code(Path(_fsrc).stem)
+                            _fparts = _fstem.split('_', 1)
+                            if len(_fparts) < 2:
+                                continue
+                            _fkey = f"{_fparts[0]}：{_fparts[1]}"
+                            if _fkey in _miss_set:
+                                _ds_chunks.setdefault(_fkey, []).append(_fdoc.page_content)
+                        _filled_ds = 0
+                        for _ms in _missing:
+                            if _ms in _ds_chunks:
+                                _plan_to_snippet[_ms] = _trunc_at_sent('\n'.join(_ds_chunks[_ms][:3]), 600)
+                                _filled_ds += 1
+                        print(f"[CHUNK-IDX] per-plan lookup 完成，_plan_to_snippet {len(_plan_to_snippet)} 件（docstore補充 {_filled_ds} 件）")
+                    else:
+                        print(f"[CHUNK-IDX] per-plan lookup 完成，_plan_to_snippet {len(_plan_to_snippet)} 件")
 
                 # 偵測分析型子問題（多個？分隔），有則限制清單件數
                 _extra_sub_qs = [p for p in [p.strip() for p in re.split(r'[？?]', question) if p.strip()][1:]
