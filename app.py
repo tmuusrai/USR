@@ -2036,11 +2036,8 @@ def ask():
             # ── USR 議題關鍵字偵測：建立 expand_query 供 FAISS 多輪搜尋 ──
             expand_query: str | None = None
             _list_check = bool(_LIST_INTENT_RE.search(search_question)) and not _LIST_CONCEPT_RE.search(search_question)
-            if _list_check:
-                # 列舉型：合併所有命中類別的關鍵字，廣度優先
-                _usr_topic, _usr_topic_kws = _detect_all_usr_topics(question)
-            else:
-                _usr_topic, _usr_topic_kws = _detect_usr_topic(question)
+            # 一律只對應單一最高分議題
+            _usr_topic, _usr_topic_kws = _detect_usr_topic(question)
             if _usr_topic and _usr_topic_kws:
                 expand_query = " ".join(_usr_topic_kws)
                 print(f"[TOPIC] 議題展開 query（前60字）：{expand_query[:60]}")
