@@ -2490,30 +2490,6 @@ def ask():
                             ), 600)
                     print(f"[CHUNK-IDX] per-plan lookup 完成，_plan_to_snippet {len(_plan_to_snippet)} 件")
 
-                # CHUNK-FALLBACK：對仍無 snippet 的計畫，直接掃 FAISS docstore 取原文
-                _missing_snip = [_s for _s in _plan_list_lines[:_MAX_PLAN_LIST] if _s not in _plan_to_snippet]
-                if _missing_snip and vs is not None:
-                    _miss_set = set(_missing_snip)
-                    _fb_chunks: dict[str, list[str]] = {}
-                    for _fdoc in vs.docstore._dict.values():
-                        _fsrc = _fdoc.metadata.get("source", "")
-                        if "qa_custom" in _fsrc:
-                            continue
-                        _fstem = _clean_plan_code(Path(_fsrc).stem)
-                        _fparts = _fstem.split('_', 1)
-                        if len(_fparts) < 2:
-                            continue
-                        _fb_line = f"{_fparts[0]}：{_fparts[1]}"
-                        if _fb_line in _miss_set:
-                            _fb_chunks.setdefault(_fb_line, []).append(_fdoc.page_content)
-                    _filled_fb = 0
-                    for _mp in _missing_snip:
-                        _fchunks = _fb_chunks.get(_mp, [])
-                        if _fchunks:
-                            _plan_to_snippet[_mp] = _trunc_at_sent('\n'.join(_fchunks[:3]), 600)
-                            _filled_fb += 1
-                    print(f"[CHUNK-FALLBACK] docstore 補充 {_filled_fb}/{len(_missing_snip)} 件")
-
                 # 偵測分析型子問題（多個？分隔），有則限制清單件數
                 _extra_sub_qs = [p for p in [p.strip() for p in re.split(r'[？?]', question) if p.strip()][1:]
                                  if re.search(r'什麼|哪些|哪幾|如何|為何|為什麼|怎麼|怎樣|多少|幾個|幾間|幾件|哪', p)]
@@ -2548,6 +2524,7 @@ def ask():
                         f"- 提及地名（縣市、鄉鎮、村里、社區、場域、山川等）時，一律用〔〕標記，例：〔三芝區〕、〔萬年溪〕\n"
                         f"- 將與查詢議題語意相關的詞語（含同義詞、相關概念）用**標記**\n"
                         f"- 若內容僅含章節標題（如「一、」「（一）」「叁、」「## 標題」等）或單位名稱清單、聯絡表格等無具體描述，直接輸出「#RAW」\n"
+                        f"- 若計畫內容與查詢主題「{'、'.join(_topic_kws_for_prompt[:5]) if _topic_kws_for_prompt else question[:20]}」完全無關，直接輸出「#RAW」\n"
                         f"只輸出說明句，不要其他文字。\n\n{_snip}"
                     )
                     try:
