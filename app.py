@@ -2092,7 +2092,9 @@ def ask():
             _fetch = TOP_K * 5 if _school else (TOP_K * 4 if _personnel else (TOP_K * 3 if _list else TOP_K))
 
             # ④ 規範性問題：詢問「如何做好X」，引導至 USR 案例搜尋
-            if not _list and not _school and _is_normative_question(question):
+            # 問題已命中具體 USR 議題關鍵字時跳過，直接搜尋
+            _norm_topic, _ = _detect_usr_topic(question)
+            if not _list and not _school and _is_normative_question(question) and not _norm_topic:
                 _norm_msg = _generate_normative_msg(question)
                 yield f"data: {json.dumps({'type': 'sources', 'sources': []}, ensure_ascii=False)}\n\n"
                 yield f"data: {json.dumps({'type': 'chunk', 'text': _norm_msg}, ensure_ascii=False)}\n\n"
@@ -3524,7 +3526,8 @@ def subagent_ask():
             # ✦ 規範性問題攔截
             if (not _LIST_INTENT_RE.search(question)
                     and not _extract_school(question)
-                    and _is_normative_question(question)):
+                    and _is_normative_question(question)
+                    and not _detect_usr_topic(question)[0]):
                 _norm_msg = _generate_normative_msg(question)
                 yield f"data: {json.dumps({'type': 'sources', 'sources': []}, ensure_ascii=False)}\n\n"
                 yield f"data: {json.dumps({'type': 'chunk', 'text': _norm_msg}, ensure_ascii=False)}\n\n"
