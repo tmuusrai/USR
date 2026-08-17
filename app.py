@@ -2409,7 +2409,7 @@ def ask():
 
             _plan_to_snippet: dict[str, str] = {}
             if _list:
-                # faiss_texts（per-school FAISS 結果）+ annotated（SEQ 結果）合併補 snippet
+                # faiss_texts + annotated 用於建計畫清單（tier1/tier2），內容則優先用 keyword_index chunks
                 _combined_src = list(faiss_texts) + (annotated or [])
                 _seen_plan_srcs: set[str] = set()
                 _tier1: list[str] = []
@@ -2427,7 +2427,9 @@ def ask():
                         continue
                     _seen_plan_srcs.add(_src)
                     _line = f"{_parts[0]}：{_parts[1]}"
-                    _plan_to_snippet[_line] = _entry[_m.end():].strip()[:500]
+                    # keyword_index 有 chunk 時不用 FAISS 內容；無時才從 FAISS 取
+                    if not _kw_idx_chunks:
+                        _plan_to_snippet[_line] = _entry[_m.end():].strip()[:500]
                     if _q_priority_kws and any(pk in _entry for pk in _q_priority_kws):
                         _tier1.append(_line)
                     else:
