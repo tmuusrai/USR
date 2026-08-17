@@ -1144,11 +1144,15 @@ def _kw_in_question(kw: str, question: str) -> bool:
     return False
 
 
+# 六大主要議題，優先比對；無命中才考慮其餘議題
+_PRIMARY_TOPICS = {"在地關懷", "環境永續", "健康促進與食品安全", "產業鏈結與經濟永續", "文化永續", "其他社會實踐"}
+
 def _detect_usr_topic(question: str) -> tuple[str | None, list[str]]:
     """
     偵測問題是否命中 USR 議題關鍵字清單或常見提問句型。
     回傳 (議題類別, 該類別所有關鍵字)；無命中回傳 (None, [])。
     分數 = 關鍵字命中數×2 + 句型命中數×1，取最高分類別。
+    優先比對六大主要議題，無命中再比對其餘議題。
     """
     topic_scores: dict[str, int] = {}
     kw_hits: dict[str, list[str]] = {}
@@ -1168,7 +1172,12 @@ def _detect_usr_topic(question: str) -> tuple[str | None, list[str]]:
 
     if not topic_scores:
         return None, []
-    best = max(topic_scores, key=lambda t: topic_scores[t])
+
+    # 優先從六大主要議題中取最高分
+    primary_scores = {t: s for t, s in topic_scores.items() if t in _PRIMARY_TOPICS}
+    best = max(primary_scores, key=lambda t: primary_scores[t]) if primary_scores else \
+           max(topic_scores, key=lambda t: topic_scores[t])
+
     print(f"[TOPIC] 偵測議題：{best}，分數：{topic_scores[best]}，關鍵字：{kw_hits.get(best, [])}")
     return best, USR_TOPIC_KEYWORDS[best]
 
@@ -1188,7 +1197,9 @@ def _detect_all_usr_topics(question: str) -> tuple[str | None, list[str]]:
                     break
     if not topic_scores:
         return None, []
-    best = max(topic_scores, key=lambda t: topic_scores[t])
+    primary_scores = {t: s for t, s in topic_scores.items() if t in _PRIMARY_TOPICS}
+    best = max(primary_scores, key=lambda t: primary_scores[t]) if primary_scores else \
+           max(topic_scores, key=lambda t: topic_scores[t])
     # 合併所有命中類別的關鍵字（去重）
     merged_kws: list[str] = []
     seen: set[str] = set()
