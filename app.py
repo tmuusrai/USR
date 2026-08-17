@@ -2524,7 +2524,6 @@ def ask():
                         f"- 提及地名（縣市、鄉鎮、村里、社區、場域、山川等）時，一律用〔〕標記，例：〔三芝區〕、〔萬年溪〕\n"
                         f"- 將與查詢議題語意相關的詞語（含同義詞、相關概念）用**標記**\n"
                         f"- 若內容僅含章節標題（如「一、」「（一）」「叁、」「## 標題」等）或單位名稱清單、聯絡表格等無具體描述，直接輸出「#RAW」\n"
-                        f"- 若計畫內容與查詢主題「{'、'.join(_topic_kws_for_prompt[:5]) if _topic_kws_for_prompt else question[:20]}」完全無關，直接輸出「#RAW」\n"
                         f"只輸出說明句，不要其他文字。\n\n{_snip}"
                     )
                     try:
@@ -2590,6 +2589,14 @@ def ask():
                             _skipped += 1
                             continue
                         _para_collected.append((_pl, _ps2))
+
+                # 依相關度排序：描述中含查詢詞越多排越前
+                if _q_priority_kws or _q_terms:
+                    _rank_kws = list(dict.fromkeys(_q_priority_kws + _q_terms))
+                    _para_collected.sort(
+                        key=lambda x: sum(1 for k in _rank_kws if k in x[1]),
+                        reverse=True
+                    )
 
                 _out_idx = len(_para_collected)
                 _header_txt = f"找到 {_out_idx} 件相關計畫{_list_display_note}{_t1_label}\n\n"
