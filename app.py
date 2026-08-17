@@ -2427,9 +2427,6 @@ def ask():
                         continue
                     _seen_plan_srcs.add(_src)
                     _line = f"{_parts[0]}：{_parts[1]}"
-                    # keyword_index 有 chunk 時不用 FAISS 內容；無時才從 FAISS 取
-                    if not _kw_idx_chunks:
-                        _plan_to_snippet[_line] = _entry[_m.end():].strip()[:500]
                     if _q_priority_kws and any(pk in _entry for pk in _q_priority_kws):
                         _tier1.append(_line)
                     else:
