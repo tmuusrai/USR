@@ -635,6 +635,13 @@ def load_or_build_index(year: str = "114") -> FAISS:
     hash_file  = index_dir / "docs.hash"
 
     if index_file.exists():
+        if os.getenv("SKIP_REBUILD", "").strip() == "1":
+            print(f"[INDEX] SKIP_REBUILD=1，直接載入既有索引（{year}年）...")
+            return FAISS.load_local(
+                str(index_dir),
+                embeddings,
+                allow_dangerous_deserialization=True,
+            )
         current_hash = _compute_docs_hash(year)
         stored_hash  = hash_file.read_text().strip() if hash_file.exists() else ""
         if current_hash == stored_hash:
