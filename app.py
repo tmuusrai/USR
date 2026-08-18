@@ -2030,6 +2030,23 @@ def ask():
                             _matched_kws.append(_full_key)
                             _plan_set_pre.update(_kw_entry_plan(e) for e in _kw_idx_pre[_full_key])
 
+                # 5. 地區/縣市 label 直接出現在問題裡（北區/南區/臺南市等）
+                _sdg_re = re.compile(r'^SDG\d{1,2}$')
+                _label_skip_set = _all_topic_kws_set | set(_PLAN_TYPE_ALIAS.keys()) | set(_PLAN_TYPE_ALIAS.values())
+                for _lk in sorted(_kw_idx_pre, key=len, reverse=True):
+                    if _lk in _matched_kws or _lk in _label_skip_set or _sdg_re.match(_lk):
+                        continue
+                    if len(_lk) >= 2 and _lk in search_question:
+                        _entries = _kw_idx_pre.get(_lk, [])
+                        if not _entries:
+                            continue
+                        _matched_kws.append(_lk)
+                        if _entries and isinstance(_entries[0], str):
+                            _plan_set_pre.update(_entries)
+                        else:
+                            _plan_set_pre.update(_kw_entry_plan(e) for e in _entries)
+                        print(f"[KW-PRE] label 命中：{_lk} → {len(_entries)} 件")
+
                 if _matched_kws:
                     _kw_list_hit = _matched_kws[0]
                     _kw_plan_list = sorted(_plan_set_pre)
