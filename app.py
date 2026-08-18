@@ -2136,14 +2136,15 @@ def ask():
             _kw_pre_schools: set[str] = set()
             _kw_pre_live_results: list[str] = []
             _kw_pre_extra: list[str] = []
-            if not _listed_schools and not _school and _list:
+            if not _listed_schools and not _school:
                 _kw_idx_pre = _keyword_index.get(year, {})
                 _all_topic_kws_set: set[str] = {kw for kws in USR_TOPIC_KEYWORDS.values() for kw in kws}
                 _q_terms_pre = _extract_query_terms(search_question)
                 _kw_stop_pre = {'計畫', '學校', '大學', '哪些', '相關', '有關', '年度', 'USR',
                                 '應用', '推動', '執行', '進行', '實施', '辦理', '提供', '建立',
                                 '發展', '促進', '改善', '提升', '強化', '增加', '協助', '支持',
-                                '透過', '結合', '整合', '運用', '方式', '計畫書', '成果'}
+                                '透過', '結合', '整合', '運用', '方式', '計畫書', '成果',
+                                '屬於', '屬', '歸屬', '分類', '類別', '屬什麼', '計畫屬'}
                 _plan_set_pre: set[str] = set()
                 _matched_kws: list[str] = []
 
@@ -2415,6 +2416,11 @@ def ask():
                 ]
             else:
                 faiss_texts = [_clean_plan_code(doc.page_content) for doc in docs]
+                # label + 額外詞命中時，把 FAISS live results 加進 context（優先放前面）
+                if _kw_pre_live_results:
+                    _live_texts = [_clean_plan_code(_lv) for _lv in _kw_pre_live_results]
+                    faiss_texts = _live_texts + faiss_texts
+                    print(f"[LIVE-NONLIST] 補充 {len(_live_texts)} 筆 live 結果至 faiss_texts")
             print(f"[LIST-GATE] _list={_list} annotated={type(annotated).__name__ if annotated is not None else 'None'}({len(annotated) if annotated else 0}) _usr_topic={_usr_topic} plan_list={len(_plan_list_lines)}")
             _MAX_PLAN_LIST = 150  # LLM 輸出上限（超過會被截斷）
 
@@ -2501,6 +2507,23 @@ def ask():
                             ), 600)
                     print(f"[CHUNK-IDX] per-plan lookup 完成，_plan_to_snippet {len(_plan_to_snippet)} 件")
 
+                # 有額外詞時（如漁業），用 FAISS live 結果為無 chunk 的計畫補充內容
+                if _kw_pre_live_results and _plan_list_lines:
+                    _school_to_live: dict[str, list[str]] = {}
+                    for _lv in _kw_pre_live_results:
+                        _lv_parts = _lv.split('\n', 1)
+                        _lv_hdr = _lv_parts[0]
+                        _lv_txt = _lv_parts[1] if len(_lv_parts) > 1 else _lv
+                        _lv_m = re.match(r'【(.+?)_', _lv_hdr)
+                        if _lv_m:
+                            _school_to_live.setdefault(_lv_m.group(1), []).append(_lv_txt)
+                    for _s in _plan_list_lines:
+                        if _s not in _plan_to_snippet:
+                            _s_school = _s.split('：', 1)[0]
+                            if _s_school in _school_to_live:
+                                _plan_to_snippet[_s] = '\n'.join(_school_to_live[_s_school][:3])
+                    print(f"[CHUNK-LIVE] live 補充後 _plan_to_snippet {len(_plan_to_snippet)} 件")
+
                 # 偵測分析型子問題（多個？分隔），有則限制清單件數
                 _extra_sub_qs = [p for p in [p.strip() for p in re.split(r'[？?]', question) if p.strip()][1:]
                                  if re.search(r'什麼|哪些|哪幾|如何|為何|為什麼|怎麼|怎樣|多少|幾個|幾間|幾件|哪', p)]
@@ -2514,7 +2537,9 @@ def ask():
                 def _sum_one_plan(_plan_line: str) -> str:
                     _snip = _plan_to_snippet.get(_plan_line, "")
                     if not _snip:
-                        return ""
+                        # 純 label 查詢（無額外詞）：直接列出計畫名，不送 LLM
+                        # 有額外詞但無內容：跳過（不應發生）
+                        return "\x01" if not _kw_pre_extra else ""
                     _lead_school = _plan_line.split('：', 1)[0].strip()
                     _topic_kws_for_prompt = list(dict.fromkeys(
                         k for k in (_q_priority_kws + list(_usr_topic_kws or []))
@@ -2599,7 +2624,8 @@ def ask():
                         if _ps2 == "":
                             _skipped += 1
                             continue
-                        _para_collected.append((_pl, _ps2))
+                        # "\x01" = 純 label 名單模式，保留計畫名但無描述
+                        _para_collected.append((_pl, "" if _ps2 == "\x01" else _ps2))
 
                 # 依相關度排序：描述中含查詢詞越多排越前
                 if _q_priority_kws or _q_terms:
@@ -2616,7 +2642,8 @@ def ask():
                 _para_t_first = time.perf_counter()
 
                 for _i, (_pl, _ps2) in enumerate(_para_collected, 1):
-                    _pchunk = f"{_i}. {_clean_plan_code(_pl)}\n{_ps2}\n"
+                    _pchunk = (f"{_i}. {_clean_plan_code(_pl)}\n{_ps2}\n" if _ps2
+                               else f"{_i}. {_clean_plan_code(_pl)}\n")
                     _para_ans_parts.append(_pchunk)
                     yield f"data: {json.dumps({'type': 'chunk', 'text': _pchunk}, ensure_ascii=False)}\n\n"
 
