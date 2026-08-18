@@ -599,9 +599,7 @@ def _compute_docs_hash(year: str) -> str:
         overview = QA_DIR / "計劃總覽_114.txt"
         if overview.exists():
             paths.append(overview)
-        qa_custom_path = QA_DIR / f"qa_custom_{year}.txt"
-        if qa_custom_path.exists():
-            paths.append(qa_custom_path)
+        # qa_custom 由 try_structured_answer 文字比對處理，不納入 hash（避免每次改 QA 就觸發重建）
     h = hashlib.md5()
     for p in paths:
         h.update(p.name.encode())
