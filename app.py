@@ -1838,17 +1838,7 @@ def ask():
                     if len(_h) > _MAX_HISTORY:
                         _h.pop(0)
 
-            # ── ① qa_custom 短路攔截（優先於所有流程）──
-            structured_ctx = try_structured_answer(question, year=year)
-            if structured_ctx:
-                _save_shortcut_history(structured_ctx)
-                yield f"data: {json.dumps({'type': 'sources', 'sources': []}, ensure_ascii=False)}\n\n"
-                yield f"data: {json.dumps({'type': 'chunk', 'text': structured_ctx}, ensure_ascii=False)}\n\n"
-                total_ms = round((time.perf_counter() - t0) * 1000)
-                yield f"data: {json.dumps({'type': 'done', 'timing': {'total_ms': total_ms}, 'mode': 'qa_custom'}, ensure_ascii=False)}\n\n"
-                return
-
-            # ── ①-b 計畫類型短路：問萌芽型/深耕型/國際合作型/特色永續型 ──
+            # ── ① 計畫類型短路：問萌芽型/深耕型/國際合作型/特色永續型（優先於 qa_custom）──
             plan_type_ctx = _try_plan_type_answer(question, year=year)
             if plan_type_ctx:
                 _save_shortcut_history(plan_type_ctx)
@@ -1856,6 +1846,16 @@ def ask():
                 yield f"data: {json.dumps({'type': 'chunk', 'text': plan_type_ctx}, ensure_ascii=False)}\n\n"
                 total_ms = round((time.perf_counter() - t0) * 1000)
                 yield f"data: {json.dumps({'type': 'done', 'timing': {'total_ms': total_ms}, 'mode': 'plan_type_direct'}, ensure_ascii=False)}\n\n"
+                return
+
+            # ── ①-b qa_custom 短路攔截 ──
+            structured_ctx = try_structured_answer(question, year=year)
+            if structured_ctx:
+                _save_shortcut_history(structured_ctx)
+                yield f"data: {json.dumps({'type': 'sources', 'sources': []}, ensure_ascii=False)}\n\n"
+                yield f"data: {json.dumps({'type': 'chunk', 'text': structured_ctx}, ensure_ascii=False)}\n\n"
+                total_ms = round((time.perf_counter() - t0) * 1000)
+                yield f"data: {json.dumps({'type': 'done', 'timing': {'total_ms': total_ms}, 'mode': 'qa_custom'}, ensure_ascii=False)}\n\n"
                 return
 
             # ── ①-c 計畫總覽/內容短路：直接回傳 summary TXT ──
@@ -3415,6 +3415,15 @@ def subagent_ask():
                 yield f"data: {json.dumps({'type': 'chunk', 'text': _norm_msg}, ensure_ascii=False)}\n\n"
                 total_ms = round((time.perf_counter() - t_start) * 1000)
                 yield f"data: {json.dumps({'type': 'done', 'timing': {'total_ms': total_ms}, 'mode': 'normative', 'original_question': question}, ensure_ascii=False)}\n\n"
+                return
+
+            # ── 計畫類型短路（優先於 qa_custom）──
+            _pt_ctx = _try_plan_type_answer(question, year=year)
+            if _pt_ctx:
+                yield f"data: {json.dumps({'type': 'sources', 'sources': []}, ensure_ascii=False)}\n\n"
+                yield f"data: {json.dumps({'type': 'chunk', 'text': _pt_ctx}, ensure_ascii=False)}\n\n"
+                total_ms = round((time.perf_counter() - t_start) * 1000)
+                yield f"data: {json.dumps({'type': 'done', 'timing': {'total_ms': total_ms}, 'mode': 'plan_type_direct'})}\n\n"
                 return
 
             # ── 結構化 QA 短路 ──
