@@ -446,103 +446,7 @@ _PLAN_TYPE_RE = re.compile(
     r'(大學特色類(?:萌芽型|深耕型)|永續發展類(?:國際合作型|特色永續型))'
 )
 
-# ── USR 議題關鍵字分類表（來源：USR議題關鍵字調查整合表）──────────────
-# 用途：偵測使用者問題屬於哪個議題類別，再用該類別關鍵字展開 FAISS 搜尋
-USR_TOPIC_KEYWORDS: dict[str, list[str]] = {
-    "在地關懷": [
-        "高齡照護", "偏鄉教育", "社區營造", "弱勢扶助", "在地關懷", "社區關懷",
-        "社區培力", "青銀共創", "新住民關懷", "原住民族關懷", "偏鄉照顧", "弱勢關懷",
-        "場域合作", "MOU", "在地認同", "在地需求", "韌性社區", "地方特色", "區域發展",
-        "在地化經濟", "在地產業", "青年就業", "城市轉型", "共學共創", "部落共學", "世代共融",
-    ],
-    "環境永續": [
-        "淨零碳排", "循環經濟", "環境教育", "生態保育", "永續環境", "環境永續",
-        "節能減碳", "氣候變遷", "生物多樣性", "水資源", "廢棄物減量", "永續校園",
-        "防災韌性", "再生能源", "綠色生活", "臺南濕地", "碳足跡", "碳中和",
-        "環境治理", "水資源管理",
-    ],
-    "健康促進與食品安全": [
-        "社區健康促進", "食品安全", "食農教育", "健康識能", "健康促進",
-        "身心健康", "社區健康", "營養教育", "高齡健康", "慢性病預防", "心理健康",
-        "樸門農法", "永續農業", "運動促進", "在地食材", "食品溯源", "農產品安全",
-        "健康飲食", "預防保健", "社區關懷", "社區共餐", "疾病防治",
-    ],
-    "產業鏈結與經濟永續": [
-        "地方創生", "產學合作", "青年返鄉", "產業升級", "產業鏈結", "在地產業",
-        "數位轉型", "社會企業", "微型創業", "品牌行銷", "農業加值", "創新創業",
-        "永續商業模式", "人才培育", "就業媒合", "區域經濟", "在地經濟", "技術轉移",
-        "在地產品", "產業活化", "就業輔導", "產業轉型",
-    ],
-    "文化永續": [
-        "文化保存", "文化傳承", "地方文史", "數位典藏", "文化永續", "文化資產",
-        "傳統技藝", "無形文化資產", "原住民族文化", "地方語言", "社區記憶",
-        "口述歷史", "文化創意", "文化觀光", "歷史建築活化", "跨世代傳承", "老街活化",
-        "宮廟文化", "台灣在地特色", "串聯人文地景", "空間再生", "地方走讀",
-        "文創設計", "部落共學",
-    ],
-    "其他社會實踐": [
-        "社會創新", "教育平權", "數位平權", "公民參與", "多元文化", "性別平等",
-        "防災教育", "社區安全", "法律扶助", "科技導入", "智慧社區", "新住民支持",
-        "身心障礙者支持", "動物保護", "人權教育", "社會共融", "國際合作", "特殊議題",
-        "政策倡議", "減少不平等",
-    ],
-    "計畫行政": [
-        "計畫申請", "申請資格", "經費核銷", "績效指標", "成果報告", "配合款",
-        "SIG", "SROI", "ESG", "SDGs", "助理經費", "協同主持人", "場域變更",
-        "經費變更", "IRB", "計畫執行策略", "團隊架構", "聯繫窗口", "訪視",
-        "實地訪視", "委員", "成效評估", "資料填報", "計畫書撰寫", "經費編列",
-        "典範轉移", "幼老共學", "人事異動", "社會影響力", "社會影響力評估",
-        "USR EXPO", "年報", "計畫推廣", "共培活動", "共培", "PBL", "頂石",
-        "學程", "中長程校務", "USR學分學程", "USR亮點案例", "USR影響力評估",
-        "USR經費補助", "USR服務學習課程", "USR特色教學", "USR產學永續聯盟",
-        "跨國社會實踐計畫", "優良案例", "永續經營",
-        "萌芽型", "深耕型", "計畫主持人", "管考機制", "期中報告", "USR推動中心", "專任助理", "經常門", "資本門", "自籌款", "經費流用", "量化指標", "質化指標", "利害關係人", "成果發表會", "場域盤點", "跨校合作", "諮詢委員", "內部管考", "滿意度調查",
-    ],
-    "轉型正義": [
-        "轉型正義", "威權統治", "白色恐怖", "戒嚴時期", "二二八事件", "政治受難者",
-        "加害者識別", "加害者處置", "司法不法", "行政不法", "名譽回復", "財產返還",
-        "人身自由侵害賠償", "政治暴力創傷", "療癒照顧", "不義遺址", "威權象徵",
-        "中正紀念堂轉型", "政治檔案", "檔案解密", "口述歷史", "國家人權記憶庫",
-        "臺灣轉型正義資料庫", "原住民族轉型正義", "轉型正義教育", "人權教育",
-        "促進轉型正義基金", "黨產", "附隨組織", "黨營機構",
-        "歷史記憶", "社會和解", "真相調查", "人權走讀", "空間解嚴", "歷史正義", "世代對話", "政治受難者遺族", "人權地景", "司法平反", "黨外運動", "威權遺緒", "人權策展", "美麗島事件", "在地記憶", "創傷知情",
-    ],
-    "社會福利": [
-        "社會救助", "自立脫貧", "災害救助", "遊民輔導", "社區發展", "福利社區化",
-        "社區培力", "在地共生社區", "志願服務", "高齡志工", "長照", "家庭暴力防治",
-        "性侵害防治", "性騷擾防制", "兒童少年保護", "兒童少年性剝削防制",
-        "目睹家庭暴力", "身心障礙者保護", "老人保護", "原鄉部落服務", "離島",
-        "偏遠地區社工", "社會工作", "社工督導", "心理輔導", "創傷療癒",
-        "低收入戶", "中低收入戶",
-        "新住民服務", "獨居老人", "弱勢家庭", "社會安全網", "青銀共創", "活躍老化", "早期療育", "喘息服務", "食物銀行", "街友關懷", "隔代教養", "社會包容", "無障礙環境", "照顧者支持", "邊緣戶", "社會創新", "婦女培力", "弱勢關懷", "友善社區", "社會支持系統",
-    ],
-    "健康醫療": [
-        "智慧醫療", "智慧照顧", "長照3.0", "醫療人才培育", "醫護工作條件",
-        "分級醫療", "垂直整合", "區域聯防", "永續醫療", "社會責任醫療",
-        "精準醫療", "臨床AI", "健康台灣", "醫療資源", "偏鄉醫療", "醫院社會責任",
-        "高齡友善", "在地老化", "遠距醫療", "健康促進", "健康識能", "預防延緩失能", "社區照護", "失智照護", "醫療平權", "原鄉醫療", "居家醫療", "活躍老化", "數位健康", "心理健康", "跨領域照護", "衛生教育", "慢性病管理", "弱勢照護",
-    ],
-    "科技研究": [
-        "異種器官移植", "再生醫療", "智慧機器人", "智慧製造", "半導體",
-        "精準醫學", "綠能", "再生能源", "太空任務", "衛星科學", "癌症轉譯研究",
-        "原住民族研究", "族群研究", "氣候韌性", "生物多樣性", "青年學者",
-        "科技研發", "國際學術合作",
-        "人工智慧", "物聯網", "智慧農業", "智慧醫療", "淨零排放", "循環經濟", "大數據分析", "防災科技", "無人機應用", "產學合作", "跨領域研究", "減碳技術", "輔具科技", "海洋科學", "技術移轉", "永續科技", "智慧城市", "區塊鏈技術",
-    ],
-    "教育創新": [
-        "STEM領域", "女性研發人才", "數位轉型", "教育雲", "校務行政e化",
-        "青年職涯輔導", "U-start創新創業", "樂齡學習", "終身教育", "環境教育",
-        "綠色學校", "防災教育", "校園安全", "學習扶助", "資訊素養", "數位學習",
-        "實驗教育", "素養導向", "跨域學習",
-        "偏鄉教育", "青銀共學", "服務學習", "微學程", "PBL教學", "創客教育", "雙語教育", "產學共育", "永續教育", "遠距伴讀", "走讀教育", "翻轉教育", "弱勢賦能", "彈性學分", "業師協同", "地方學", "體驗教育", "程式教育", "EMI課程", "創新教學",
-    ],
-    "產業經濟": [
-        "產業競爭力", "研發轉型", "產業聯盟", "跨域合作", "海外市場", "國際貿易",
-        "中小企業", "新創企業", "產業供應鏈", "低碳製造", "綠色轉型", "關稅衝擊",
-        "韌性供應鏈", "出口貿易", "產業輔導", "創新研發補助",
-        "產業升級", "數位轉型", "產學合作", "循環經濟", "智慧製造", "傳產轉型", "社會企業", "商業模式", "碳盤查", "技術移轉", "創新創業", "地方品牌", "ESG永續", "產業聚落", "青年創業", "價值鏈", "產銷履歷", "育成輔導", "淨零轉型", "地方產業",
-    ],
-}
+from usr_topics import USR_TOPIC_KEYWORDS
 
 USR_TOPIC_QUESTIONS: dict[str, list[str]] = {
     "在地關懷": [
@@ -1526,19 +1430,6 @@ def _ensure_year_loaded(year: str) -> None:
             vectorstores[year] = _vs
             if year not in _sdg_maps:
                 _sdg_maps[year] = _build_sdg_map(_vs)
-            # 補建 keyword_index（若此年尚未建立）
-            _all_topic_kws = {kw for kws in USR_TOPIC_KEYWORDS.values() for kw in kws}
-            yr_idx = _keyword_index.setdefault(year, {})
-            if _all_topic_kws - set(yr_idx.keys()):
-                _new = _build_topic_kw_index(year, _vs)
-                yr_idx.update(_new)
-                try:
-                    _KW_INDEX_PATH.write_text(
-                        json.dumps(_keyword_index, ensure_ascii=False, indent=2),
-                        encoding="utf-8"
-                    )
-                except Exception:
-                    pass
             print(f"[APP] {year} 年索引就緒。")
         except FileNotFoundError as e:
             vectorstores[year] = None
@@ -1548,84 +1439,31 @@ init_qa()
 
 # ── 關鍵字索引 ────────────────────────────────────────
 _keyword_index: dict[str, dict] = {}
-_KW_INDEX_PATH = Path("114_output/keyword_index.json")
+_LABEL_INDEX_PATH = Path("114_output/label_index.json")
+_KW_CHUNKS_PATH = Path("114_output/kw_chunks.json")
 
 def _kw_entry_plan(e) -> str:
     """從 keyword_index entry 取計畫名（dict 或舊格式 str 皆相容）。"""
     return e["plan"] if isinstance(e, dict) else e
 
-def _build_topic_kw_index(year: str, vs) -> dict[str, list[dict]]:
-    """掃 vectorstore，建立 USR_TOPIC_KEYWORDS 詞 → chunk 清單（含 school/plan/text）。
-    每個 (keyword, plan) 只保留命中次數最多的一個 chunk，並截短至 400 字。
-    """
-    all_kws: set[str] = {kw for kws in USR_TOPIC_KEYWORDS.values() for kw in kws}
-    # kw → plan → {"school", "plan", "text", "hits"}
-    kw_best: dict[str, dict[str, dict]] = {kw: {} for kw in all_kws}
-    plan_count: set[str] = set()
-    t0 = time.perf_counter()
-    for doc in vs.docstore._dict.values():
-        src = doc.metadata.get("source", "")
-        if "qa_custom" in src:
+def _load_kw_index() -> None:
+    """載入 label_index.json（標籤資料）與 kw_chunks.json（chunk 資料），合併至 _keyword_index。"""
+    for path, tag in [(_LABEL_INDEX_PATH, "LABEL-IDX"), (_KW_CHUNKS_PATH, "KW-CHUNKS")]:
+        if not path.exists():
+            print(f"[{tag}] 找不到 {path.name}，略過。")
             continue
-        text = _clean_plan_code(doc.page_content)
-        stem = Path(src).stem
-        parts = stem.split('_', 1)
-        if len(parts) < 2:
-            continue
-        plan = f"{parts[0]}：{parts[1]}"
-        school = parts[0]
-        plan_count.add(plan)
-        for kw in all_kws:
-            hits = text.count(kw)
-            if hits > 0:
-                cur = kw_best[kw].get(plan)
-                if cur is None or hits > cur["hits"]:
-                    kw_best[kw][plan] = {"school": school, "plan": plan,
-                                         "text": text[:400], "hits": hits}
-    elapsed = round((time.perf_counter() - t0) * 1000)
-    kw_result = {kw: list(plans.values()) for kw, plans in kw_best.items() if plans}
-    total_entries = sum(len(v) for v in kw_result.values())
-    print(f"[KW-BUILD] {year} 年：{len(kw_result)} 個詞，{len(plan_count)} 份計畫，"
-          f"{total_entries} entries，耗時 {elapsed}ms")
-    return kw_result
-
-def _load_or_build_kw_index() -> None:
-    """載入 keyword_index.json；若某年缺少 USR_TOPIC_KEYWORDS 就自動掃 vectorstore 補建。"""
-    _all_topic_kws: set[str] = {kw for kws in USR_TOPIC_KEYWORDS.values() for kw in kws}
-    if _KW_INDEX_PATH.exists():
         try:
-            with open(_KW_INDEX_PATH, encoding="utf-8") as _f:
-                _kw_data = json.load(_f)
+            with open(path, encoding="utf-8") as _f:
+                _data = json.load(_f)
             for yr in ("114", "113"):
-                _keyword_index[yr] = _kw_data.get(yr, {})
-            print(f"[KW-IDX] 載入：{sum(len(v) for v in _keyword_index.values())} 個關鍵字")
+                for k, v in _data.get(yr, {}).items():
+                    _keyword_index.setdefault(yr, {})[k] = v
+            total = sum(len(v) for v in _keyword_index.values())
+            print(f"[{tag}] 載入 {path.name}，目前共 {total} 個索引")
         except Exception as _e:
-            print(f"[KW-IDX] 載入失敗：{_e}")
+            print(f"[{tag}] 載入失敗：{_e}")
 
-    # 補建缺少的年份（USR_TOPIC_KEYWORDS 詞不在索引裡）
-    _updated = False
-    for yr, vs in vectorstores.items():
-        if not vs:
-            continue
-        yr_idx = _keyword_index.setdefault(yr, {})
-        _missing = _all_topic_kws - set(yr_idx.keys())
-        if _missing:
-            print(f"[KW-BUILD] {yr} 年缺少 {len(_missing)} 個議題詞，自動建索引...")
-            _new = _build_topic_kw_index(yr, vs)
-            yr_idx.update(_new)
-            _updated = True
-
-    if _updated:
-        try:
-            _KW_INDEX_PATH.write_text(
-                json.dumps(_keyword_index, ensure_ascii=False, indent=2),
-                encoding="utf-8"
-            )
-            print(f"[KW-IDX] 已更新並存檔")
-        except Exception as _e:
-            print(f"[KW-IDX] 存檔失敗：{_e}")
-
-_load_or_build_kw_index()
+_load_kw_index()
 
 
 
