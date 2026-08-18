@@ -553,6 +553,7 @@ def _get_theme(title: str) -> dict:
 
 # 清理計畫編號與 _formatted 後綴
 _PLAN_CODE_RE = re.compile(r'\s*\(\d{3}USR-[^)]*\)?|_formatted', re.IGNORECASE)
+_PATH_SEP_RE = re.compile(r'[/\\]')
 
 def _clean_plan_code(text: str) -> str:
     """移除 chunk 內容或檔名中的計畫編號與 _formatted。"""
@@ -1317,7 +1318,7 @@ def _faiss_scan_kws(kws: list[str], vs, k: int = 60,
                 continue
             seen_src.add(src)
             text = _clean_plan_code(doc.page_content)
-            src_name = _clean_plan_code(re.split(r'[/\\]', src)[-1].rsplit('.', 1)[0])
+            src_name = _clean_plan_code(_PATH_SEP_RE.split(src)[-1].rsplit('.', 1)[0])
             if condense:
                 pos = text.find(kw)
                 start = max(0, pos - 30) if pos >= 0 else 0
@@ -2289,7 +2290,7 @@ def ask():
             if _list:
                 # 列舉型：FAISS 結果也精簡，每筆只保留學校名稱 + 150 字摘要
                 faiss_texts = [
-                    f"【{_clean_plan_code(re.split(r'[/\\\\]', doc.metadata.get('source',''  ))[-1].rsplit('.', 1)[0])}】\n"
+                    f"【{_clean_plan_code(_PATH_SEP_RE.split(doc.metadata.get('source',''))[-1].rsplit('.', 1)[0])}】\n"
                     f"{_clean_plan_code(doc.page_content)[:150]}…"
                     for doc in docs
                 ]
@@ -2476,7 +2477,7 @@ def ask():
                 _para_sources: list[dict] = []
                 _para_seen: set = set()
                 for _pd in docs:
-                    _ps = _clean_plan_code(re.split(r'[/\\]', _pd.metadata.get("source", ""))[-1].rsplit('.', 1)[0])
+                    _ps = _clean_plan_code(_PATH_SEP_RE.split(_pd.metadata.get("source", ""))[-1].rsplit('.', 1)[0])
                     _pp = _pd.metadata.get("page", 0) + 1
                     if (_ps, _pp) not in _para_seen:
                         _para_seen.add((_ps, _pp))
