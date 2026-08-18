@@ -1059,8 +1059,11 @@ function renderAnswer(raw) {
   s = s.replace(/\*\*([^*\n]{1,30})\*\*/g, '<strong>$1</strong>');
   s = s.replace(/\*/g, '');
   s = s.replace(/([、。，；：！？「」【】『』〔〕…—～·])\1+/g, '$1');
-  s = s.replace(_SCHOOL_RE, m => `<span style="color:#1d4ed8;text-decoration:underline">${m}</span>`);
-  s = s.replace(_PLAN_RE, m => `<span style="color:#8b0000;text-decoration:underline">${m}</span>`);
+  s = s.split('\n').map(line =>
+    /^\d{1,3}\. /.test(line) ? line :
+    line.replace(_SCHOOL_RE, m => `<span style="color:#1d4ed8;text-decoration:underline">${m}</span>`)
+        .replace(_PLAN_RE, m => `<span style="color:#8b0000;text-decoration:underline">${m}</span>`)
+  ).join('\n');
   s = s.replace(/〔([^〕\n]{1,40})〕/g, (_, p) => `<u>${p}</u>`);
   s = s.replace(_COUNTY_RE, m => `<u>${m}</u>`);
   s = convertTables(s);
