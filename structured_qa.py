@@ -20,9 +20,9 @@ def _half(s: str) -> str:
 # ── 內部儲存 ──────────────────────────────────────────────
 _CUSTOM_QA_BY_YEAR: dict[str, list[dict]] = {"114": [], "113": []}
 
-# plan basics: school_name → list of {plan_name, text}
-_PLAN_BASICS: dict[str, list[dict]] = {}
-_PLAN_BASIC_SCHOOLS: list[str] = []  # sorted by length desc for greedy match
+# plan basics: year → school_name → list of {plan_name, text}
+_PLAN_BASICS_BY_YEAR: dict[str, dict[str, list[dict]]] = {"114": {}, "113": {}}
+_PLAN_BASIC_SCHOOLS_BY_YEAR: dict[str, list[str]] = {"114": [], "113": []}
 
 _READY = False
 
@@ -36,13 +36,15 @@ _PLAN_INFO_RE = re.compile(
 
 
 def init_qa() -> None:
-    """啟動時呼叫一次，載入各年度 qa_custom.txt 及計劃總覽.txt。"""
+    """啟動時呼叫一次，載入各年度 qa_custom.txt 及計劃總覽_XXX.txt。"""
     global _READY
-    for year, fname in [("114", "qa_custom_114.txt"), ("113", "qa_custom_113.txt")]:
-        path = _QA_DIR / fname
-        _load_custom_qa(path, year)
+    for year, qa_fname, overview_fname in [
+        ("114", "qa_custom_114.txt", "計劃總覽_114.txt"),
+        ("113", "qa_custom_113.txt", "計劃總覽_113.txt"),
+    ]:
+        _load_custom_qa(_QA_DIR / qa_fname, year)
         print(f"[QA] {year} 年自訂 QA：{len(_CUSTOM_QA_BY_YEAR[year])} 組。")
-    _load_plan_basics(_QA_DIR / "計劃總覽.txt")
+        _load_plan_basics(_QA_DIR / overview_fname, year)
     _READY = True
 
 
@@ -56,7 +58,7 @@ def try_structured_answer(question: str, year: str = "114") -> str | None:
     q = question.strip()
 
     # ① 計劃基本資料優先（學校名稱 + 基本資料型關鍵字 → 不被 qa_custom 通用答案攔截）
-    plan_ans = _match_plan_basics(q)
+    plan_ans = _match_plan_basics(q, year)
     if plan_ans:
         return plan_ans
 
@@ -67,13 +69,13 @@ def try_structured_answer(question: str, year: str = "114") -> str | None:
 
 # ── 計劃基本資料載入與比對 ────────────────────────────────
 
-def _load_plan_basics(path: Path) -> None:
-    global _PLAN_BASIC_SCHOOLS
+def _load_plan_basics(path: Path, year: str = "114") -> None:
     text = _read_text(path)
     if not text:
-        print(f"[QA] 找不到 {path.name}，計劃基本資料停用。")
+        print(f"[QA] 找不到 {path.name}，{year} 年計劃基本資料停用。")
         return
 
+    basics = _PLAN_BASICS_BY_YEAR[year]
     current_school: str | None = None
     current_plan: str | None = None
     current_lines: list[str] = []
@@ -82,18 +84,16 @@ def _load_plan_basics(path: Path) -> None:
         if current_school and current_plan and current_lines:
             content = "\n".join(current_lines).strip()
             if content:
-                _PLAN_BASICS.setdefault(current_school, []).append({
+                basics.setdefault(current_school, []).append({
                     "plan_name": current_plan,
                     "text": content,
                 })
 
     for raw in text.split("\n"):
-        # header pattern: === school_plan(id).txt ===
         m = re.match(r'===\s*(.+?)_(.+?)(?:\([^)]*\))*\.txt\s*===', raw)
         if m:
             _flush()
             current_school = m.group(1).strip()
-            # 去掉計畫名稱裡的識別碼括號，如 (114USR-RMF-TKU-SF1)、(1)
             current_plan = re.sub(r'\s*\([^)]*\)', '', m.group(2)).strip()
             current_lines = []
         elif current_school is not None:
@@ -101,25 +101,24 @@ def _load_plan_basics(path: Path) -> None:
 
     _flush()
 
-    # sort school names by length desc so longer names match first
-    _PLAN_BASIC_SCHOOLS = sorted(_PLAN_BASICS.keys(), key=len, reverse=True)
-    total = sum(len(v) for v in _PLAN_BASICS.values())
-    print(f"[QA] 計劃總覽基本資料：{len(_PLAN_BASICS)} 間學校，{total} 件計畫。")
+    _PLAN_BASIC_SCHOOLS_BY_YEAR[year] = sorted(basics.keys(), key=len, reverse=True)
+    total = sum(len(v) for v in basics.values())
+    print(f"[QA] {year} 年計劃總覽基本資料：{len(basics)} 間學校，{total} 件計畫。")
 
 
-def _match_plan_basics(question: str) -> str | None:
-    if not _PLAN_BASICS:
+def _match_plan_basics(question: str, year: str = "114") -> str | None:
+    basics = _PLAN_BASICS_BY_YEAR.get(year, {})
+    schools = _PLAN_BASIC_SCHOOLS_BY_YEAR.get(year, [])
+    if not basics:
         return None
 
     q_norm = _half(question).replace(" ", "").replace("　", "")
 
-    # must contain school name（支援「財團法人」開頭的全稱 → 取財團法人後面的短名）
     matched_school: str | None = None
-    for school in _PLAN_BASIC_SCHOOLS:
+    for school in schools:
         if school in q_norm:
             matched_school = school
             break
-        # alias: 財團法人後面的部分才是常用校名，如「淡江大學學校財團法人淡江大學」→「淡江大學」
         m_fa = re.search(r'財團法人(.+)', school)
         if m_fa and m_fa.group(1).strip() in q_norm:
             matched_school = school
@@ -128,11 +127,10 @@ def _match_plan_basics(question: str) -> str | None:
     if not matched_school:
         return None
 
-    # must be asking about basic info
     if not _PLAN_INFO_RE.search(question):
         return None
 
-    plans = _PLAN_BASICS.get(matched_school, [])
+    plans = basics.get(matched_school, [])
     if not plans:
         return None
 
