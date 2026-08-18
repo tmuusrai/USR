@@ -2166,6 +2166,8 @@ def ask():
                 if _kw_plan_list:
                     _plan_list_lines = list(_kw_plan_list)
                     print(f"[KW-SEED] label 名單 → _plan_list_lines {len(_plan_list_lines)} 件")
+                # 純 label 模式：有 label 名單且無額外詞，不補充任何 FAISS/chunk 資料
+                _pure_label_mode = bool(_kw_plan_list) and not _kw_pre_extra
                 _all_topic_kws: set[str] = {kw for kws in USR_TOPIC_KEYWORDS.values() for kw in kws}
 
                 # ── keyword_index 查詢：_usr_topic_kws + 問題中的已知議題詞 ──
@@ -2185,7 +2187,7 @@ def ask():
                     print(f"[KW-IDX] 議題詞 {len(_lookup_kws)} 個 → {len(_topic_plan_set)} 件計畫")
                     if not _plan_list_lines:
                         _plan_list_lines = sorted(_topic_plan_set)
-                    else:
+                    elif not _pure_label_mode:
                         _kw_schools = {e.split('：')[0] for e in _plan_list_lines}
                         _extra = [p for p in sorted(_topic_plan_set)
                                   if p.split('：')[0] not in _kw_schools
@@ -2311,16 +2313,20 @@ def ask():
                     _plan_list_lines = _tier1 + _tier2
                     print(f"[LIST-DEBUG] SEQ 提取 {len(_plan_list_lines)} 件（T1={len(_tier1)}，T2={len(_tier2)}，priority_kws={_q_priority_kws[:3]}）")
                 else:
-                    # keyword_index 已提供基礎清單，SEQ 補充 keyword_index 沒有的學校
-                    _kw_schools = {e.split('：')[0] for e in _plan_list_lines}
-                    _seq_extra = [l for l in (_tier1 + _tier2)
-                                  if l.split('：')[0] not in _kw_schools
-                                  and (not _kw_pre_schools or l.split('：')[0] in _kw_pre_schools)]
-                    if _seq_extra:
-                        _plan_list_lines = _plan_list_lines + _seq_extra
-                        print(f"[LIST-DEBUG] keyword_index {len(_kw_plan_list)} 件 + SEQ 補充 {len(_seq_extra)} 件 = {len(_plan_list_lines)} 件")
+                    # label 名單存在且無額外詞 → 純 label 模式，不用 FAISS 補充
+                    if _kw_plan_list and not _kw_pre_extra:
+                        print(f"[LIST-DEBUG] 純 label 模式，{len(_plan_list_lines)} 件，跳過 SEQ 補充")
                     else:
-                        print(f"[LIST-DEBUG] keyword_index {len(_plan_list_lines)} 件，SEQ 無新增學校")
+                        # keyword_index 已提供基礎清單，SEQ 補充 keyword_index 沒有的學校
+                        _kw_schools = {e.split('：')[0] for e in _plan_list_lines}
+                        _seq_extra = [l for l in (_tier1 + _tier2)
+                                      if l.split('：')[0] not in _kw_schools
+                                      and (not _kw_pre_schools or l.split('：')[0] in _kw_pre_schools)]
+                        if _seq_extra:
+                            _plan_list_lines = _plan_list_lines + _seq_extra
+                            print(f"[LIST-DEBUG] keyword_index {len(_kw_plan_list)} 件 + SEQ 補充 {len(_seq_extra)} 件 = {len(_plan_list_lines)} 件")
+                        else:
+                            print(f"[LIST-DEBUG] keyword_index {len(_plan_list_lines)} 件，SEQ 無新增學校")
 
                 # 依問題關鍵字重排：chunk 中含查詢詞的計畫優先顯示
                 if _plan_list_lines and (_q_priority_kws or _q_terms):
@@ -2342,7 +2348,7 @@ def ask():
                         print(f"[LIST-REGION] 縣市過濾={_question_counties}，無匹配，不過濾")
 
                 # ── 列舉型：從 keyword_index chunks 取各計畫內文 ──
-                if _plan_list_lines:
+                if _plan_list_lines and not _pure_label_mode:
                     _score_kws = list(dict.fromkeys(_q_terms + list(_usr_topic_kws or [])))
                     for _s in _plan_list_lines:
                         if _s in _plan_to_snippet:
