@@ -111,10 +111,12 @@ def _match_custom_qa(question: str, qa_list: list[dict]) -> str | None:
     比對邏輯：
     - 問題中包含 Q 的任一同義句，視為命中
     - 同義句比對：問題包含該句的所有「實詞」（≥2字元，非助詞）
+    - 若問題有額外內容詞（非列舉/疑問詞），交給 RAG 處理
     """
     q_lower = _half(question).lower()
     best_score = 0
     best_answer = None
+    best_phrase = None
 
     for entry in qa_list:
         for kw_phrase in entry["keywords"]:
@@ -122,10 +124,31 @@ def _match_custom_qa(question: str, qa_list: list[dict]) -> str | None:
             if score > best_score:
                 best_score = score
                 best_answer = entry["answer"]
+                best_phrase = kw_phrase
 
-    if best_score >= 0.8:
+    if best_score >= 0.8 and best_phrase:
+        # 若問題有額外內容詞（不在 phrase tokens 中），讓 label+FAISS 處理
+        if _has_extra_content(question, best_phrase):
+            return None
         return best_answer
     return None
+
+
+# 列舉/疑問停用詞（不算額外內容詞）
+_QUERY_STOPS = {
+    "哪些", "哪幾", "有哪", "有幾", "多少", "計畫", "學校", "大學", "相關",
+    "有關", "請問", "告訴", "說明", "介紹", "列出", "幾個", "幾間", "幾所",
+    "幾件", "這些", "那些", "所有", "全部", "各", "裡", "中", "的", "有",
+    "是", "哪", "什麼", "為何", "怎麼", "如何", "嗎", "呢", "做", "在", "及",
+}
+
+def _has_extra_content(question: str, phrase: str) -> bool:
+    """若問題在 phrase 覆蓋範圍之外還有實質內容詞，回傳 True（應讓 RAG 處理）。"""
+    phrase_tokens = set(_tokenize(_half(phrase).lower()))
+    q_tokens = _tokenize(_half(question).lower())
+    extra = [t for t in q_tokens
+             if t not in phrase_tokens and t not in _QUERY_STOPS and len(t) >= 2]
+    return len(extra) > 0
 
 
 # 比對時過濾掉的短助詞
@@ -158,6 +181,14 @@ def _tokenize(text: str) -> list[str]:
     return tokens
 
 
+_SDG_RE = re.compile(r'^SDG\d+$', re.IGNORECASE)
+
+def _token_in_q(token: str, q_norm: str) -> bool:
+    """檢查 token 是否在 q_norm 中，SDG 數字需要 word boundary（SDG1 不能匹配 SDG11）。"""
+    if _SDG_RE.match(token):
+        return bool(re.search(re.escape(token) + r'(?!\d)', q_norm, re.IGNORECASE))
+    return token in q_norm
+
 def _phrase_score(question: str, phrase: str) -> float:
     """計算 phrase 的關鍵詞在 question 中的命中率（0.0 ~ 1.0）。"""
     tokens = _tokenize(phrase)
@@ -165,7 +196,7 @@ def _phrase_score(question: str, phrase: str) -> float:
         return 0.0
     # 去除空格，容忍「SDG2 對應的大學」vs「SDG2對應的大學」
     q_norm = question.replace(" ", "").replace("　", "")
-    hits = sum(1 for t in tokens if t in q_norm)
+    hits = sum(1 for t in tokens if _token_in_q(t, q_norm))
     return hits / len(tokens)
 
 
