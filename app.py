@@ -1485,9 +1485,16 @@ def _load_plans(year: str = "114"):
 def index():
     authenticated = not SITE_PASSWORD or session.get("authenticated", False)
     username = session.get("username", "") if authenticated else ""
+    p114 = _load_plans("114")
+    p113 = _load_plans("113")
+    schools_sorted = sorted(
+        {p["school"] for p in p114 + p113},
+        key=len, reverse=True
+    )
     return render_template("index.html", authenticated=authenticated,
         username=username, is_admin=_is_admin(),
-        plans_114=_load_plans("114"), plans_113=_load_plans("113"))
+        plans_114=p114, plans_113=p113,
+        schools_sorted=schools_sorted)
 
 
 @app.route("/login", methods=["POST"])
