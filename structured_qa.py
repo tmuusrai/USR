@@ -36,15 +36,16 @@ _PLAN_INFO_RE = re.compile(
 
 
 def init_qa() -> None:
-    """啟動時呼叫一次，載入各年度 qa_custom.txt 及計劃總覽_XXX.txt。"""
+    """啟動時呼叫一次，載入各年度 qa_custom.txt 及 summary 目錄。"""
     global _READY
-    for year, qa_fname, overview_fname in [
-        ("114", "qa_custom_114.txt", "計劃總覽_114.txt"),
-        ("113", "qa_custom_113.txt", "計劃總覽_113.txt"),
+    _base = Path(__file__).parent
+    for year, qa_fname, summary_dir in [
+        ("114", "qa_custom_114.txt", _base / "114_output" / "summary"),
+        ("113", "qa_custom_113.txt", _base / "113_output" / "summary"),
     ]:
         _load_custom_qa(_QA_DIR / qa_fname, year)
         print(f"[QA] {year} 年自訂 QA：{len(_CUSTOM_QA_BY_YEAR[year])} 組。")
-        _load_plan_basics(_QA_DIR / overview_fname, year)
+        _load_plan_basics(summary_dir, year)
     _READY = True
 
 
@@ -69,41 +70,30 @@ def try_structured_answer(question: str, year: str = "114") -> str | None:
 
 # ── 計劃基本資料載入與比對 ────────────────────────────────
 
-def _load_plan_basics(path: Path, year: str = "114") -> None:
-    text = _read_text(path)
-    if not text:
-        print(f"[QA] 找不到 {path.name}，{year} 年計劃基本資料停用。")
+def _load_plan_basics(summary_dir: Path, year: str = "114") -> None:
+    """從 summary 目錄讀取各計畫摘要，作為基本資料來源。"""
+    if not summary_dir.exists():
+        print(f"[QA] 找不到 {summary_dir}，{year} 年計劃基本資料停用。")
         return
 
     basics = _PLAN_BASICS_BY_YEAR[year]
-    current_school: str | None = None
-    current_plan: str | None = None
-    current_lines: list[str] = []
-
-    def _flush():
-        if current_school and current_plan and current_lines:
-            content = "\n".join(current_lines).strip()
-            if content:
-                basics.setdefault(current_school, []).append({
-                    "plan_name": current_plan,
-                    "text": content,
-                })
-
-    for raw in text.split("\n"):
-        m = re.match(r'===\s*(.+?)_(.+?)(?:\([^)]*\))*\.txt\s*===', raw)
-        if m:
-            _flush()
-            current_school = m.group(1).strip()
-            current_plan = re.sub(r'\s*\([^)]*\)', '', m.group(2)).strip()
-            current_lines = []
-        elif current_school is not None:
-            current_lines.append(raw)
-
-    _flush()
+    count = 0
+    for f in summary_dir.glob("*.txt"):
+        stem = f.stem
+        # 檔名格式：學校_計畫名(id) 或 學校_計畫名
+        parts = stem.split("_", 1)
+        if len(parts) < 2:
+            continue
+        school = parts[0].strip()
+        plan = re.sub(r'\s*[\(（][^\)）]*[\)）]', '', parts[1]).strip()
+        text = _read_text(f)
+        if not text:
+            continue
+        basics.setdefault(school, []).append({"plan_name": plan, "text": text})
+        count += 1
 
     _PLAN_BASIC_SCHOOLS_BY_YEAR[year] = sorted(basics.keys(), key=len, reverse=True)
-    total = sum(len(v) for v in basics.values())
-    print(f"[QA] {year} 年計劃總覽基本資料：{len(basics)} 間學校，{total} 件計畫。")
+    print(f"[QA] {year} 年 summary 基本資料：{len(basics)} 間學校，{count} 件計畫。")
 
 
 def _match_plan_basics(question: str, year: str = "114") -> str | None:
