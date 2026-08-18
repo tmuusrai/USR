@@ -1317,7 +1317,7 @@ def _faiss_scan_kws(kws: list[str], vs, k: int = 60,
                 continue
             seen_src.add(src)
             text = _clean_plan_code(doc.page_content)
-            src_name = _clean_plan_code(Path(src).stem)
+            src_name = _clean_plan_code(re.split(r'[/\\]', src)[-1].rsplit('.', 1)[0])
             if condense:
                 pos = text.find(kw)
                 start = max(0, pos - 30) if pos >= 0 else 0
@@ -2051,10 +2051,11 @@ def ask():
                     _kw_list_hit = _matched_kws[0]
                     _kw_plan_list = sorted(_plan_set_pre)
                     print(f"[KW-PRE] 命中 {_matched_kws[:3]} → {len(_kw_plan_list)} 件")
-                    # 額外未知詞 live scan 過濾
+                    # 額外未知詞 live scan 過濾（排除已匹配 label key 的子字串片段）
                     _extra_pre = [k for k in _q_terms_pre
                                   if k not in _matched_kws and k not in _kw_stop_pre
-                                  and len(k) >= 2 and k not in _all_topic_kws_set]
+                                  and len(k) >= 2 and k not in _all_topic_kws_set
+                                  and not any(k in mk for mk in _matched_kws)]
                     if _extra_pre:
                         print(f"[KW-PRE] 額外詞：{_extra_pre}（OR={_query_is_or}）")
                         _fres = _faiss_scan_kws(_extra_pre, vs, condense=True)
@@ -2288,7 +2289,7 @@ def ask():
             if _list:
                 # 列舉型：FAISS 結果也精簡，每筆只保留學校名稱 + 150 字摘要
                 faiss_texts = [
-                    f"【{_clean_plan_code(Path(doc.metadata.get('source','')).stem)}】\n"
+                    f"【{_clean_plan_code(re.split(r'[/\\\\]', doc.metadata.get('source',''  ))[-1].rsplit('.', 1)[0])}】\n"
                     f"{_clean_plan_code(doc.page_content)[:150]}…"
                     for doc in docs
                 ]
@@ -2475,7 +2476,7 @@ def ask():
                 _para_sources: list[dict] = []
                 _para_seen: set = set()
                 for _pd in docs:
-                    _ps = _clean_plan_code(Path(_pd.metadata.get("source", "")).stem)
+                    _ps = _clean_plan_code(re.split(r'[/\\]', _pd.metadata.get("source", ""))[-1].rsplit('.', 1)[0])
                     _pp = _pd.metadata.get("page", 0) + 1
                     if (_ps, _pp) not in _para_seen:
                         _para_seen.add((_ps, _pp))
