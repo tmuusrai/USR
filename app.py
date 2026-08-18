@@ -1448,6 +1448,9 @@ _keyword_index: dict[str, dict] = {}
 _LABEL_INDEX_PATH = Path("114_output/label_index.json")
 _KW_CHUNKS_PATH = Path("114_output/kw_chunks.json")
 
+# 純 label 索引（不被 kw_chunks 蓋掉），供 KW-PRE step 0 直接命中用
+_label_only_index: dict = {}
+
 def _kw_entry_plan(e) -> str:
     """從 keyword_index entry 取計畫名（dict 或舊格式 str 皆相容）。"""
     return e["plan"] if isinstance(e, dict) else e
@@ -1468,6 +1471,8 @@ def _load_kw_index() -> None:
             for yr in ("114", "113"):
                 for k, v in _data.get(yr, {}).items():
                     _keyword_index.setdefault(yr, {})[k] = v
+                    if tag == "LABEL-IDX":
+                        _label_only_index.setdefault(yr, {})[k] = v
             total = sum(len(v) for v in _keyword_index.values())
             print(f"[{tag}] 載入 {path.name}，目前共 {total} 個索引")
         except Exception as _e:
@@ -2005,49 +2010,66 @@ def ask():
                 _plan_set_pre: set[str] = set()
                 _matched_kws: list[str] = []
 
-                # 1. _usr_topic_kws（_detect_usr_topic 已偵測到的議題關鍵字）
-                for _tk in (_usr_topic_kws or []):
-                    if _tk in _kw_idx_pre:
-                        _plan_set_pre.update(_kw_entry_plan(e) for e in _kw_idx_pre[_tk])
-                        if _tk not in _matched_kws:
-                            _matched_kws.append(_tk)
-
-                # 2. 問題裡其他 USR_TOPIC_KEYWORDS 詞
-                for _qt in _q_terms_pre:
-                    if _qt in _all_topic_kws_set and _qt in _kw_idx_pre and _qt not in _matched_kws:
-                        _plan_set_pre.update(_kw_entry_plan(e) for e in _kw_idx_pre[_qt])
-                        _matched_kws.append(_qt)
-
-                # 3. SDG key 直接出現在問題裡（entries 為 str）
-                for _kw_pre in _kw_idx_pre:
-                    if re.match(r'^SDG\d{1,2}$', _kw_pre) and _kw_pre in search_question:
-                        if _kw_pre not in _matched_kws:
-                            _matched_kws.append(_kw_pre)
-                            _plan_set_pre.update(_kw_idx_pre[_kw_pre])
-
-                # 4. 計畫類型別名（萌芽型/深耕型/國際合作型/特色永續型 → 完整 key）
-                for _alias, _full_key in _PLAN_TYPE_ALIAS.items():
-                    if _alias in search_question and _full_key and _full_key in _kw_idx_pre:
-                        if _full_key not in _matched_kws:
-                            _matched_kws.append(_full_key)
-                            _plan_set_pre.update(_kw_entry_plan(e) for e in _kw_idx_pre[_full_key])
-
-                # 5. 地區/縣市 label 直接出現在問題裡（北區/南區/臺南市等）
-                _sdg_re = re.compile(r'^SDG\d{1,2}$')
-                _label_skip_set = _all_topic_kws_set | set(_PLAN_TYPE_ALIAS.keys()) | set(_PLAN_TYPE_ALIAS.values())
-                for _lk in sorted(_kw_idx_pre, key=len, reverse=True):
-                    if _lk in _matched_kws or _lk in _label_skip_set or _sdg_re.match(_lk):
-                        continue
-                    if len(_lk) >= 2 and _lk in search_question:
-                        _entries = _kw_idx_pre.get(_lk, [])
+                # 0. 直接比對 label_index.json 的 key（含 topic/SDG/地區/縣市/類型）
+                # 命中就直接用 label 結果，跳過 kw_chunks 關鍵字比對（步驟1-2）
+                _label_direct = _label_only_index.get(year, {})
+                _label_hit = False
+                for _lk in sorted(_label_direct, key=len, reverse=True):
+                    if len(_lk) >= 2 and _lk in search_question and _lk not in _matched_kws:
+                        _entries = _label_direct[_lk]
                         if not _entries:
                             continue
                         _matched_kws.append(_lk)
-                        if _entries and isinstance(_entries[0], str):
-                            _plan_set_pre.update(_entries)
-                        else:
-                            _plan_set_pre.update(_kw_entry_plan(e) for e in _entries)
-                        print(f"[KW-PRE] label 命中：{_lk} → {len(_entries)} 件")
+                        _plan_set_pre.update(_entries if isinstance(_entries[0], str)
+                                             else (_kw_entry_plan(e) for e in _entries))
+                        print(f"[KW-PRE] label 直接命中：{_lk} → {len(_entries)} 件")
+                        _label_hit = True
+
+                if not _label_hit:
+                    # 1. _usr_topic_kws（_detect_usr_topic 已偵測到的議題關鍵字）
+                    for _tk in (_usr_topic_kws or []):
+                        if _tk in _kw_idx_pre:
+                            _plan_set_pre.update(_kw_entry_plan(e) for e in _kw_idx_pre[_tk])
+                            if _tk not in _matched_kws:
+                                _matched_kws.append(_tk)
+
+                    # 2. 問題裡其他 USR_TOPIC_KEYWORDS 詞
+                    for _qt in _q_terms_pre:
+                        if _qt in _all_topic_kws_set and _qt in _kw_idx_pre and _qt not in _matched_kws:
+                            _plan_set_pre.update(_kw_entry_plan(e) for e in _kw_idx_pre[_qt])
+                            _matched_kws.append(_qt)
+
+                if not _label_hit:
+                    # 3. SDG key 直接出現在問題裡（entries 為 str）
+                    for _kw_pre in _kw_idx_pre:
+                        if re.match(r'^SDG\d{1,2}$', _kw_pre) and _kw_pre in search_question:
+                            if _kw_pre not in _matched_kws:
+                                _matched_kws.append(_kw_pre)
+                                _plan_set_pre.update(_kw_idx_pre[_kw_pre])
+
+                    # 4. 計畫類型別名（萌芽型/深耕型/國際合作型/特色永續型 → 完整 key）
+                    for _alias, _full_key in _PLAN_TYPE_ALIAS.items():
+                        if _alias in search_question and _full_key and _full_key in _kw_idx_pre:
+                            if _full_key not in _matched_kws:
+                                _matched_kws.append(_full_key)
+                                _plan_set_pre.update(_kw_entry_plan(e) for e in _kw_idx_pre[_full_key])
+
+                    # 5. 地區/縣市 label 直接出現在問題裡（北區/南區/臺南市等）
+                    _sdg_re = re.compile(r'^SDG\d{1,2}$')
+                    _label_skip_set = _all_topic_kws_set | set(_PLAN_TYPE_ALIAS.keys()) | set(_PLAN_TYPE_ALIAS.values())
+                    for _lk in sorted(_kw_idx_pre, key=len, reverse=True):
+                        if _lk in _matched_kws or _lk in _label_skip_set or _sdg_re.match(_lk):
+                            continue
+                        if len(_lk) >= 2 and _lk in search_question:
+                            _entries = _kw_idx_pre.get(_lk, [])
+                            if not _entries:
+                                continue
+                            _matched_kws.append(_lk)
+                            if _entries and isinstance(_entries[0], str):
+                                _plan_set_pre.update(_entries)
+                            else:
+                                _plan_set_pre.update(_kw_entry_plan(e) for e in _entries)
+                            print(f"[KW-PRE] label 命中：{_lk} → {len(_entries)} 件")
 
                 if _matched_kws:
                     _kw_list_hit = _matched_kws[0]
