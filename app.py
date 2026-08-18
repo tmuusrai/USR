@@ -1453,7 +1453,11 @@ def _kw_entry_plan(e) -> str:
 
 def _load_kw_index() -> None:
     """載入 label_index.json（標籤資料）與 kw_chunks.json（chunk 資料），合併至 _keyword_index。"""
+    _skip_chunks = os.getenv("SKIP_KW_CHUNKS", "").strip() == "1"
     for path, tag in [(_LABEL_INDEX_PATH, "LABEL-IDX"), (_KW_CHUNKS_PATH, "KW-CHUNKS")]:
+        if tag == "KW-CHUNKS" and _skip_chunks:
+            print(f"[{tag}] SKIP_KW_CHUNKS=1，略過（省記憶體模式）。")
+            continue
         if not path.exists():
             print(f"[{tag}] 找不到 {path.name}，略過。")
             continue
