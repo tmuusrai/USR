@@ -2316,6 +2316,10 @@ def ask():
                 _q_terms = _extract_query_terms(question)
                 _q_priority_kws = [k for k in _q_terms if k in search_question]
                 _kw_idx = _keyword_index.get(year) or _keyword_index.get("114", {})
+                # KW-PRE 已建立 label 名單，直接作為初始 _plan_list_lines
+                if _kw_plan_list:
+                    _plan_list_lines = list(_kw_plan_list)
+                    print(f"[KW-SEED] label 名單 → _plan_list_lines {len(_plan_list_lines)} 件")
                 _all_topic_kws: set[str] = {kw for kws in USR_TOPIC_KEYWORDS.values() for kw in kws}
 
                 # ── keyword_index 查詢：_usr_topic_kws + 問題中的已知議題詞 ──
