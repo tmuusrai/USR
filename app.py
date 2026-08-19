@@ -983,10 +983,13 @@ def _try_summary_answer(question: str, year: str) -> str | None:
     if len(summaries) == 1:
         plan, content = summaries[0]
         return f"## {school}｜{plan}\n\n{_strip_hr(content)}"
-    # 多個計畫 → 全部列出
-    parts = []
+    # 多個計畫：先檢查問題是否指定特定計畫名
     for plan, content in summaries:
-        parts.append(f"## {school}｜{plan}\n\n{_strip_hr(content)}")
+        plan_parts = [p for p in plan.split('：') if len(p) >= 4]
+        if plan[:10] in question or any(p in question for p in plan_parts):
+            return f"## {school}｜{plan}\n\n{_strip_hr(content)}"
+    # 未指定 → 全部輸出
+    parts = [f"## {school}｜{plan}\n\n{_strip_hr(content)}" for plan, content in summaries]
     return "\n\n".join(parts)
 
 
