@@ -2887,6 +2887,10 @@ for _kws in USR_TOPIC_KEYWORDS.values():
     for _kw in _kws:
         if len(_kw) >= 3:
             jieba.add_word(_kw)
+# 補充常見複合詞，避免被切開成無意義片段
+for _extra_word in ["原住民族", "原住民", "新住民", "身心障礙", "弱勢族群",
+                    "高齡化", "超高齡", "少子化", "偏鄉地區", "非都市", "中高齡"]:
+    jieba.add_word(_extra_word)
 
 TOPIC_CLASSIFY_PROMPT = """你是台灣 USR（大學社會責任）計畫的議題分類專家。
 請判斷以下問題**最核心**屬於哪些 USR 議題類別。
