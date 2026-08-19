@@ -2536,9 +2536,17 @@ def ask():
                                 _plan_to_snippet[_s] = '\n'.join(_school_to_live[_s_school][:3])
                     print(f"[CHUNK-LIVE] live 補充後 _plan_to_snippet {len(_plan_to_snippet)} 件")
 
-                # 偵測分析型子問題（多個？分隔），有則限制清單件數
-                _extra_sub_qs = [p for p in [p.strip() for p in re.split(r'[？?]', question) if p.strip()][1:]
-                                 if re.search(r'什麼|哪些|哪幾|如何|為何|為什麼|怎麼|怎樣|多少|幾個|幾間|幾件|哪', p)]
+                # 偵測分析型子問題（多個？分隔 or 逗號後附帶子問題）
+                _SUB_Q_RE = re.compile(r'什麼|哪些|哪幾|如何|為何|為什麼|怎麼|怎樣|多少|幾個|幾間|幾件|哪')
+                _q_segs = [p.strip() for p in re.split(r'[？?]', question) if p.strip()]
+                _extra_sub_qs = [p for p in _q_segs[1:] if _SUB_Q_RE.search(p)]
+                # 逗號附帶子問題：「哪些計畫X，Y是什麼？」型
+                if not _extra_sub_qs and _q_segs:
+                    _first_seg = _q_segs[0]
+                    if re.match(r'^哪[些幾]|^有哪|^什麼計畫', _first_seg):
+                        _comma_parts = re.split(r'[，、]', _first_seg)
+                        _extra_sub_qs = [p.strip() for p in _comma_parts[1:]
+                                         if p.strip() and _SUB_Q_RE.search(p)]
                 _display_lines = _plan_list_lines[:25] if _extra_sub_qs else _plan_list_lines
                 _list_display_note = f"（另有更多計畫，以下列出前{len(_display_lines)}件）" if _extra_sub_qs and len(_plan_list_lines) > len(_display_lines) else ""
                 print(f"[LIST-SUB] extra_sub_qs={_extra_sub_qs} display={len(_display_lines)} total={len(_plan_list_lines)}")
