@@ -2386,7 +2386,7 @@ def ask():
                     print(f"[KW-IDX] 議題詞 {len(_lookup_kws)} 個 → {len(_topic_plan_set)} 件計畫")
                     if not _plan_list_lines:
                         _plan_list_lines = sorted(_topic_plan_set)
-                    elif not _pure_label_mode:
+                    elif not _pure_label_mode and not _label_hit:
                         _kw_schools = {e.split('：')[0] for e in _plan_list_lines}
                         _extra = [p for p in sorted(_topic_plan_set)
                                   if p.split('：')[0] not in _kw_schools
