@@ -966,7 +966,7 @@ def _find_school_summaries(school: str) -> list[tuple[str, str]]:
 
 def _strip_hr(text: str) -> str:
     """移除 markdown 水平分隔線（--- 獨立成行）。"""
-    return re.sub(r'\n-{3,}\n', '\n', text).strip()
+    return re.sub(r'(?m)^\s*-{3,}\s*$\n?', '', text).strip()
 
 def _try_summary_answer(question: str, year: str) -> str | None:
     """若問到特定學校計畫內容/總覽，直接回傳 summary TXT 內容。"""
