@@ -32,9 +32,14 @@ OUTPUT_PATH   = Path("114_output/kw_chunks.json")
 LABEL_PATH    = Path("114_output/label_index.json")
 
 _PLAN_CODE_RE = re.compile(r'\b[A-Z]{1,3}\d{3,}-\d+-\d+[A-Z]?\b')
+# 清理 filename stem 的計畫代碼和 chunk 序號
+_STEM_CLEAN_RE = re.compile(r'\s*\(\d{3}USR-[^)]*\)\s*|\s*\(\d+\)$')
 
 def _clean_plan_code(text: str) -> str:
     return _PLAN_CODE_RE.sub('', text)
+
+def _clean_stem(stem: str) -> str:
+    return _STEM_CLEAN_RE.sub('', stem).strip()
 
 # 有 label 的官方 USR 議題
 _LABELED_TOPICS = {
@@ -86,7 +91,7 @@ def _build_chunks(year: str, vs, label_plans: dict[str, set[str]]) -> dict[str, 
         text = _clean_plan_code(doc.page_content)
         # 移除 --- 分隔線
         text = re.sub(r'(?m)^\s*-{3,}\s*$\n?', '', text).strip()
-        stem = Path(src).stem
+        stem = _clean_stem(Path(src).stem)
         parts = stem.split('_', 1)
         if len(parts) < 2:
             continue
