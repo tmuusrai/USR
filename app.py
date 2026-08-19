@@ -968,6 +968,15 @@ def _strip_hr(text: str) -> str:
     """移除 markdown 水平分隔線（--- 獨立成行）。"""
     return re.sub(r'(?m)^\s*-{3,}\s*$\n?', '', text).strip()
 
+def _strip_summary_header(text: str) -> str:
+    """移除 summary TXT 開頭的「以下為...」說明行與第一個 # 標題行（避免與外層標題重複）。"""
+    lines = text.split('\n')
+    while lines and (lines[0].startswith('以下為') or re.match(r'^#{1,2}\s', lines[0])):
+        lines.pop(0)
+        while lines and not lines[0].strip():
+            lines.pop(0)
+    return '\n'.join(lines).strip()
+
 def _try_summary_answer(question: str, year: str) -> str | None:
     """若問到特定學校計畫內容/總覽，直接回傳 summary TXT 內容。"""
     if year != "114":
@@ -980,17 +989,20 @@ def _try_summary_answer(question: str, year: str) -> str | None:
     summaries = _find_school_summaries(school)
     if not summaries:
         return None
+    def _fmt(plan, content):
+        body = _strip_summary_header(_strip_hr(content))
+        return f"## {school}｜{plan}\n\n{body}"
+
     if len(summaries) == 1:
         plan, content = summaries[0]
-        return f"## {school}｜{plan}\n\n{_strip_hr(content)}"
+        return _fmt(plan, content)
     # 多個計畫：先檢查問題是否指定特定計畫名
     for plan, content in summaries:
         plan_parts = [p for p in plan.split('：') if len(p) >= 4]
         if plan[:10] in question or any(p in question for p in plan_parts):
-            return f"## {school}｜{plan}\n\n{_strip_hr(content)}"
+            return _fmt(plan, content)
     # 未指定 → 全部輸出
-    parts = [f"## {school}｜{plan}\n\n{_strip_hr(content)}" for plan, content in summaries]
-    return "\n\n".join(parts)
+    return "\n\n".join(_fmt(plan, content) for plan, content in summaries)
 
 
 _MULTI_REF_RE = re.compile(
