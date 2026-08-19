@@ -552,7 +552,7 @@ def _get_theme(title: str) -> dict:
     return _THEME_DEFAULT
 
 # 清理計畫編號與 _formatted 後綴
-_PLAN_CODE_RE = re.compile(r'\s*\(\d{3}USR-[^)]*\)?|_formatted', re.IGNORECASE)
+_PLAN_CODE_RE = re.compile(r'\s*\(\d{3}USR-[^)]*\)?|_formatted(?:\(\d+\))?', re.IGNORECASE)
 _PATH_SEP_RE = re.compile(r'[/\\]')
 
 def _clean_plan_code(text: str) -> str:
@@ -2566,13 +2566,28 @@ def ask():
                         print(f"[LIST-REGION] 縣市過濾={_question_counties}，無匹配，不過濾")
 
                 # ── 列舉型：從 FAISS plan_doc_index 取各計畫內文 ──
+                def _pdoc_get(pdoc_yr: dict, plan_key: str) -> list:
+                    """Exact match, then fallback for : vs _ and (N) suffix differences."""
+                    if plan_key in pdoc_yr:
+                        return pdoc_yr[plan_key]
+                    _sch, _, _pn = plan_key.partition('：')
+                    # 嘗試 : 換成 _
+                    _alt = f"{_sch}：{_pn.replace(':', '_')}"
+                    if _alt in pdoc_yr:
+                        return pdoc_yr[_alt]
+                    # 嘗試 strip 尾綴 (N)
+                    _stripped = re.sub(r'\s*\(\d+\)$', '', plan_key).strip()
+                    if _stripped != plan_key and _stripped in pdoc_yr:
+                        return pdoc_yr[_stripped]
+                    return []
+
                 if _plan_list_lines and not _pure_label_mode:
                     _score_kws = list(dict.fromkeys(_q_terms + list(_usr_topic_kws or [])))
                     _pdoc_yr = _plan_doc_index.get(year, {})
                     for _s in _plan_list_lines:
                         if _s in _plan_to_snippet:
                             continue
-                        _docs = _pdoc_yr.get(_s, [])
+                        _docs = _pdoc_get(_pdoc_yr, _s)
                         if _docs:
                             _doc_texts = [
                                 _strip_hr(_clean_plan_code(d.page_content))
