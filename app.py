@@ -2543,15 +2543,22 @@ def ask():
                         print(f"[LIST-REGION] 縣市過濾={_question_counties}，無匹配，不過濾")
 
                 # ── 列舉型：直接從 kw_chunks (_keyword_index) 取各計畫內文 ──
-                if _plan_list_lines and not _pure_label_mode:
+                if _plan_list_lines:
                     _plan_list_set = set(_plan_list_lines)
-                    _chunk_kws = list(dict.fromkeys(_q_terms + list(_usr_topic_kws or [])))
+                    # label 模式時用所有議題關鍵字；否則用 query 詞 + 議題關鍵字
+                    _chunk_kws = list(dict.fromkeys(
+                        list(_usr_topic_kws or []) + _q_terms
+                        if _pure_label_mode
+                        else _q_terms + list(_usr_topic_kws or [])
+                    ))
                     _plan_best: dict[str, dict] = {}
+                    _stem_strip_re = re.compile(r'\s*\(\d{3}USR-[^)]*\)?|_formatted(?:\(\d+\))?')
                     for _ckw in _chunk_kws:
                         for _e in _keyword_index.get(year, {}).get(_ckw, []):
                             if not isinstance(_e, dict) or "text" not in _e:
                                 continue
-                            _pk = _e.get("plan", "")
+                            # 正規化 kw_chunks 的 plan key（去掉 _formatted 等後綴）
+                            _pk = _stem_strip_re.sub('', _e.get("plan", "")).strip('_ ')
                             if _pk not in _plan_list_set:
                                 continue
                             if _pk not in _plan_best or _e.get("hits", 0) > _plan_best[_pk].get("hits", 0):
@@ -2601,9 +2608,7 @@ def ask():
                 def _sum_one_plan(_plan_line: str) -> str:
                     _snip = _strip_hr(_plan_to_snippet.get(_plan_line, ""))
                     if not _snip:
-                        # 純 label 查詢（無額外詞）：直接列出計畫名，不送 LLM
-                        # 有額外詞但無內容：跳過（不應發生）
-                        return "\x01" if not _kw_pre_extra else ""
+                        return "\x01"
                     _lead_school = _plan_line.split('：', 1)[0].strip()
                     _topic_kws_for_prompt = list(dict.fromkeys(
                         k for k in (_q_priority_kws + list(_usr_topic_kws or []))
