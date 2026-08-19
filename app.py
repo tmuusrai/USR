@@ -2142,7 +2142,6 @@ def ask():
 
                 if not _label_hit:
                     # 1a. 偵測到的 topic 屬於有 label 的官方議題 → 直接用 label_index[topic] 當計畫清單
-                    # 注意：不設 _label_hit，避免觸發 pure_label_mode（用戶問的是子詞，需要 chunk 內容）
                     if _usr_topic in _LABELED_USR_TOPICS:
                         _topic_label_entries = _label_only_index.get(year, {}).get(_usr_topic, [])
                         if _topic_label_entries:
@@ -2151,6 +2150,7 @@ def ask():
                                 else (_kw_entry_plan(e) for e in _topic_label_entries)
                             )
                             _matched_kws.append(_usr_topic)
+                            _label_hit = True
                             print(f"[KW-PRE] 官方議題 label 命中：{_usr_topic} → {len(_topic_label_entries)} 件")
 
                 if not _label_hit:
@@ -2361,9 +2361,12 @@ def ask():
                 if _kw_plan_list:
                     _plan_list_lines = list(_kw_plan_list)
                     print(f"[KW-SEED] label 名單 → _plan_list_lines {len(_plan_list_lines)} 件")
-                # 純 label 模式：label 直接命中（step 0）且無額外詞，不補充任何 FAISS/chunk 資料
-                # topic 展開（steps 1-2）即使無額外詞仍需取 chunk 內容
-                _pure_label_mode = bool(_kw_plan_list) and not _kw_pre_extra and _label_hit
+                # 純 label 模式：label 直接命中且無額外詞，不補充任何 FAISS/chunk 資料
+                # 六個官方議題例外：即使 label 命中也要取 chunk 內容輸出描述
+                _pure_label_mode = (
+                    bool(_kw_plan_list) and not _kw_pre_extra and _label_hit
+                    and _usr_topic not in _LABELED_USR_TOPICS
+                )
                 _all_topic_kws: set[str] = {kw for kws in USR_TOPIC_KEYWORDS.values() for kw in kws}
 
                 # ── keyword_index 查詢：_usr_topic_kws + 問題中的已知議題詞 ──
