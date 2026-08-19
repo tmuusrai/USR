@@ -2547,9 +2547,11 @@ def ask():
                         _comma_parts = re.split(r'[，、]', _first_seg)
                         _extra_sub_qs = [p.strip() for p in _comma_parts[1:]
                                          if p.strip() and _SUB_Q_RE.search(p)]
-                _display_lines = _plan_list_lines[:25] if _extra_sub_qs else _plan_list_lines
-                _list_display_note = f"（另有更多計畫，以下列出前{len(_display_lines)}件）" if _extra_sub_qs and len(_plan_list_lines) > len(_display_lines) else ""
-                print(f"[LIST-SUB] extra_sub_qs={_extra_sub_qs} display={len(_display_lines)} total={len(_plan_list_lines)}")
+                _SUB_CAP = 25
+                # 多取緩衝以補足跳過件，收集後再截至 _SUB_CAP
+                _display_lines = _plan_list_lines[:_SUB_CAP * 2] if _extra_sub_qs else _plan_list_lines
+                _list_display_note = f"（另有更多計畫，以下列出前{_SUB_CAP}件）" if _extra_sub_qs and len(_plan_list_lines) > _SUB_CAP else ""
+                print(f"[LIST-SUB] extra_sub_qs={_extra_sub_qs} display={len(_display_lines)} cap={_SUB_CAP if _extra_sub_qs else '∞'} total={len(_plan_list_lines)}")
 
                 # ── 列舉型並行路徑：每個計畫單獨送 LLM，擷取原文關鍵句 ──
                 from langchain_core.messages import HumanMessage as _HMList
@@ -2654,6 +2656,9 @@ def ask():
                         key=lambda x: sum(1 for k in _rank_kws if k in x[1]),
                         reverse=True
                     )
+                # 有子問題時截至上限
+                if _extra_sub_qs:
+                    _para_collected = _para_collected[:_SUB_CAP]
 
                 _out_idx = len(_para_collected)
                 _header_txt = f"找到 {_out_idx} 件相關計畫{_list_display_note}{_t1_label}\n\n"
