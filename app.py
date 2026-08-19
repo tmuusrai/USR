@@ -1445,11 +1445,14 @@ init_qa()
 
 # ── 關鍵字索引 ────────────────────────────────────────
 _keyword_index: dict[str, dict] = {}
-_LABEL_INDEX_PATH = Path("114_output/label_index.json")
-_KW_CHUNKS_PATH = Path("114_output/kw_chunks.json")
+_LABEL_INDEX_PATH    = Path("114_output/label_index.json")
+_KW_CHUNKS_PATH      = Path("114_output/kw_chunks.json")
+_LOCATION_INDEX_PATH = Path("114_output/location_index.json")
 
 # 純 label 索引（不被 kw_chunks 蓋掉），供 KW-PRE step 0 直接命中用
 _label_only_index: dict = {}
+# 國內實踐場域索引（學校/計畫 → 場域清單）
+_location_index: dict = {}
 
 def _kw_entry_plan(e) -> str:
     """從 keyword_index entry 取計畫名（dict 或舊格式 str 皆相容）。"""
@@ -1480,6 +1483,59 @@ def _load_kw_index() -> None:
 
 _load_kw_index()
 
+
+def _load_location_index() -> None:
+    if not _LOCATION_INDEX_PATH.exists():
+        print(f"[LOCATION] 找不到 {_LOCATION_INDEX_PATH.name}，略過。")
+        return
+    try:
+        with open(_LOCATION_INDEX_PATH, encoding="utf-8") as _f:
+            data = json.load(_f)
+        for yr in ("114", "113"):
+            if yr in data:
+                _location_index[yr] = data[yr]
+        total = sum(len(v.get("plans", {})) for v in _location_index.values())
+        print(f"[LOCATION] 載入 {_LOCATION_INDEX_PATH.name}，{total} 個計畫場域資料")
+    except Exception as _e:
+        print(f"[LOCATION] 載入失敗：{_e}")
+
+_load_location_index()
+
+
+_LOCATION_INTENT_RE = re.compile(
+    r'實踐場域|計畫場域|場域(在哪|位置|縣市|鄉鎮|所在|地點|有哪)|'
+    r'(場域|實踐地點|執行場域|合作場域).{0,5}(在哪|哪裡|哪些|什麼|縣市)|'
+    r'在哪.{0,5}實踐|在哪.{0,5}場域'
+)
+
+
+def _try_location_answer(question: str, year: str) -> str | None:
+    """學校場域查詢：直接從 location_index 回傳結構化場域資訊。"""
+    if not _LOCATION_INTENT_RE.search(question):
+        return None
+    school = _extract_school(question)
+    if not school:
+        return None
+    loc_yr = _location_index.get(year) or _location_index.get("114", {})
+    sc_data = loc_yr.get("schools", {}).get(school)
+    if not sc_data:
+        return None
+    plans_data = loc_yr.get("plans", {})
+    lines = [f"**{school}** 共有 {len(sc_data['plans'])} 個計畫，國內實踐場域如下：\n"]
+    for i, pk in enumerate(sc_data["plans"], 1):
+        plan_name = pk.split("：", 1)[1] if "：" in pk else pk
+        p = plans_data.get(pk, {})
+        fields = p.get("fields", [])
+        field_strs = []
+        for f in fields:
+            parts = [f["county"], f["district"], f["location"]]
+            s = "　".join(x for x in parts if x)
+            if s:
+                field_strs.append(s)
+        field_text = "、".join(field_strs) if field_strs else "（無場域資料）"
+        lines.append(f"{i}. **{plan_name}**")
+        lines.append(f"   場域：{field_text}\n")
+    return "\n".join(lines)
 
 
 # ── 路由 ──────────────────────────────────────────────
@@ -1873,7 +1929,17 @@ def ask():
                 yield f"data: {json.dumps({'type': 'done', 'timing': {'total_ms': total_ms}, 'mode': 'qa_custom'}, ensure_ascii=False)}\n\n"
                 return
 
-            # ── ①-c 計畫總覽/內容短路：直接回傳 summary TXT ──
+            # ── ①-c 國內實踐場域短路：直接從 location_index 回傳 ──
+            location_ctx = _try_location_answer(question, year=year)
+            if location_ctx:
+                _save_shortcut_history(location_ctx)
+                yield f"data: {json.dumps({'type': 'sources', 'sources': []}, ensure_ascii=False)}\n\n"
+                yield f"data: {json.dumps({'type': 'chunk', 'text': location_ctx}, ensure_ascii=False)}\n\n"
+                total_ms = round((time.perf_counter() - t0) * 1000)
+                yield f"data: {json.dumps({'type': 'done', 'timing': {'total_ms': total_ms}, 'mode': 'location_direct'}, ensure_ascii=False)}\n\n"
+                return
+
+            # ── ①-d 計畫總覽/內容短路：直接回傳 summary TXT ──
             summary_ctx = _try_summary_answer(question, year=year)
             if summary_ctx:
                 _save_shortcut_history(summary_ctx)
