@@ -3376,10 +3376,17 @@ def _build_known_schools() -> list[str]:
 _KNOWN_SCHOOLS: list[str] = _build_known_schools()
 
 
+_SCHOOL_PREFIX_RE = re.compile(r'^(國立|私立|財團法人)')
+
 def _extract_school(text: str) -> str | None:
     """從問題中提取學校名稱（與已知學校清單比對，避免 regex greedy 誤抓前綴詞）。"""
     for school in _KNOWN_SCHOOLS:
         if school in text:
+            return school
+    # 部分比對：去掉「國立／私立」前綴後再試（如「中山大學」→「國立中山大學」）
+    for school in _KNOWN_SCHOOLS:
+        short = _SCHOOL_PREFIX_RE.sub('', school)
+        if len(short) >= 3 and short in text:
             return school
     return None
 
