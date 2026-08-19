@@ -2573,7 +2573,7 @@ def ask():
                 from langchain_core.messages import HumanMessage as _HMList
 
                 def _sum_one_plan(_plan_line: str) -> str:
-                    _snip = _plan_to_snippet.get(_plan_line, "")
+                    _snip = _strip_hr(_plan_to_snippet.get(_plan_line, ""))
                     if not _snip:
                         # 純 label 查詢（無額外詞）：直接列出計畫名，不送 LLM
                         # 有額外詞但無內容：跳過（不應發生）
