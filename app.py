@@ -1401,6 +1401,27 @@ llm_fast = ChatGoogleGenerativeAI(
     thinking_budget=512,
 )
 
+# ── FAISS 計畫文件索引（plan_key → docs），啟動時掃一次，取代 kw_chunks 做 snippet 來源 ──
+_plan_doc_index: dict[str, dict[str, list]] = {}  # year → plan_key → [Document]
+
+def _build_plan_doc_index(vs, year: str) -> None:
+    """掃 FAISS docstore，建立 plan_key → docs 索引，供列舉模式取 snippet 用。"""
+    idx: dict[str, list] = {}
+    for doc in vs.docstore._dict.values():
+        src = doc.metadata.get("source", "")
+        if "qa_custom" in src:
+            continue
+        stem = _PATH_SEP_RE.split(src)[-1].rsplit('.', 1)[0]
+        stem = _PLAN_CODE_RE.sub('', stem).strip('_ ')
+        parts = stem.split('_', 1)
+        if len(parts) < 2:
+            continue
+        plan_key = f"{parts[0]}：{parts[1]}"
+        idx.setdefault(plan_key, []).append(doc)
+    _plan_doc_index[year] = idx
+    print(f"[PLAN-DOC-IDX] {year}年：{len(idx)} 件計畫，"
+          f"{sum(len(v) for v in idx.values())} 個 chunk")
+
 vectorstores: dict = {}
 try:
     vs = load_or_build_index("114")
@@ -1473,26 +1494,6 @@ _LOCATION_INDEX_PATH = Path("114_output/location_index.json")
 # 純 label 索引（不被 kw_chunks 蓋掉），供 KW-PRE step 0 直接命中用
 _label_only_index: dict = {}
 
-# ── FAISS 計畫文件索引（plan_key → docs），啟動時掃一次，取代 kw_chunks 做 snippet 來源 ──
-_plan_doc_index: dict[str, dict[str, list]] = {}  # year → plan_key → [Document]
-
-def _build_plan_doc_index(vs, year: str) -> None:
-    """掃 FAISS docstore，建立 plan_key → docs 索引，供列舉模式取 snippet 用。"""
-    idx: dict[str, list] = {}
-    for doc in vs.docstore._dict.values():
-        src = doc.metadata.get("source", "")
-        if "qa_custom" in src:
-            continue
-        stem = _PATH_SEP_RE.split(src)[-1].rsplit('.', 1)[0]
-        stem = _PLAN_CODE_RE.sub('', stem).strip('_ ')
-        parts = stem.split('_', 1)
-        if len(parts) < 2:
-            continue
-        plan_key = f"{parts[0]}：{parts[1]}"
-        idx.setdefault(plan_key, []).append(doc)
-    _plan_doc_index[year] = idx
-    print(f"[PLAN-DOC-IDX] {year}年：{len(idx)} 件計畫，"
-          f"{sum(len(v) for v in idx.values())} 個 chunk")
 # 國內實踐場域索引（學校/計畫 → 場域清單）
 _location_index: dict = {}
 
