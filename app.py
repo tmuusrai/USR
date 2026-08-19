@@ -2545,6 +2545,10 @@ def ask():
                     for _s in _plan_list_lines:
                         if _s not in _plan_to_snippet and _s in _plan_best:
                             _plan_to_snippet[_s] = _plan_best[_s]["text"]
+                    # fallback：用 KW-IDX 建名單時已順手收的 chunk
+                    for _s in _plan_list_lines:
+                        if _s not in _plan_to_snippet and _s in _kw_idx_chunks:
+                            _plan_to_snippet[_s] = _kw_idx_chunks[_s][0]
                     print(f"[CHUNK-KW] kw_chunks 直查完成，_plan_to_snippet {len(_plan_to_snippet)} 件")
 
                 # 有額外詞時（如漁業），用 FAISS live 結果為無 chunk 的計畫補充內容
