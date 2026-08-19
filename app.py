@@ -2183,10 +2183,6 @@ def ask():
                 _list = True
                 print(f"[ASK] 多校追問({len(_listed_schools)}間) → 強制列舉型（跳過SeqQuery）")
 
-            # ③-d label 命中（KW-PRE）→ 強制列舉型，確保 AND 篩選後的名單進 _plan_list_lines
-            if _kw_plan_list and not _list and not _school:
-                _list = True
-                print(f"[KW-PRE] label 命中 {len(_kw_plan_list)} 件 → 強制列舉型")
 
             # ④ Voyage AI 平行 embed
             docs = []
@@ -2395,6 +2391,15 @@ def ask():
                     _live_texts = [_clean_plan_code(_lv) for _lv in _kw_pre_live_results]
                     faiss_texts = _live_texts + faiss_texts
                     print(f"[LIVE-NONLIST] 補充 {len(_live_texts)} 筆 live 結果至 faiss_texts")
+                # AND 篩選後的 label 計畫清單注入 context，讓 LLM 能準確回答「嗎？」類問題
+                if _kw_plan_list:
+                    _plan_list_note = (
+                        f"【系統提示】以下 {len(_kw_plan_list)} 件計畫已由關鍵字引擎確認符合查詢條件，"
+                        f"請依此清單回答：\n"
+                        + "\n".join(f"- {p}" for p in _kw_plan_list)
+                    )
+                    faiss_texts = [_plan_list_note] + faiss_texts
+                    print(f"[NONLIST-INJECT] 注入 {len(_kw_plan_list)} 件 label 計畫至 context")
             print(f"[LIST-GATE] _list={_list} annotated={type(annotated).__name__ if annotated is not None else 'None'}({len(annotated) if annotated else 0}) _usr_topic={_usr_topic} plan_list={len(_plan_list_lines)}")
             _MAX_PLAN_LIST = 150  # LLM 輸出上限（超過會被截斷）
 
