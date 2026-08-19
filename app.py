@@ -2133,8 +2133,27 @@ def ask():
                         print(f"[KW-PRE] label 直接命中：{_lk} → {len(_entries)} 件")
                         _label_hit = True
 
+                # 有 label 的官方 USR 議題
+                _LABELED_USR_TOPICS = {
+                    "在地關懷", "環境永續", "健康促進與食品安全",
+                    "產業鏈結與經濟永續", "文化永續", "其他社會實踐",
+                }
+
                 if not _label_hit:
-                    # 1. _usr_topic_kws（_detect_usr_topic 已偵測到的議題關鍵字）
+                    # 1a. 偵測到的 topic 屬於有 label 的官方議題 → 直接用 label_index[topic] 當計畫清單
+                    if _usr_topic in _LABELED_USR_TOPICS:
+                        _topic_label_entries = _label_only_index.get(year, {}).get(_usr_topic, [])
+                        if _topic_label_entries:
+                            _plan_set_pre.update(
+                                _topic_label_entries if isinstance(_topic_label_entries[0], str)
+                                else (_kw_entry_plan(e) for e in _topic_label_entries)
+                            )
+                            _matched_kws.append(_usr_topic)
+                            _label_hit = True
+                            print(f"[KW-PRE] 官方議題 label 命中：{_usr_topic} → {len(_topic_label_entries)} 件")
+
+                if not _label_hit:
+                    # 1b. 非官方議題：退回 kw_chunks 文字比對
                     for _tk in (_usr_topic_kws or []):
                         if _tk in _kw_idx_pre:
                             _plan_set_pre.update(_kw_entry_plan(e) for e in _kw_idx_pre[_tk])
