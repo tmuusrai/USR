@@ -2142,6 +2142,7 @@ def ask():
 
                 if not _label_hit:
                     # 1a. 偵測到的 topic 屬於有 label 的官方議題 → 直接用 label_index[topic] 當計畫清單
+                    # 注意：不設 _label_hit，避免觸發 pure_label_mode（用戶問的是子詞，需要 chunk 內容）
                     if _usr_topic in _LABELED_USR_TOPICS:
                         _topic_label_entries = _label_only_index.get(year, {}).get(_usr_topic, [])
                         if _topic_label_entries:
@@ -2150,7 +2151,6 @@ def ask():
                                 else (_kw_entry_plan(e) for e in _topic_label_entries)
                             )
                             _matched_kws.append(_usr_topic)
-                            _label_hit = True
                             print(f"[KW-PRE] 官方議題 label 命中：{_usr_topic} → {len(_topic_label_entries)} 件")
 
                 if not _label_hit:
