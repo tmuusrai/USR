@@ -2587,7 +2587,7 @@ def ask():
                 def _sum_one_plan(_plan_line: str) -> str:
                     _snip = _strip_hr(_plan_to_snippet.get(_plan_line, ""))
                     if not _snip:
-                        return "\x01"
+                        return ""
                     _lead_school = _plan_line.split('：', 1)[0].strip()
                     _topic_kws_for_prompt = list(dict.fromkeys(
                         k for k in (_q_priority_kws + list(_usr_topic_kws or []))
