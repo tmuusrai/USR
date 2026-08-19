@@ -2387,10 +2387,19 @@ def ask():
             else:
                 faiss_texts = [_clean_plan_code(doc.page_content) for doc in docs]
                 # label + 額外詞命中時，把 FAISS live results 加進 context（優先放前面）
+                # 若有 AND 篩選名單，live chunk 只保留名單內學校的文件
                 if _kw_pre_live_results:
-                    _live_texts = [_clean_plan_code(_lv) for _lv in _kw_pre_live_results]
+                    if _kw_plan_list:
+                        _allowed_schools = {e.split('：', 1)[0] for e in _kw_plan_list}
+                        _live_texts = [
+                            _clean_plan_code(_lv) for _lv in _kw_pre_live_results
+                            if (m := re.match(r'【(.+?)_', _lv)) and m.group(1) in _allowed_schools
+                        ]
+                        print(f"[LIVE-NONLIST] label 過濾後 {len(_live_texts)}/{len(_kw_pre_live_results)} 筆 live 結果")
+                    else:
+                        _live_texts = [_clean_plan_code(_lv) for _lv in _kw_pre_live_results]
+                        print(f"[LIVE-NONLIST] 補充 {len(_live_texts)} 筆 live 結果至 faiss_texts")
                     faiss_texts = _live_texts + faiss_texts
-                    print(f"[LIVE-NONLIST] 補充 {len(_live_texts)} 筆 live 結果至 faiss_texts")
                 # AND 篩選後的 label 計畫清單注入 context，讓 LLM 能準確回答「嗎？」類問題
                 if _kw_plan_list:
                     _plan_list_note = (
