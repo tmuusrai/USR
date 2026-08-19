@@ -1405,6 +1405,7 @@ vectorstores: dict = {}
 try:
     vs = load_or_build_index("114")
     vectorstores["114"] = vs
+    _build_plan_doc_index(vs, "114")
     print("[APP] RAG 114 就緒。")
 except FileNotFoundError as e:
     vectorstores["114"] = None
@@ -1453,6 +1454,7 @@ def _ensure_year_loaded(year: str) -> None:
         try:
             _vs = load_or_build_index(year)
             vectorstores[year] = _vs
+            _build_plan_doc_index(_vs, year)
             if year not in _sdg_maps:
                 _sdg_maps[year] = _build_sdg_map(_vs)
             print(f"[APP] {year} 年索引就緒。")
@@ -1470,6 +1472,27 @@ _LOCATION_INDEX_PATH = Path("114_output/location_index.json")
 
 # 純 label 索引（不被 kw_chunks 蓋掉），供 KW-PRE step 0 直接命中用
 _label_only_index: dict = {}
+
+# ── FAISS 計畫文件索引（plan_key → docs），啟動時掃一次，取代 kw_chunks 做 snippet 來源 ──
+_plan_doc_index: dict[str, dict[str, list]] = {}  # year → plan_key → [Document]
+
+def _build_plan_doc_index(vs, year: str) -> None:
+    """掃 FAISS docstore，建立 plan_key → docs 索引，供列舉模式取 snippet 用。"""
+    idx: dict[str, list] = {}
+    for doc in vs.docstore._dict.values():
+        src = doc.metadata.get("source", "")
+        if "qa_custom" in src:
+            continue
+        stem = _PATH_SEP_RE.split(src)[-1].rsplit('.', 1)[0]
+        stem = _PLAN_CODE_RE.sub('', stem).strip('_ ')
+        parts = stem.split('_', 1)
+        if len(parts) < 2:
+            continue
+        plan_key = f"{parts[0]}：{parts[1]}"
+        idx.setdefault(plan_key, []).append(doc)
+    _plan_doc_index[year] = idx
+    print(f"[PLAN-DOC-IDX] {year}年：{len(idx)} 件計畫，"
+          f"{sum(len(v) for v in idx.values())} 個 chunk")
 # 國內實踐場域索引（學校/計畫 → 場域清單）
 _location_index: dict = {}
 
@@ -2519,21 +2542,28 @@ def ask():
                     else:
                         print(f"[LIST-REGION] 縣市過濾={_question_counties}，無匹配，不過濾")
 
-                # ── 列舉型：從 keyword_index chunks 取各計畫內文 ──
+                # ── 列舉型：從 FAISS plan_doc_index 取各計畫內文 ──
                 if _plan_list_lines and not _pure_label_mode:
                     _score_kws = list(dict.fromkeys(_q_terms + list(_usr_topic_kws or [])))
+                    _pdoc_yr = _plan_doc_index.get(year, {})
                     for _s in _plan_list_lines:
                         if _s in _plan_to_snippet:
                             continue
-                        _chunks = _kw_idx_chunks.get(_s, [])
-                        if _chunks:
-                            _scored = sorted(_chunks,
-                                             key=lambda c: sum(1 for k in _score_kws if k in c),
-                                             reverse=True)
+                        _docs = _pdoc_yr.get(_s, [])
+                        if _docs:
+                            _doc_texts = [
+                                _strip_hr(_clean_plan_code(d.page_content))
+                                for d in _docs
+                            ]
+                            _scored = sorted(
+                                _doc_texts,
+                                key=lambda c: sum(1 for k in _score_kws if k in c),
+                                reverse=True
+                            )
                             _plan_to_snippet[_s] = _trunc_at_sent('\n'.join(
                                 _trunc_at_sent(c, 200) for c in _scored[:5]
                             ), 600)
-                    print(f"[CHUNK-IDX] per-plan lookup 完成，_plan_to_snippet {len(_plan_to_snippet)} 件")
+                    print(f"[CHUNK-IDX] plan_doc_index lookup 完成，_plan_to_snippet {len(_plan_to_snippet)} 件")
 
                 # 有額外詞時（如漁業），用 FAISS live 結果為無 chunk 的計畫補充內容
                 if _kw_pre_live_results and _plan_list_lines:
