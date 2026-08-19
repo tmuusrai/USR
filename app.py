@@ -2669,11 +2669,10 @@ def ask():
                     _para_futs = [(_pl, _para_ex.submit(_sum_one_plan, _pl)) for _pl in _display_lines]
                     for _pl, _pf in _para_futs:
                         _ps2 = _pf.result()
-                        if _ps2 == "":
+                        if not _ps2 or _ps2 == "\x01":
                             _skipped += 1
                             continue
-                        # "\x01" = 純 label 名單模式，保留計畫名但無描述
-                        _para_collected.append((_pl, "" if _ps2 == "\x01" else _ps2))
+                        _para_collected.append((_pl, _ps2))
 
                 # 依相關度排序：描述中含查詢詞越多排越前
                 if _q_priority_kws or _q_terms:
