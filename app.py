@@ -964,6 +964,10 @@ def _find_school_summaries(school: str) -> list[tuple[str, str]]:
         results.append((plan, f.read_text(encoding="utf-8")))
     return results
 
+def _strip_hr(text: str) -> str:
+    """移除 markdown 水平分隔線（--- 獨立成行）。"""
+    return re.sub(r'\n-{3,}\n', '\n', text).strip()
+
 def _try_summary_answer(question: str, year: str) -> str | None:
     """若問到特定學校計畫內容/總覽，直接回傳 summary TXT 內容。"""
     if year != "114":
@@ -978,12 +982,12 @@ def _try_summary_answer(question: str, year: str) -> str | None:
         return None
     if len(summaries) == 1:
         plan, content = summaries[0]
-        return f"## {school}｜{plan}\n\n{content}"
+        return f"## {school}｜{plan}\n\n{_strip_hr(content)}"
     # 多個計畫 → 全部列出
     parts = []
     for plan, content in summaries:
-        parts.append(f"## {school}｜{plan}\n\n{content}")
-    return "\n\n---\n\n".join(parts)
+        parts.append(f"## {school}｜{plan}\n\n{_strip_hr(content)}")
+    return "\n\n".join(parts)
 
 
 _MULTI_REF_RE = re.compile(
