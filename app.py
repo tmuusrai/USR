@@ -2117,6 +2117,11 @@ def ask():
                 _list = True
                 print(f"[ASK] 多校追問({len(_listed_schools)}間) → 強制列舉型（跳過SeqQuery）")
 
+            # ③-d label 命中（KW-PRE）→ 強制列舉型，確保 AND 篩選後的名單進 _plan_list_lines
+            if _kw_plan_list and not _list and not _school:
+                _list = True
+                print(f"[KW-PRE] label 命中 {len(_kw_plan_list)} 件 → 強制列舉型")
+
             # ④ Voyage AI 平行 embed
             docs = []
             t_voyage = t_faiss = time.perf_counter()
