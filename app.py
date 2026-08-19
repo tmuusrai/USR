@@ -2318,8 +2318,9 @@ def ask():
                 if _kw_plan_list:
                     _plan_list_lines = list(_kw_plan_list)
                     print(f"[KW-SEED] label 名單 → _plan_list_lines {len(_plan_list_lines)} 件")
-                # 純 label 模式：有 label 名單且無額外詞，不補充任何 FAISS/chunk 資料
-                _pure_label_mode = bool(_kw_plan_list) and not _kw_pre_extra
+                # 純 label 模式：label 直接命中（step 0）且無額外詞，不補充任何 FAISS/chunk 資料
+                # topic 展開（steps 1-2）即使無額外詞仍需取 chunk 內容
+                _pure_label_mode = bool(_kw_plan_list) and not _kw_pre_extra and _label_hit
                 _all_topic_kws: set[str] = {kw for kws in USR_TOPIC_KEYWORDS.values() for kw in kws}
 
                 # ── keyword_index 查詢：_usr_topic_kws + 問題中的已知議題詞 ──
