@@ -2474,7 +2474,8 @@ def ask():
                     print(f"[KW-SORT] 依查詢詞重排，優先詞={_sort_kws[:5]}")
 
                 # 地區過濾：問題含縣市/大區域關鍵字時只保留對應縣市學校
-                _question_counties = _detect_question_counties(question)
+                # 純 label 模式時跳過（label 已按地區分類，不需再過濾）
+                _question_counties = set() if _pure_label_mode else _detect_question_counties(question)
                 if _question_counties:
                     _region_filtered = [l for l in _plan_list_lines if _get_school_county(l.split('：')[0]) in _question_counties]
                     if _region_filtered:
