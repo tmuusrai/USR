@@ -2111,24 +2111,8 @@ def ask():
                         print(f"[KW-PRE] label 直接命中：{_lk} → {len(_entries)} 件")
                         _label_hit = True
 
-                # 1a. 偵測到六大官方議題 → 直接用 label_index[topic] 當計畫名單
-                _LABELED_USR_TOPICS = {
-                    "在地關懷", "環境永續", "健康促進與食品安全",
-                    "產業鏈結與經濟永續", "文化永續", "其他社會實踐",
-                }
-                if not _label_hit and _usr_topic in _LABELED_USR_TOPICS:
-                    _topic_label_entries = _label_only_index.get(year, {}).get(_usr_topic, [])
-                    if _topic_label_entries:
-                        _plan_set_pre.update(
-                            _topic_label_entries if isinstance(_topic_label_entries[0], str)
-                            else (_kw_entry_plan(e) for e in _topic_label_entries)
-                        )
-                        _matched_kws.append(_usr_topic)
-                        _label_hit = True
-                        print(f"[KW-PRE] 官方議題 label 命中：{_usr_topic} → {len(_topic_label_entries)} 件")
-
                 if not _label_hit:
-                    # 1b. 退回 kw_chunks 文字比對
+                    # 1. 退回 kw_chunks 文字比對
                     for _tk in (_usr_topic_kws or []):
                         if _tk in _kw_idx_pre:
                             _plan_set_pre.update(_kw_entry_plan(e) for e in _kw_idx_pre[_tk])
@@ -2335,10 +2319,9 @@ def ask():
                 if _kw_plan_list:
                     _plan_list_lines = list(_kw_plan_list)
                     print(f"[KW-SEED] label 名單 → _plan_list_lines {len(_plan_list_lines)} 件")
-                # 純 label 模式：label 直接命中且無額外詞，且不是六大官方議題
+                # 純 label 模式：label 直接命中且無額外詞
                 _pure_label_mode = (
                     bool(_kw_plan_list) and not _kw_pre_extra and _label_hit
-                    and _usr_topic not in _LABELED_USR_TOPICS
                 )
                 _all_topic_kws: set[str] = {kw for kws in USR_TOPIC_KEYWORDS.values() for kw in kws}
 
