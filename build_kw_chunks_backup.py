@@ -25,7 +25,7 @@ LABEL_PATH    = Path("114_output/label_index.json")
 OUTPUT_PATH   = Path("114_output/kw_chunks_test.json")
 
 _PLAN_CODE_RE  = re.compile(r'\b[A-Z]{1,3}\d{3,}-\d+-\d+[A-Z]?\b')
-_STEM_CLEAN_RE = re.compile(r'\s*\(\d{3}USR-[^)]*\)\s*|\s*\(\d+\)$')
+_STEM_CLEAN_RE = re.compile(r'\s*\(\d{3}USR-[^)]*\)\s*|\s*\(\d+\)$|_formatted(?:\(\d+\))?$')
 
 def _clean_plan_code(text): return _PLAN_CODE_RE.sub('', text)
 def _clean_stem(stem): return _STEM_CLEAN_RE.sub('', stem).strip()
