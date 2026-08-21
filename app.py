@@ -2038,34 +2038,6 @@ def ask():
                 _topic = re.sub(r'[的跟與和相關有關請問]+', ' ', _topic).strip() or None
             _fetch = TOP_K * 5 if _school else (TOP_K * 4 if _personnel else (TOP_K * 3 if _list else TOP_K))
 
-            # ④ 規範性問題（已停用，如何建立X 直接搜尋）
-            if False and not _list and not _school and _is_normative_question(question):
-                _norm_msg = _generate_normative_msg(question)
-                yield f"data: {json.dumps({'type': 'sources', 'sources': []}, ensure_ascii=False)}\n\n"
-                yield f"data: {json.dumps({'type': 'chunk', 'text': _norm_msg}, ensure_ascii=False)}\n\n"
-                total_ms = round((time.perf_counter() - t0) * 1000)
-                if conv_id:
-                    try:
-                        _now = time.time()
-                        with _get_db() as _conn:
-                            _conn.execute(
-                                "INSERT OR IGNORE INTO conversations (id, user_id, title, created_at, updated_at) VALUES (?,?,?,?,?)",
-                                (conv_id, user_id, question[:30] if question else "新對話", _now, _now)
-                            )
-                            _conn.execute(
-                                "INSERT OR IGNORE INTO conv_messages (id, conversation_id, role, content, timestamp) VALUES (?,?,?,?,?)",
-                                (str(_uuid.uuid4()), conv_id, "user", question, _now - 0.001)
-                            )
-                            _conn.execute(
-                                "INSERT OR IGNORE INTO conv_messages (id, conversation_id, role, content, timestamp) VALUES (?,?,?,?,?)",
-                                (str(_uuid.uuid4()), conv_id, "assistant", _norm_msg, _now)
-                            )
-                            _conn.execute("UPDATE conversations SET updated_at=? WHERE id=?", (_now, conv_id))
-                    except Exception as _e:
-                        print(f"[CONV] 儲存對話失敗: {_e}")
-                yield f"data: {json.dumps({'type': 'done', 'timing': {'total_ms': total_ms}, 'mode': 'normative', 'original_question': question}, ensure_ascii=False)}\n\n"
-                return
-
             # ③ 多校清單追問偵測（明確追問詞 or LLM 判斷為追問）
             _listed_schools: list[str] = []
             if _is_followup and history:
@@ -2564,17 +2536,10 @@ def ask():
                                 _plan_to_snippet[_s] = '\n'.join(_school_to_live[_s_school][:3])
                     print(f"[CHUNK-LIVE] live 補充後 _plan_to_snippet {len(_plan_to_snippet)} 件")
 
-                # 偵測分析型子問題（多個？分隔 or 逗號後附帶子問題）
-                _SUB_Q_RE = re.compile(r'什麼|哪些|哪幾|如何|為何|為什麼|怎麼|怎樣|多少|幾個|幾間|幾件|哪')
+                # 偵測子問題：含逗號（附帶條件）或多個問號（複合問題）即觸發
                 _q_segs = [p.strip() for p in re.split(r'[？?]', question) if p.strip()]
-                _extra_sub_qs = [p for p in _q_segs[1:] if _SUB_Q_RE.search(p)]
-                # 逗號附帶子問題：「哪些計畫X，Y是什麼？」型
-                if not _extra_sub_qs and _q_segs:
-                    _first_seg = _q_segs[0]
-                    if re.match(r'^哪[些幾]|^有哪|^什麼計畫', _first_seg):
-                        _comma_parts = re.split(r'[，、]', _first_seg)
-                        _extra_sub_qs = [p.strip() for p in _comma_parts[1:]
-                                         if p.strip() and _SUB_Q_RE.search(p)]
+                _has_comma = bool(re.search(r'[，、]', question))
+                _extra_sub_qs = _q_segs[1:] if len(_q_segs) > 1 else (["_comma"] if _has_comma else [])
                 _SUB_CAP = 25
                 # 多取緩衝以補足跳過件，收集後再截至 _SUB_CAP
                 _display_lines = _plan_list_lines[:_SUB_CAP * 2] if _extra_sub_qs else _plan_list_lines
@@ -2699,13 +2664,39 @@ def ask():
 
                 # 子問題分析：列完後再送 LLM 回答
                 if _extra_sub_qs:
-                    _sub_context = "\n\n".join(
-                        f"{i+1}. {pl}\n{_plan_to_snippet.get(pl, '')[:400]}"
-                        for i, pl in enumerate(_plan_list_lines[:30])
-                    )
-                    _sub_q_text = "\n".join(f"- {q}？" for q in _extra_sub_qs)
+                    # 取子問題文字（逗號觸發時從原問題切出逗號後半段）
+                    if _extra_sub_qs == ["_comma"]:
+                        _comma_parts = re.split(r'[，、]', question, maxsplit=1)
+                        _sub_q_text = _comma_parts[1].strip() if len(_comma_parts) > 1 else question
+                    else:
+                        _sub_q_text = "\n".join(f"- {q}" for q in _extra_sub_qs)
+
+                    # chunk > 45 → live scan；否 → RAG
+                    _sub_chunk_count = len(_plan_list_lines)
+                    if _sub_chunk_count > 45:
+                        # live scan：用子問題關鍵字掃原文
+                        _sub_kws = _extract_query_terms(_sub_q_text)
+                        _sub_raw = _faiss_scan_kws(_sub_kws, vs, condense=False) if _sub_kws else []
+                        # 有 label 時只保留 label 名單內的計畫
+                        if _kw_plan_list and _sub_raw:
+                            _allowed = {e.split('：', 1)[0] for e in _kw_plan_list}
+                            _sub_raw = [r for r in _sub_raw if any(s in r for s in _allowed)]
+                        _sub_context = "\n\n".join(_sub_raw[:30])
+                        print(f"[SUB-Q] live scan {len(_sub_raw)} 筆（chunk={_sub_chunk_count}>45）")
+                    else:
+                        # RAG：向量搜尋子問題
+                        _sub_vec = embeddings.embed_query(_sub_q_text)
+                        _sub_docs = vs.similarity_search_by_vector(_sub_vec, k=TOP_K * 2)
+                        # 有 label 時只保留 label 名單內的計畫
+                        if _kw_plan_list:
+                            _allowed = {e.split('：', 1)[0] for e in _kw_plan_list}
+                            _sub_docs = [d for d in _sub_docs
+                                         if any(s in d.metadata.get('source', '') for s in _allowed)]
+                        _sub_context = "\n\n".join(d.page_content for d in _sub_docs[:30])
+                        print(f"[SUB-Q] RAG {len(_sub_docs)} 筆（chunk={_sub_chunk_count}≤45）")
+
                     _sub_prompt = (
-                        f"根據以下 USR 計畫資料，依序回答問題。每個問題需引用2~3個具體計畫，"
+                        f"根據以下 USR 計畫資料，回答問題。需引用2~3個具體計畫，"
                         f"必須列出學校名稱與計畫名稱，並說明該計畫的具體做法或案例，不得只做概括描述：\n{_sub_q_text}\n\n"
                         f"計畫資料：\n{_sub_context}"
                     )
@@ -3327,58 +3318,6 @@ _EVAL_RE = re.compile(
     r'|(?:好的|完善的|理想的|優質的|良好的|完整的)'
 )
 
-_NORMATIVE_RE = re.compile(
-    # 「如何 + 建立/設計/推動...」型
-    r'如何.{0,25}(?:建立|設計|推動|發展|打造|提升|改善|強化|規劃|落實|實踐|執行|推廣|培育|培養|經營|維持|形成|塑造|促進|做好|實現|達成)'
-    # 「怎麼（才能/才算/做到）」型
-    r'|怎麼(?:才能|才算|做才|做到|樣才|樣能).{0,25}'
-    r'|(?:要|該)?怎麼做(?:好|到|才)?[^校]\S{0,15}'
-    # 「應（該）如何」型
-    r'|應(?:該|當)?如何.{2,20}'
-    # 「好的/有效的/理想的 X 如何/該怎麼」型
-    r'|(?:好的|有效的|理想的|成功的|完善的|優良的).{0,15}(?:如何|該如何|怎麼|該怎麼).{0,20}'
-    # 「X 要如何/該如何/要怎麼」型
-    r'|.{2,20}(?:要如何|該如何|應如何|要怎麼|該怎麼).{0,20}'
-    # 「X 的做法/策略/方法」型（不含最X排名）
-    r'|.{2,20}的(?:有效)?(?:做法|策略|方法|方式|途徑|模式|機制)(?:[？?！!]|$)',
-    re.MULTILINE
-)
-
-_NORMATIVE_SYSTEM_PROMPT = """你是 USR（大學社會責任）計畫搜尋助理。使用者詢問的是一個規範性問題（如何做好某件事）。
-
-嚴格按照以下格式輸出，禁止輸出通用原則或一般知識：
-
-（一句話說明不同學校有不同做法，依脈絡而異）
-
-在 USR 計畫中，您可以從以下面向尋找參考案例：
-
-• 【面向名稱】：一句說明
-• 【面向名稱】：一句說明
-• 【面向名稱】：一句說明
-• 【面向名稱】：一句說明
-
-請選擇您感興趣的面向，我將為您搜尋具體的 USR 學校案例。"""
-
-
-def _is_normative_question(question: str) -> bool:
-    return bool(_NORMATIVE_RE.search(question))
-
-
-def _generate_normative_msg(question: str) -> str:
-    """為規範性問題生成通用框架 + 引導至 USR 案例搜尋。"""
-    from langchain_core.messages import HumanMessage as _HMNorm
-    try:
-        prompt = f"{_NORMATIVE_SYSTEM_PROMPT}\n\n問題：{question}"
-        print(f"[NORM] 呼叫 LLM 生成規範性回應，問題：{question[:50]}")
-        resp = llm_fast.bind(temperature=0, thinking_budget=0).invoke([_HMNorm(content=prompt)])
-        result = _normalize_content(resp.content).strip()
-        print(f"[NORM] LLM 回傳：{result[:80]}")
-        return result
-    except Exception as e:
-        print(f"[NORM] LLM 呼叫失敗: {e}")
-        return "這類問題沒有固定標準答案，不同學校有不同的做法。您可以告訴我想從哪個角度了解，例如：哪些學校有相關計畫？他們用了什麼方法？效果如何？"
-
-
 _CLARIFY_SYSTEM_PROMPT = """你是 USR 計畫搜尋助理。使用者的問題含有主觀評量詞，請先釐清標準再搜尋。
 
 【輸出格式範例】（嚴格照此格式，不得新增任何其他段落）
@@ -3609,17 +3548,6 @@ def subagent_ask():
                 yield f"data: {json.dumps({'type': 'chunk', 'text': _clarify_msg}, ensure_ascii=False)}\n\n"
                 total_ms = round((time.perf_counter() - t_start) * 1000)
                 yield f"data: {json.dumps({'type': 'done', 'timing': {'total_ms': total_ms}, 'mode': 'clarify', 'original_question': question}, ensure_ascii=False)}\n\n"
-                return
-
-            # ✦ 規範性問題攔截
-            if (False and not _LIST_INTENT_RE.search(question)
-                    and not _extract_school(question)
-                    and _is_normative_question(question)):
-                _norm_msg = _generate_normative_msg(question)
-                yield f"data: {json.dumps({'type': 'sources', 'sources': []}, ensure_ascii=False)}\n\n"
-                yield f"data: {json.dumps({'type': 'chunk', 'text': _norm_msg}, ensure_ascii=False)}\n\n"
-                total_ms = round((time.perf_counter() - t_start) * 1000)
-                yield f"data: {json.dumps({'type': 'done', 'timing': {'total_ms': total_ms}, 'mode': 'normative', 'original_question': question}, ensure_ascii=False)}\n\n"
                 return
 
             # ── 計畫類型短路（優先於 qa_custom）──
