@@ -1466,6 +1466,7 @@ init_qa()
 _keyword_index: dict[str, dict] = {}
 _LABEL_INDEX_PATH    = Path("114_output/label_index.json")
 _KW_CHUNKS_PATH      = Path("114_output/kw_chunks_test.json")
+_KW_CHUNKS_GZ_PATH   = Path("114_output/kw_chunks_test.json.gz")
 _LOCATION_INDEX_PATH = Path("114_output/location_index.json")
 
 # 純 label 索引（不被 kw_chunks 蓋掉），供 KW-PRE step 0 直接命中用
@@ -1480,24 +1481,33 @@ def _kw_entry_plan(e) -> str:
 
 def _load_kw_index() -> None:
     """載入 label_index.json（標籤資料）與 kw_chunks.json（chunk 資料），合併至 _keyword_index。"""
+    import gzip
     _skip_chunks = os.getenv("SKIP_KW_CHUNKS", "").strip() == "1"
     for path, tag in [(_LABEL_INDEX_PATH, "LABEL-IDX"), (_KW_CHUNKS_PATH, "KW-CHUNKS")]:
         if tag == "KW-CHUNKS" and _skip_chunks:
             print(f"[{tag}] SKIP_KW_CHUNKS=1，略過（省記憶體模式）。")
             continue
-        if not path.exists():
+        # kw_chunks：優先找 .json，沒有就找 .gz
+        actual_path = path
+        if tag == "KW-CHUNKS" and not path.exists() and _KW_CHUNKS_GZ_PATH.exists():
+            actual_path = _KW_CHUNKS_GZ_PATH
+        if not actual_path.exists():
             print(f"[{tag}] 找不到 {path.name}，略過。")
             continue
         try:
-            with open(path, encoding="utf-8") as _f:
-                _data = json.load(_f)
+            if actual_path.suffix == ".gz":
+                with gzip.open(actual_path, "rt", encoding="utf-8") as _f:
+                    _data = json.load(_f)
+            else:
+                with open(actual_path, encoding="utf-8") as _f:
+                    _data = json.load(_f)
             for yr in ("114", "113"):
                 for k, v in _data.get(yr, {}).items():
                     _keyword_index.setdefault(yr, {})[k] = v
                     if tag == "LABEL-IDX":
                         _label_only_index.setdefault(yr, {})[k] = v
             total = sum(len(v) for v in _keyword_index.values())
-            print(f"[{tag}] 載入 {path.name}，目前共 {total} 個索引")
+            print(f"[{tag}] 載入 {actual_path.name}，目前共 {total} 個索引")
         except Exception as _e:
             print(f"[{tag}] 載入失敗：{_e}")
 
