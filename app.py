@@ -1971,13 +1971,21 @@ def ask():
 
             # ── ①-d 計畫總覽/內容短路：直接回傳 summary TXT ──
             summary_ctx = _try_summary_answer(question, year=year)
+            _out5_summary: str | None = None  # OUT5 暫存摘要（計畫內容型 + 一般型）
             if summary_ctx:
-                _save_shortcut_history(summary_ctx)
-                yield f"data: {json.dumps({'type': 'sources', 'sources': []}, ensure_ascii=False)}\n\n"
-                yield f"data: {json.dumps({'type': 'chunk', 'text': summary_ctx}, ensure_ascii=False)}\n\n"
-                total_ms = round((time.perf_counter() - t0) * 1000)
-                yield f"data: {json.dumps({'type': 'done', 'timing': {'total_ms': total_ms}, 'mode': 'summary_direct'}, ensure_ascii=False)}\n\n"
-                return
+                _sum_q_segs = [p.strip() for p in re.split(r'[？?]', question) if p.strip()]
+                _sum_has_sub = len(_sum_q_segs) > 1 or bool(re.search(r'[，、]', question))
+                if not _sum_has_sub:
+                    # OUT1：純計畫內容型，直接短路輸出
+                    _save_shortcut_history(summary_ctx)
+                    yield f"data: {json.dumps({'type': 'sources', 'sources': []}, ensure_ascii=False)}\n\n"
+                    yield f"data: {json.dumps({'type': 'chunk', 'text': summary_ctx}, ensure_ascii=False)}\n\n"
+                    total_ms = round((time.perf_counter() - t0) * 1000)
+                    yield f"data: {json.dumps({'type': 'done', 'timing': {'total_ms': total_ms}, 'mode': 'summary_direct'}, ensure_ascii=False)}\n\n"
+                    return
+                # OUT5：計畫內容型 + 一般型，先暫存摘要，繼續跑一般型流程
+                _out5_summary = summary_ctx
+                print(f"[OUT5] 偵測到子問題，摘要暫存，繼續一般型")
 
             # ── 搜尋問題準備 ──
             t_prepare_start = time.perf_counter()
@@ -2550,7 +2558,8 @@ def ask():
                 _q_segs = [p.strip() for p in re.split(r'[？?]', question) if p.strip()]
                 _has_comma = bool(re.search(r'[，、]', question))
                 _extra_sub_qs = _q_segs[1:] if len(_q_segs) > 1 else (["_comma"] if _has_comma else [])
-                _SUB_CAP = 25
+                _is_out7 = bool(_extra_sub_qs and _SUMMARY_INTENT_RE.search(question))
+                _SUB_CAP = 15 if _is_out7 else 25  # OUT7：列舉限 15 間
                 # 多取緩衝以補足跳過件，收集後再截至 _SUB_CAP
                 _display_lines = _plan_list_lines[:_SUB_CAP * 2] if _extra_sub_qs else _plan_list_lines
                 _list_display_note = f"（另有更多計畫，以下列出前{_SUB_CAP}件）" if _extra_sub_qs and len(_plan_list_lines) > _SUB_CAP else ""
@@ -2671,6 +2680,24 @@ def ask():
                                else f"{_i}. {_clean_plan_code(_pl)}\n")
                     _para_ans_parts.append(_pchunk)
                     yield f"data: {json.dumps({'type': 'chunk', 'text': _pchunk}, ensure_ascii=False)}\n\n"
+
+                # OUT4（計畫內容型 + 列舉型）& OUT7（計畫內容型 + 列舉型 + 一般型）
+                # 列完後附上各計畫完整摘要
+                _sum_cap = 5 if _is_out7 else (10 if _SUMMARY_INTENT_RE.search(question) else 0)
+                if _sum_cap and _para_collected:
+                    _sep = "\n\n---\n\n"
+                    _sum_hdr = f"### 計畫摘要（前 {_sum_cap} 件）\n\n"
+                    _sum_out = _sep + _sum_hdr
+                    for _spl, _ in _para_collected[:_sum_cap]:
+                        _sschool = _spl.split('：', 1)[0]
+                        _ssums = _find_school_summaries(_sschool)
+                        if _ssums:
+                            _sname, _scontent = _ssums[0]
+                            _sbody = _strip_summary_header(_strip_hr(_scontent))
+                            _sum_out += f"## {_sschool}｜{_sname}\n\n{_sbody}\n\n"
+                    _para_ans_parts.append(_sum_out)
+                    yield f"data: {json.dumps({'type': 'chunk', 'text': _sum_out}, ensure_ascii=False)}\n\n"
+                    print(f"[OUT4/7] 附上 {min(_sum_cap, len(_para_collected))} 件計畫摘要")
 
                 # 子問題分析：列完後再送 LLM 回答
                 if _extra_sub_qs:
@@ -2870,6 +2897,14 @@ def ask():
 
             yield f"data: {json.dumps({'type': 'sources', 'sources': sources}, ensure_ascii=False)}\n\n"
 
+            # OUT5：先輸出計畫摘要，再接一般型回答
+            if _out5_summary:
+                _out5_sep = _out5_summary + "\n\n---\n\n"
+                yield f"data: {json.dumps({'type': 'chunk', 'text': _out5_sep}, ensure_ascii=False)}\n\n"
+                answer_parts = [_out5_sep]
+            else:
+                answer_parts = []
+
             # ③ LLM：串流生成
             if _list:
                 _active_llm = llm_fast.bind(thinking_budget=0, temperature=0)  # 列舉型：固定輸出，避免件數飄移
@@ -2878,7 +2913,8 @@ def ask():
             else:
                 _active_llm = llm  # 分析／推理：Pro
             answer_chars = 0
-            answer_parts = []
+            if not _out5_summary:
+                answer_parts = []
             t_first_chunk = None
             _stream_usage_meta = None
             t_gemini_start = time.perf_counter()
