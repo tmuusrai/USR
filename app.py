@@ -124,14 +124,15 @@ def _init_conv_db():
 _init_conv_db()
 
 # ── API 成本追蹤 ─────────────────────────────────────────
-_LLM_MODEL_NAME      = os.environ.get("LLM_MODEL", "gemini-2.0-flash")
+_LLM_MODEL_NAME      = os.environ.get("LLM_MODEL", "")
 _LLM_FAST_MODEL_NAME = os.environ.get("LLM_MODEL_FAST", _LLM_MODEL_NAME)
 _VOYAGE_PRICE_PER_1M = 0.12  # voyage-4-large, USD per 1M tokens
 _LLM_PRICING: dict[str, tuple[float, float]] = {
     # (USD per 1M input tokens, USD per 1M output tokens)
     "gemini-2.5-pro":   (1.25, 10.0),
     "gemini-2.5-flash": (0.15,  0.60),
-    "gemini-2.0-flash": (0.075, 0.30),
+    "gemini-3.5-flash": (0.075, 0.30),
+    "gemini-3.1-pro-preview": (1.25, 5.00),
     "gemini-1.5-pro":   (1.25,  5.00),
     "gemini-1.5-flash": (0.075, 0.30),
 }
