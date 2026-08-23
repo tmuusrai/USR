@@ -26,6 +26,10 @@ pdfs/
 .DS_Store
 Thumbs.db
 
+# 自動產生的快取
+sdg_map.json
+conversations.db
+
 # 日誌
 *.log
 
