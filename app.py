@@ -2530,8 +2530,10 @@ def ask():
                 if _plan_list_lines and (_q_priority_kws or _q_terms):
                     _sort_kws = list(dict.fromkeys(_q_priority_kws + _q_terms))
                     def _plan_kw_score(_p: str) -> int:
+                        _name_score = sum(3 for _k in _sort_kws if _k in _p)
                         _txt = " ".join(_kw_idx_chunks.get(_p, []))
-                        return sum(1 for _k in _sort_kws if _k in _txt)
+                        _chunk_score = sum(1 for _k in _sort_kws if _k in _txt)
+                        return _name_score + _chunk_score
                     _plan_list_lines.sort(key=_plan_kw_score, reverse=True)
                     print(f"[KW-SORT] 依查詢詞重排，優先詞={_sort_kws[:5]}")
 
