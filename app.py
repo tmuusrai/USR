@@ -991,6 +991,20 @@ def _try_summary_answer(question: str, year: str) -> str | None:
     summaries = _find_school_summaries(school)
     if not summaries:
         return None
+
+    # LABEL 過濾：若問題有對應議題，只顯示該議題 label 內的計畫
+    topic, _ = _detect_usr_topic(question)
+    if topic and _label_only_index.get(topic):
+        _allowed = {
+            e.split('：', 1)[1]
+            for e in _label_only_index[topic]
+            if e.startswith(school + '：')
+        }
+        if _allowed:
+            summaries = [(p, c) for p, c in summaries if p in _allowed]
+    if not summaries:
+        return None
+
     def _fmt(plan, content):
         body = _strip_summary_header(_strip_hr(content))
         return f"## {school}｜{plan}\n\n{body}"
@@ -2692,7 +2706,14 @@ def ask():
                     _sum_out = _sep + _sum_hdr
                     for _spl, _ in _para_collected[:_sum_cap]:
                         _sschool = _spl.split('：', 1)[0]
+                        _splan_key = _spl.split('：', 1)[1] if '：' in _spl else ''
                         _ssums = _find_school_summaries(_sschool)
+                        # 只取對應計畫的摘要（LABEL 過濾後的計畫名比對）
+                        if _ssums and _splan_key:
+                            _matched = [(p, c) for p, c in _ssums
+                                        if p == _splan_key or _splan_key[:12] in p or p[:12] in _splan_key]
+                            if _matched:
+                                _ssums = _matched
                         if _ssums:
                             _sname, _scontent = _ssums[0]
                             _sbody = _strip_summary_header(_strip_hr(_scontent))
