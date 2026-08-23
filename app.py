@@ -980,45 +980,64 @@ def _strip_summary_header(text: str) -> str:
     return '\n'.join(lines).strip()
 
 def _try_summary_answer(question: str, year: str) -> str | None:
-    """若問到特定學校計畫內容/總覽，直接回傳 summary TXT 內容。"""
+    """若問到特定學校或議題/SDG 計畫內容，直接回傳 summary TXT 內容。"""
     if year != "114":
         return None
     if not _SUMMARY_INTENT_RE.search(question):
         return None
+
+    _yr_labels = _label_only_index.get(year, {})
+
+    # 偵測 label key：SDG 編號優先，再找 USR 議題名稱
+    _sdg_m = re.search(r'SDG\s*(\d+)', question, re.IGNORECASE)
+    _label_key = f"SDG{_sdg_m.group(1)}" if _sdg_m else None
+    if not _label_key:
+        for _k in _yr_labels:
+            if not _k.startswith("SDG") and _k in question:
+                _label_key = _k
+                break
+
     school = _extract_school(question)
-    if not school:
-        return None
-    summaries = _find_school_summaries(school)
-    if not summaries:
-        return None
 
-    # LABEL 過濾：若問題有對應議題，只顯示該議題 label 內的計畫
-    topic, _ = _detect_usr_topic(question)
-    if topic and _label_only_index.get(topic):
-        _allowed = {
-            e.split('：', 1)[1]
-            for e in _label_only_index[topic]
-            if e.startswith(school + '：')
-        }
-        if _allowed:
-            summaries = [(p, c) for p, c in summaries if p in _allowed]
-    if not summaries:
-        return None
-
-    def _fmt(plan, content):
+    def _fmt(s, plan, content):
         body = _strip_summary_header(_strip_hr(content))
-        return f"## {school}｜{plan}\n\n{body}"
+        return f"## {s}｜{plan}\n\n{body}"
 
-    if len(summaries) == 1:
-        plan, content = summaries[0]
-        return _fmt(plan, content)
-    # 多個計畫：先檢查問題是否指定特定計畫名
-    for plan, content in summaries:
-        plan_parts = [p for p in plan.split('：') if len(p) >= 4]
-        if plan[:10] in question or any(p in question for p in plan_parts):
-            return _fmt(plan, content)
-    # 未指定 → 全部輸出
-    return "\n\n".join(_fmt(plan, content) for plan, content in summaries)
+    if school:
+        # 有指定學校：過濾出屬於該 label 的計畫
+        summaries = _find_school_summaries(school)
+        if not summaries:
+            return None
+        if _label_key and _yr_labels.get(_label_key):
+            _allowed = {e.split('：', 1)[1] for e in _yr_labels[_label_key] if e.startswith(school + '：')}
+            if _allowed:
+                summaries = [(p, c) for p, c in summaries if p in _allowed]
+        if not summaries:
+            return None
+        if len(summaries) == 1:
+            return _fmt(school, *summaries[0])
+        for plan, content in summaries:
+            plan_parts = [p for p in plan.split('：') if len(p) >= 4]
+            if plan[:10] in question or any(p in question for p in plan_parts):
+                return _fmt(school, plan, content)
+        return "\n\n".join(_fmt(school, p, c) for p, c in summaries)
+    else:
+        # 無指定學校：需要 label key，最多輸出 8 份摘要
+        if not _label_key or not _yr_labels.get(_label_key):
+            return None
+        _entries = _yr_labels[_label_key]
+        _out_parts = []
+        for _entry in _entries:
+            if len(_out_parts) >= 8:
+                break
+            _s = _entry.split('：', 1)[0]
+            _pkey = _entry.split('：', 1)[1] if '：' in _entry else ''
+            _ssums = _find_school_summaries(_s)
+            if _ssums:
+                _matched = [(p, c) for p, c in _ssums if not _pkey or p == _pkey or _pkey[:12] in p or p[:12] in _pkey]
+                if _matched:
+                    _out_parts.append(_fmt(_s, *_matched[0]))
+        return "\n\n".join(_out_parts) if _out_parts else None
 
 
 _MULTI_REF_RE = re.compile(
