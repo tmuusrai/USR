@@ -61,8 +61,11 @@ def _build_chunks(year: str, vs) -> dict[str, list[dict]]:
         parts = stem.split('_', 1)
         if len(parts) < 2:
             continue
-        plan = f"{parts[0]}：{parts[1]}"
         school = parts[0]
+        # 跳過非學校來源的 chunk（school 不含「大學」「學院」「科大」等）
+        if not any(s in school for s in ('大學', '學院', '科大', '科技大')):
+            continue
+        plan = f"{school}：{parts[1]}"
         plan_count.add(plan)
 
         for kw in all_kws:
