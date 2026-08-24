@@ -2529,21 +2529,25 @@ def ask():
                 # 依問題關鍵字重排：chunk 中含查詢詞的計畫優先顯示
                 if _plan_list_lines and (_q_priority_kws or _q_terms):
                     _sort_kws = list(dict.fromkeys(_q_priority_kws + _q_terms))
+                    # 出現在 lookup key 中的詞（如「動物」在「動物保護」）更具分類相關性
+                    _kw_in_lookup = {_sk for _sk in _sort_kws
+                                     if any(_sk in _lk for _lk in _lookup_kws)}
                     def _plan_kw_score(_p: str) -> int:
                         _txt = " ".join(_kw_idx_chunks.get(_p, []))
                         _name_hit = [_k for _k in _sort_kws if _k in _p]
                         _chunk_hit = [_k for _k in _sort_kws if _k in _txt]
                         _coverage = len(set(_name_hit) | set(_chunk_hit))
-                        _name_score = sum(3 for _ in _name_hit)
-                        _chunk_score = sum(1 for _ in _chunk_hit)
+                        # lookup 相關詞權重高（名稱10/chunk 8），其餘詞低（名稱3/chunk 1）
+                        _name_score = sum((10 if _k in _kw_in_lookup else 3) for _k in _name_hit)
+                        _chunk_score = sum((8 if _k in _kw_in_lookup else 1) for _k in _chunk_hit)
                         # compound bonus: adjacent pairs (e.g. "流浪動物", "動物福祉")
                         for _i in range(len(_sort_kws) - 1):
                             _c = _sort_kws[_i] + _sort_kws[_i + 1]
-                            if _c in _p: _name_score += 10
-                            if _c in _txt: _chunk_score += 5
+                            if _c in _p: _name_score += 15
+                            if _c in _txt: _chunk_score += 10
                         return (_name_score + _chunk_score) * max(_coverage, 1)
                     _plan_list_lines.sort(key=_plan_kw_score, reverse=True)
-                    print(f"[KW-SORT] 依查詢詞重排，優先詞={_sort_kws[:5]}")
+                    print(f"[KW-SORT] 依查詢詞重排，優先詞={_sort_kws[:5]}，lookup相關詞={_kw_in_lookup}")
 
                 # 地區過濾：問題含縣市/大區域關鍵字時只保留對應縣市學校
                 # 純 label 模式時跳過（label 已按地區分類，不需再過濾）
