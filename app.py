@@ -3191,12 +3191,14 @@ _JIEBA_STOPWORDS: set[str] = {
     '想', '知道', '了解',
 }
 
+_JIEBA_CONN_CHARS: frozenset[str] = frozenset('的等有在是了嗎呢吧啊哪跟與和或及')
+
 def _extract_query_terms(q: str) -> list[str]:
     """從問題用 jieba 分詞提取內容關鍵字，補充 Sequential Query 掃描詞。"""
     result = []
     for w in jieba.cut(q):
         w = w.strip()
-        if len(w) >= 2 and w not in _JIEBA_STOPWORDS:
+        if len(w) >= 2 and w not in _JIEBA_STOPWORDS and w[0] not in _JIEBA_CONN_CHARS:
             result.append(w)
     return list(dict.fromkeys(result))
 
