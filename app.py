@@ -2532,6 +2532,13 @@ def ask():
                     # 出現在 lookup key 中的詞（如「動物」在「動物保護」）更具分類相關性
                     _kw_in_lookup = {_sk for _sk in _sort_kws
                                      if any(_sk in _lk for _lk in _lookup_kws)}
+                    # 直接被相關 lookup key 索引到的計畫給 base bonus（不看 chunk 文字）
+                    _lookup_plan_bonus: dict[str, int] = {}
+                    for _lk in _lookup_kws:
+                        if any(_sk in _lk for _sk in _kw_in_lookup):
+                            for _be in _kw_idx.get(_lk, []):
+                                _bp = _kw_entry_plan(_be)
+                                _lookup_plan_bonus[_bp] = _lookup_plan_bonus.get(_bp, 0) + 15
                     def _plan_kw_score(_p: str) -> int:
                         _txt = " ".join(_kw_idx_chunks.get(_p, []))
                         _name_hit = [_k for _k in _sort_kws if _k in _p]
@@ -2545,9 +2552,10 @@ def ask():
                             _c = _sort_kws[_i] + _sort_kws[_i + 1]
                             if _c in _p: _name_score += 15
                             if _c in _txt: _chunk_score += 10
-                        return (_name_score + _chunk_score) * max(_coverage, 1)
+                        _base = (_name_score + _chunk_score) * max(_coverage, 1)
+                        return _base + _lookup_plan_bonus.get(_p, 0)
                     _plan_list_lines.sort(key=_plan_kw_score, reverse=True)
-                    print(f"[KW-SORT] 依查詢詞重排，優先詞={_sort_kws[:5]}，lookup相關詞={_kw_in_lookup}")
+                    print(f"[KW-SORT] 依查詢詞重排，優先詞={_sort_kws[:5]}，lookup相關詞={_kw_in_lookup}，bonus計畫={len(_lookup_plan_bonus)}")
 
                 # 地區過濾：問題含縣市/大區域關鍵字時只保留對應縣市學校
                 # 純 label 模式時跳過（label 已按地區分類，不需再過濾）
