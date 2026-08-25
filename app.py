@@ -2033,9 +2033,12 @@ def ask():
                 search_question = question
             t_prepare_end = time.perf_counter()
 
+            # ── LLM 分詞 + 列舉型判斷（取代 jieba + regex）──
+            _llm_kws, _llm_is_listing = _llm_parse_query(search_question)
+
             # ── USR 議題關鍵字偵測：建立 expand_query 供 FAISS 多輪搜尋 ──
             expand_query: str | None = None
-            _list_check = bool(_LIST_INTENT_RE.search(search_question)) and not _LIST_CONCEPT_RE.search(search_question)
+            _list_check = _llm_is_listing and not _LIST_CONCEPT_RE.search(search_question)
             # 一律只對應單一最高分議題
             _usr_topic, _usr_topic_kws = _detect_usr_topic(question)
             if _usr_topic and _usr_topic_kws:
@@ -2080,7 +2083,7 @@ def ask():
                 _school = _extract_school(history[-1]['q'])
                 if _school:
                     print(f"[ASK] 從歷史補充學校：{_school}")
-            _list      = bool(_LIST_INTENT_RE.search(search_question)) and not _school and not _LIST_CONCEPT_RE.search(search_question) and not _eval_criterion
+            _list      = _llm_is_listing and not _school and not _LIST_CONCEPT_RE.search(search_question) and not _eval_criterion
             _query_is_or = '或' in question
             _personnel = bool(_PERSONNEL_RE.search(search_question))
             _kw        = _extract_keywords(search_question)
@@ -2111,7 +2114,7 @@ def ask():
             if not _listed_schools and not _school:
                 _kw_idx_pre = _keyword_index.get(year, {})
                 _all_topic_kws_set: set[str] = {kw for kws in USR_TOPIC_KEYWORDS.values() for kw in kws}
-                _q_terms_pre = _extract_query_terms(search_question)
+                _q_terms_pre = _llm_kws or _extract_query_terms(search_question)
                 _kw_stop_pre = {'計畫', '學校', '大學', '哪些', '相關', '有關', '年度', 'USR',
                                 '應用', '推動', '執行', '進行', '實施', '辦理', '提供', '建立',
                                 '發展', '促進', '改善', '提升', '強化', '增加', '協助', '支持',
@@ -2337,7 +2340,7 @@ def ask():
             _plan_list_lines: list[str] = []
 
             if _list and not _multi_enumerate:
-                _q_terms = _extract_query_terms(question)
+                _q_terms = _llm_kws or _extract_query_terms(question)
                 _q_priority_kws = [k for k in _q_terms if k in search_question]
                 _kw_idx = _keyword_index.get(year) or _keyword_index.get("114", {})
                 # KW-PRE 已建立 label 名單，直接作為初始 _plan_list_lines
@@ -2577,7 +2580,7 @@ def ask():
                         if _pure_label_mode
                         else _q_terms + list(_usr_topic_kws or [])
                     ))
-                    _plan_best: dict[str, dict] = {}
+                    _plan_all_chunks: dict[str, list[str]] = {}
                     _stem_strip_re = re.compile(r'\s*\(\d{3}USR-[^)]*\)?|_formatted(?:\(\d+\))?')
                     for _ckw in _chunk_kws:
                         for _e in _keyword_index.get(year, {}).get(_ckw, []):
@@ -2587,11 +2590,13 @@ def ask():
                             _pk = _stem_strip_re.sub('', _e.get("plan", "")).strip('_ ')
                             if _pk not in _plan_list_set:
                                 continue
-                            if _pk not in _plan_best or _e.get("hits", 0) > _plan_best[_pk].get("hits", 0):
-                                _plan_best[_pk] = _e
+                            _txt = _e["text"]
+                            _existing = _plan_all_chunks.setdefault(_pk, [])
+                            if _txt not in _existing:
+                                _existing.append(_txt)
                     for _s in _plan_list_lines:
-                        if _s not in _plan_to_snippet and _s in _plan_best:
-                            _plan_to_snippet[_s] = _plan_best[_s]["text"]
+                        if _s not in _plan_to_snippet and _s in _plan_all_chunks:
+                            _plan_to_snippet[_s] = "\n\n".join(_plan_all_chunks[_s])
                     print(f"[CHUNK-KW] kw_chunks 直查完成，_plan_to_snippet {len(_plan_to_snippet)} 件")
 
                 # 有額外詞時（如漁業），用 FAISS live 結果為無 chunk 的計畫補充內容
@@ -3209,6 +3214,34 @@ def _extract_query_terms(q: str) -> list[str]:
         if len(w) >= 2 and w not in _JIEBA_STOPWORDS and w[0] not in _JIEBA_CONN_CHARS:
             result.append(w)
     return list(dict.fromkeys(result))
+
+
+def _llm_parse_query(q: str) -> tuple[list[str], bool]:
+    """用 LLM 提取關鍵字並判斷是否為列舉型問題，取代 jieba 斷詞 + regex。
+    失敗時退回 jieba + _LIST_INTENT_RE。
+    """
+    from langchain_core.messages import HumanMessage as _HMParse
+    prompt = (
+        "分析以下 USR 計畫查詢，只輸出 JSON，不要任何其他文字：\n"
+        '{"keywords": ["詞1","詞2",...], "is_listing": true或false}\n\n'
+        "keywords：2~6 個最重要的繁體中文關鍵詞，保留完整詞（例：「流浪動物」不要切成「流浪」+「動物」）\n"
+        "is_listing：\n"
+        "  true  → 問題在列舉計畫或學校（如「有哪些計畫」「哪些學校」「列出」「有關XXX的計畫」）\n"
+        "  false → 詢問策略/做法/方法/影響/成效，或單一計畫/學校的內容問題\n\n"
+        f"查詢：{q}"
+    )
+    try:
+        resp = llm_fast.bind(temperature=0, thinking_budget=0).invoke([_HMParse(content=prompt)])
+        m = re.search(r'\{.*?\}', resp.content, re.DOTALL)
+        if m:
+            d = json.loads(m.group())
+            kws = [str(k).strip() for k in d.get("keywords", []) if k and str(k).strip()]
+            is_listing = bool(d.get("is_listing", False))
+            print(f"[LLM-PARSE] keywords={kws} is_listing={is_listing}")
+            return kws, is_listing
+    except Exception as e:
+        print(f"[LLM-PARSE] 失敗，退回 jieba：{e}")
+    return _extract_query_terms(q), bool(_LIST_INTENT_RE.search(q))
 
 
 
