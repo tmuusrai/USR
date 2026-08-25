@@ -37,5 +37,4 @@ conversations.db
 dist/
 build/
 *.egg-info/
-114_output/kw_chunks_test.json
 !114_output/kw_chunks_test.json.gz
