@@ -46,6 +46,13 @@ def _clean_plan_code(text: str) -> str:
 def _clean_stem(stem: str) -> str:
     return _STEM_CLEAN_RE.sub('', stem).strip()
 
+_PUNCT_NORM_RE = re.compile(r'[‧·•．・]')
+
+def _norm_plan(s: str) -> str:
+    """正規化計畫名稱，消除標點字元差異。"""
+    s = _PUNCT_NORM_RE.sub('·', s)
+    return re.sub(r'\s+', ' ', s).strip()
+
 
 def _build_kw_allowed(year: str, label_data: dict) -> dict[str, set[str]]:
     """依六大議題的 label_index，建立 keyword → 允許的學校集合。
@@ -55,7 +62,7 @@ def _build_kw_allowed(year: str, label_data: dict) -> dict[str, set[str]]:
     topic_plans: dict[str, set[str]] = {}
     for topic in _PRIMARY_TOPICS:
         entries = year_data.get(topic, [])
-        topic_plans[topic] = {p for p in entries if isinstance(p, str)}
+        topic_plans[topic] = {_norm_plan(p) for p in entries if isinstance(p, str)}
 
     kw_allowed: dict[str, set[str]] = {}
     for topic, kws in USR_TOPIC_KEYWORDS.items():
@@ -73,58 +80,60 @@ def _build_kw_allowed(year: str, label_data: dict) -> dict[str, set[str]]:
 
 
 def _build_chunks(year: str, vs, kw_allowed: dict[str, set[str]]) -> dict[str, list[dict]]:
-    """掃 vectorstore，建立 keyword → chunk 清單。
-    六大議題的 keyword 只取該議題學校的 chunk；其餘 keyword 無限制。
-    每個 (keyword, plan) 只保留命中次數最多的一個 chunk，截短至 400 字。
+    """向量相似度搜尋：每個 keyword embed 一次，找語意相近的 chunk。
+    六大議題 keyword 只取該議題的計畫；其餘 keyword 無限制。
+    每個 (keyword, plan) 只保留相似度最高的一個 chunk，截短至 400 字。
     """
-    all_kws: set[str] = {kw for kws in USR_TOPIC_KEYWORDS.values() for kw in kws}
-    kw_best: dict[str, dict[str, dict]] = {kw: {} for kw in all_kws}
+    all_kws: list[str] = sorted({kw for kws in USR_TOPIC_KEYWORDS.values() for kw in kws})
+    kw_result: dict[str, list[dict]] = {}
     plan_count: set[str] = set()
     t0 = time.perf_counter()
+    K = 600  # 每個 keyword 取前 K 個最相近的 chunk
 
-    for doc in vs.docstore._dict.values():
-        src = doc.metadata.get("source", "")
-        if "qa_custom" in src:
-            continue
-        text = _clean_plan_code(doc.page_content)
-        # 移除 --- 分隔線
-        text = re.sub(r'(?m)^\s*-{3,}\s*$\n?', '', text).strip()
-        stem = _clean_stem(Path(src).stem)
-        parts = stem.split('_', 1)
-        if len(parts) < 2:
-            continue
-        school = parts[0]
-        # 跳過非學校來源的 chunk
-        if not any(s in school for s in ('大學', '學院', '科大', '科技大')):
-            continue
-        plan = f"{school}：{parts[1]}"
-        plan_count.add(plan)
+    for i, kw in enumerate(all_kws):
+        allowed = kw_allowed.get(kw)  # None = 無限制
+        docs = vs.similarity_search(kw, k=K)
+        plan_best: dict[str, dict] = {}
 
-        # 名單型 chunk（含 2+ 個「姓名：」）跳過
-        if text.count("姓名：") >= 2:
-            continue
+        for doc in docs:
+            src = doc.metadata.get("source", "")
+            if "qa_custom" in src:
+                continue
+            text = _clean_plan_code(doc.page_content)
+            text = re.sub(r'(?m)^\s*-{3,}\s*$\n?', '', text).strip()
+            # 名單型 chunk 跳過
+            if text.count("姓名：") >= 2:
+                continue
+            stem = _clean_stem(Path(src).stem)
+            parts = stem.split('_', 1)
+            if len(parts) < 2:
+                continue
+            school = parts[0]
+            if not any(s in school for s in ('大學', '學院', '科大', '科技大')):
+                continue
+            plan = f"{school}：{parts[1]}"
+            plan_count.add(plan)
 
-        for kw in all_kws:
             # 六大議題 keyword：只允許該議題的計畫
-            allowed = kw_allowed.get(kw)
-            if allowed is not None and plan not in allowed:
+            if allowed is not None and _norm_plan(plan) not in allowed:
                 continue
 
-            hits = text.count(kw)
-            if hits == 0:
-                continue
-
-            cur = kw_best[kw].get(plan)
-            if cur is None or hits > cur["hits"]:
-                kw_best[kw][plan] = {
+            # similarity_search 已按相似度排序，取每個計畫的第一個（最相近）
+            if plan not in plan_best:
+                plan_best[plan] = {
                     "school": school,
                     "plan": plan,
                     "text": text[:400],
-                    "hits": hits,
+                    "hits": 1,
                 }
 
+        if plan_best:
+            kw_result[kw] = list(plan_best.values())
+
+        elapsed_s = round(time.perf_counter() - t0)
+        print(f"  [{i+1}/{len(all_kws)}] {kw}：{len(plan_best)} 件（{elapsed_s}s）")
+
     elapsed = round((time.perf_counter() - t0) * 1000)
-    kw_result = {kw: list(plans.values()) for kw, plans in kw_best.items() if plans}
     total = sum(len(v) for v in kw_result.values())
     print(f"[BUILD] {year} 年：{len(kw_result)} 個詞，{len(plan_count)} 份計畫，"
           f"{total} entries，耗時 {elapsed}ms")
