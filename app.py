@@ -3232,7 +3232,10 @@ def _llm_parse_query(q: str) -> tuple[list[str], bool]:
     )
     try:
         resp = llm_fast.bind(temperature=0, thinking_budget=0).invoke([_HMParse(content=prompt)])
-        m = re.search(r'\{.*?\}', resp.content, re.DOTALL)
+        _raw = resp.content
+        if isinstance(_raw, list):
+            _raw = " ".join(b.get("text", "") for b in _raw if isinstance(b, dict) and b.get("type") == "text")
+        m = re.search(r'\{.*?\}', _raw, re.DOTALL)
         if m:
             d = json.loads(m.group())
             kws = [str(k).strip() for k in d.get("keywords", []) if k and str(k).strip()]
