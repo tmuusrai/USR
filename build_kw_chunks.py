@@ -26,15 +26,9 @@ from langchain_voyageai import VoyageAIEmbeddings
 from usr_topics import USR_TOPIC_KEYWORDS
 
 # ── 路徑設定 ──────────────────────────────────────────
-INDEX_DIR      = Path(os.getenv("INDEX_DIR",      "faiss_index"))
-INDEX_DIR_113  = Path(os.getenv("INDEX_DIR_113",  "faiss_index_113"))
-OUTPUT_PATH    = Path("114_output/kw_chunks.json")
-LABEL_INDEX    = Path("114_output/label_index.json")
-
-_PRIMARY_TOPICS = {
-    "在地關懷", "環境永續", "健康促進與食品安全",
-    "產業鏈結與經濟永續", "文化永續", "其他社會實踐",
-}
+INDEX_DIR     = Path(os.getenv("INDEX_DIR",     "faiss_index"))
+INDEX_DIR_113 = Path(os.getenv("INDEX_DIR_113", "faiss_index_113"))
+OUTPUT_PATH   = Path("114_output/kw_chunks.json")
 
 _PLAN_CODE_RE = re.compile(r'\b[A-Z]{1,3}\d{3,}-\d+-\d+[A-Z]?\b')
 # 清理 filename stem 的計畫代碼和 chunk 序號
@@ -47,35 +41,8 @@ def _clean_stem(stem: str) -> str:
     return _STEM_CLEAN_RE.sub('', stem).strip()
 
 
-def _build_kw_allowed(year: str, label_data: dict) -> dict[str, set[str]]:
-    """依六大議題的 label_index，建立 keyword → 允許的學校集合。
-    非六大議題的 keyword 不受限制（回傳空 set 代表全部允許）。
-    """
-    year_data = label_data.get(year, {})
-    topic_schools: dict[str, set[str]] = {}
-    for topic in _PRIMARY_TOPICS:
-        plans = year_data.get(topic, [])
-        schools = {p.split("：")[0] for p in plans if isinstance(p, str) and "：" in p}
-        topic_schools[topic] = schools
-
-    kw_allowed: dict[str, set[str]] = {}
-    for topic, kws in USR_TOPIC_KEYWORDS.items():
-        if topic in _PRIMARY_TOPICS:
-            allowed = topic_schools.get(topic, set())
-            if allowed:  # 若無 label 資料（空 set），不限制來源
-                for kw in kws:
-                    kw_allowed[kw] = allowed
-        # 非六大議題的 keyword 不加入 kw_allowed → 視為全校允許
-
-    for topic in _PRIMARY_TOPICS:
-        s = topic_schools.get(topic, set())
-        print(f"  [{topic}] {len(s)} 所學校")
-    return kw_allowed
-
-
-def _build_chunks(year: str, vs, kw_allowed: dict[str, set[str]]) -> dict[str, list[dict]]:
+def _build_chunks(year: str, vs) -> dict[str, list[dict]]:
     """掃 vectorstore，建立 keyword → chunk 清單。
-    六大議題的 keyword 只取該議題學校的 chunk；其餘 keyword 無限制。
     每個 (keyword, plan) 只保留命中次數最多的一個 chunk，截短至 400 字。
     """
     all_kws: set[str] = {kw for kws in USR_TOPIC_KEYWORDS.values() for kw in kws}
@@ -95,22 +62,13 @@ def _build_chunks(year: str, vs, kw_allowed: dict[str, set[str]]) -> dict[str, l
         if len(parts) < 2:
             continue
         school = parts[0]
-        # 跳過非學校來源的 chunk
+        # 跳過非學校來源的 chunk（school 不含「大學」「學院」「科大」等）
         if not any(s in school for s in ('大學', '學院', '科大', '科技大')):
             continue
         plan = f"{school}：{parts[1]}"
         plan_count.add(plan)
 
-        # 名單型 chunk（含 2+ 個「姓名：」）跳過
-        if text.count("姓名：") >= 2:
-            continue
-
         for kw in all_kws:
-            # 六大議題 keyword：只允許該議題學校
-            allowed = kw_allowed.get(kw)
-            if allowed is not None and school not in allowed:
-                continue
-
             hits = text.count(kw)
             if hits == 0:
                 continue
@@ -161,21 +119,12 @@ def main():
         except Exception:
             pass
 
-    label_data: dict = {}
-    if LABEL_INDEX.exists():
-        try:
-            label_data = json.loads(LABEL_INDEX.read_text(encoding="utf-8"))
-            print(f"載入 label_index：{LABEL_INDEX}")
-        except Exception as e:
-            print(f"  label_index 載入失敗：{e}")
-
-    for year, index_dir in [("114", INDEX_DIR)]:
+    for year, index_dir in [("114", INDEX_DIR), ("113", INDEX_DIR_113)]:
         print(f"\n=== {year} 年 ===")
         vs = _load_vs(index_dir)
         if vs is None:
             continue
-        kw_allowed = _build_kw_allowed(year, label_data)
-        chunks = _build_chunks(year, vs, kw_allowed)
+        chunks = _build_chunks(year, vs)
         existing[year] = chunks
 
     OUTPUT_PATH.write_text(json.dumps(existing, ensure_ascii=False, indent=2), encoding="utf-8")
