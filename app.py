@@ -1500,7 +1500,7 @@ init_qa()
 # ── 關鍵字索引 ────────────────────────────────────────
 _keyword_index: dict[str, dict] = {}
 _LABEL_INDEX_PATH    = Path("114_output/label_index.json")
-_KW_CHUNKS_PATH      = Path("114_output/kw_chunks.json")
+_KW_CHUNKS_PATH      = Path("114_output/kw_chunks_test.json")
 _KW_CHUNKS_GZ_PATH   = Path("114_output/kw_chunks.json.gz")
 _LOCATION_INDEX_PATH = Path("114_output/location_index.json")
 
