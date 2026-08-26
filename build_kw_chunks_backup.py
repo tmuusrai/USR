@@ -128,7 +128,7 @@ def _build_chunks(year: str, vs, kw_allowed: dict[str, set[str]]) -> dict[str, l
                 }
 
         if plan_best:
-            kw_result[kw] = list(plan_best.values())
+            kw_result[kw] = list(plan_best.values())[:50]
 
         elapsed_s = round(time.perf_counter() - t0)
         print(f"  [{i+1}/{len(all_kws)}] {kw}：{len(plan_best)} 件（{elapsed_s}s）")
