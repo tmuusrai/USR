@@ -93,7 +93,7 @@ def _build_chunks(year: str, vs, kw_allowed: dict[str, set[str]]) -> dict[str, l
     for i, kw in enumerate(all_kws):
         allowed = kw_allowed.get(kw)  # None = 無限制
         docs = vs.similarity_search(kw, k=K)
-        plan_best: dict[str, dict] = {}
+        plan_chunks: dict[str, list[str]] = {}  # plan → 最多 3 個 chunk text
 
         for doc in docs:
             src = doc.metadata.get("source", "")
@@ -103,6 +103,9 @@ def _build_chunks(year: str, vs, kw_allowed: dict[str, set[str]]) -> dict[str, l
             text = re.sub(r'(?m)^\s*-{3,}\s*$\n?', '', text).strip()
             # 名單型 chunk 跳過
             if text.count("姓名：") >= 2:
+                continue
+            # 課程表格型 chunk 跳過
+            if text.count("課程名稱") + text.count("修課人次") + text.count("修課人數") >= 2:
                 continue
             stem = _clean_stem(Path(src).stem)
             parts = stem.split('_', 1)
@@ -118,20 +121,22 @@ def _build_chunks(year: str, vs, kw_allowed: dict[str, set[str]]) -> dict[str, l
             if allowed is not None and _norm_plan(plan) not in allowed:
                 continue
 
-            # similarity_search 已按相似度排序，取每個計畫的第一個（最相近）
-            if plan not in plan_best:
-                plan_best[plan] = {
-                    "school": school,
-                    "plan": plan,
-                    "text": text[:400],
-                    "hits": 1,
-                }
+            # 每個計畫最多存 3 個不同 chunk（相似度由高到低）
+            chunks = plan_chunks.setdefault(plan, [])
+            if len(chunks) < 3 and text[:200] not in chunks:
+                chunks.append(text[:200])
 
-        if plan_best:
-            kw_result[kw] = list(plan_best.values())[:50]
+        # 每個 keyword 最多 50 件計畫，每件拆成多筆 entry
+        entries: list[dict] = []
+        for plan, texts in list(plan_chunks.items())[:50]:
+            school = plan.split('：', 1)[0]
+            for t in texts:
+                entries.append({"school": school, "plan": plan, "text": t, "hits": 1})
+        if entries:
+            kw_result[kw] = entries
 
         elapsed_s = round(time.perf_counter() - t0)
-        print(f"  [{i+1}/{len(all_kws)}] {kw}：{len(plan_best)} 件（{elapsed_s}s）")
+        print(f"  [{i+1}/{len(all_kws)}] {kw}：{len(plan_chunks)} 件（{elapsed_s}s）")
 
     elapsed = round((time.perf_counter() - t0) * 1000)
     total = sum(len(v) for v in kw_result.values())
