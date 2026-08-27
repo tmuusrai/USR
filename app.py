@@ -2041,6 +2041,16 @@ def ask():
             _list_check = _llm_is_listing and not _LIST_CONCEPT_RE.search(search_question)
             # 一律只對應單一最高分議題
             _usr_topic, _usr_topic_kws = _detect_usr_topic(question)
+            # 若原始問題偵測不到議題，拿 LLM 萃取詞查六大主要議題的關鍵字
+            if not _usr_topic and _llm_kws:
+                _kw_to_topic = {kw: t for t, kws in USR_TOPIC_KEYWORDS.items()
+                                for kw in kws if t in _PRIMARY_TOPICS}
+                for _lkw in _llm_kws:
+                    if _lkw in _kw_to_topic:
+                        _usr_topic = _kw_to_topic[_lkw]
+                        _usr_topic_kws = list(USR_TOPIC_KEYWORDS[_usr_topic])
+                        print(f"[TOPIC] LLM詞直查議題：{_lkw} → {_usr_topic}")
+                        break
             if _usr_topic and _usr_topic_kws:
                 expand_query = " ".join(_usr_topic_kws)
                 print(f"[TOPIC] 議題展開 query（前60字）：{expand_query[:60]}")
