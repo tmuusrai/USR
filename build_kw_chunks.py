@@ -82,7 +82,7 @@ def _build_chunks(year: str, vs) -> dict[str, list[dict]]:
                 chunks.append(text[:200])
 
         entries: list[dict] = []
-        for plan, texts in list(plan_chunks.items())[:50]:
+        for plan, texts in list(plan_chunks.items())[:20]:
             school = plan.split('：', 1)[0]
             for t in texts:
                 entries.append({"school": school, "plan": plan, "text": t, "hits": 1})
