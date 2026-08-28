@@ -3,7 +3,9 @@
 預先掃描 FAISS vectorstore，建立 USR_TOPIC_KEYWORDS 詞 → chunk 清單，
 輸出至 114_output/kw_chunks.json。
 
-每個 (keyword, plan) 只保留命中次數最多的一個 chunk，截短至 400 字。
+使用向量語意搜尋（similarity_search），每個 keyword 取前 600 個最相近 chunk。
+每個 (keyword, plan) 最多保留 3 個 chunk，截短至 200 字。
+每個 keyword 最多 50 件計畫（cap）。
 
 執行方式：
     python build_kw_chunks.py
@@ -31,7 +33,6 @@ INDEX_DIR_113 = Path(os.getenv("INDEX_DIR_113", "faiss_index_113"))
 OUTPUT_PATH   = Path("114_output/kw_chunks.json")
 
 _PLAN_CODE_RE = re.compile(r'\b[A-Z]{1,3}\d{3,}-\d+-\d+[A-Z]?\b')
-# 清理 filename stem 的計畫代碼和 chunk 序號
 _STEM_CLEAN_RE = re.compile(r'\s*\(\d{3}USR-[^)]*\)\s*|\s*\(\d+\)$')
 
 def _clean_plan_code(text: str) -> str:
@@ -42,48 +43,56 @@ def _clean_stem(stem: str) -> str:
 
 
 def _build_chunks(year: str, vs) -> dict[str, list[dict]]:
-    """掃 vectorstore，建立 keyword → chunk 清單。
-    每個 (keyword, plan) 只保留命中次數最多的一個 chunk，截短至 400 字。
+    """向量相似度搜尋：每個 keyword embed 一次，找語意相近的 chunk。
+    每個 (keyword, plan) 最多保留 3 個 chunk，截短至 200 字。
+    每個 keyword 最多 50 件計畫。
     """
-    all_kws: set[str] = {kw for kws in USR_TOPIC_KEYWORDS.values() for kw in kws}
-    kw_best: dict[str, dict[str, dict]] = {kw: {} for kw in all_kws}
+    all_kws: list[str] = sorted({kw for kws in USR_TOPIC_KEYWORDS.values() for kw in kws})
+    kw_result: dict[str, list[dict]] = {}
     plan_count: set[str] = set()
     t0 = time.perf_counter()
+    K = 600
 
-    for doc in vs.docstore._dict.values():
-        src = doc.metadata.get("source", "")
-        if "qa_custom" in src:
-            continue
-        text = _clean_plan_code(doc.page_content)
-        # 移除 --- 分隔線
-        text = re.sub(r'(?m)^\s*-{3,}\s*$\n?', '', text).strip()
-        stem = _clean_stem(Path(src).stem)
-        parts = stem.split('_', 1)
-        if len(parts) < 2:
-            continue
-        school = parts[0]
-        # 跳過非學校來源的 chunk（school 不含「大學」「學院」「科大」等）
-        if not any(s in school for s in ('大學', '學院', '科大', '科技大')):
-            continue
-        plan = f"{school}：{parts[1]}"
-        plan_count.add(plan)
+    for i, kw in enumerate(all_kws):
+        docs = vs.similarity_search(kw, k=K)
+        plan_chunks: dict[str, list[str]] = {}
 
-        for kw in all_kws:
-            hits = text.count(kw)
-            if hits == 0:
+        for doc in docs:
+            src = doc.metadata.get("source", "")
+            if "qa_custom" in src:
                 continue
+            text = _clean_plan_code(doc.page_content)
+            text = re.sub(r'(?m)^\s*-{3,}\s*$\n?', '', text).strip()
+            if text.count("姓名：") >= 2:
+                continue
+            if text.count("課程名稱") + text.count("修課人次") + text.count("修課人數") >= 2:
+                continue
+            stem = _clean_stem(Path(src).stem)
+            parts = stem.split('_', 1)
+            if len(parts) < 2:
+                continue
+            school = parts[0]
+            if not any(s in school for s in ('大學', '學院', '科大', '科技大')):
+                continue
+            plan = f"{school}：{parts[1]}"
+            plan_count.add(plan)
 
-            cur = kw_best[kw].get(plan)
-            if cur is None or hits > cur["hits"]:
-                kw_best[kw][plan] = {
-                    "school": school,
-                    "plan": plan,
-                    "text": text[:400],
-                    "hits": hits,
-                }
+            chunks = plan_chunks.setdefault(plan, [])
+            if len(chunks) < 3 and text[:200] not in chunks:
+                chunks.append(text[:200])
+
+        entries: list[dict] = []
+        for plan, texts in list(plan_chunks.items())[:50]:
+            school = plan.split('：', 1)[0]
+            for t in texts:
+                entries.append({"school": school, "plan": plan, "text": t, "hits": 1})
+        if entries:
+            kw_result[kw] = entries
+
+        elapsed_s = round(time.perf_counter() - t0)
+        print(f"  [{i+1}/{len(all_kws)}] {kw}：{len(plan_chunks)} 件（{elapsed_s}s）")
 
     elapsed = round((time.perf_counter() - t0) * 1000)
-    kw_result = {kw: list(plans.values()) for kw, plans in kw_best.items() if plans}
     total = sum(len(v) for v in kw_result.values())
     print(f"[BUILD] {year} 年：{len(kw_result)} 個詞，{len(plan_count)} 份計畫，"
           f"{total} entries，耗時 {elapsed}ms")
@@ -119,7 +128,7 @@ def main():
         except Exception:
             pass
 
-    for year, index_dir in [("114", INDEX_DIR), ("113", INDEX_DIR_113)]:
+    for year, index_dir in [("114", INDEX_DIR)]:
         print(f"\n=== {year} 年 ===")
         vs = _load_vs(index_dir)
         if vs is None:
