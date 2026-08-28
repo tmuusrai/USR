@@ -2203,7 +2203,7 @@ def ask():
                     _extra_pre = [k for k in _q_terms_pre
                                   if k not in _matched_kws and k not in _kw_stop_pre
                                   and len(k) >= 2 and k not in _all_topic_kws_set
-                                  and not any(k in mk for mk in _matched_kws)]
+                                  and not any(k in mk or mk in k for mk in _matched_kws)]
                     if _extra_pre:
                         print(f"[KW-PRE] 額外詞：{_extra_pre}（OR={_query_is_or}）")
                         _fres = _faiss_scan_kws(_extra_pre, vs, condense=True)
