@@ -1066,6 +1066,14 @@ function renderAnswer(raw) {
   s = s.replace(/([、。，；：！？「」【】『』〔〕…—～·])\1+/g, '$1');
   // 學校名/計畫名上色：所有行都做（包含數字開頭的列舉行）
   s = s.replace(_SCHOOL_RE, m => `<span style="color:#1d4ed8;text-decoration:underline">${m}</span>`);
+  // DEBUG：找出「學校：計畫名」格式，印出哪些計畫名沒命中 _PLAN_RE
+  const _dbgPlanRe = /：([^\n：<]{4,60})/g;
+  let _dbgM;
+  while ((_dbgM = _dbgPlanRe.exec(s)) !== null) {
+    const _candidate = _dbgM[1].trim();
+    if (!_PLANS.some(p => p === _candidate || _candidate.includes(p) || p.includes(_candidate)))
+      console.log('[COLOR-DEBUG] 未命中計畫名:', _candidate);
+  }
   s = s.replace(_PLAN_RE, m => `<span style="color:#8b0000;text-decoration:underline">${m}</span>`);
   s = s.replace(/〔([^〕\n]{1,40})〕/g, (_, p) => `<u>${p}</u>`);
   s = s.replace(_COUNTY_RE, m => `<u>${m}</u>`);
