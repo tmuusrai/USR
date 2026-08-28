@@ -2216,13 +2216,13 @@ def ask():
                                   and not any(k in mk or mk in k for mk in _matched_kws)]
                     if _extra_pre:
                         print(f"[KW-PRE] 額外詞：{_extra_pre}（OR={_query_is_or}）")
-                        _fres = _faiss_scan_kws(_extra_pre, vs, condense=True)
+                        _fres = _faiss_scan_kws(_extra_pre, vs, k=300, condense=True)
                         _kw_pre_live_results = _fres
                         _kw_pre_extra = _extra_pre
                         if _fres:
                             _fschools = {m.group(1) for r in _fres
                                          if (m := re.match(r'【(.+?)_', r))}
-                            if _fschools and not _query_is_or and not _label_hit:
+                            if _fschools and not _query_is_or:
                                 _orig_n = len(_kw_plan_list)
                                 _kw_plan_list = [e for e in _kw_plan_list
                                                  if e.split('：', 1)[0] in _fschools]
