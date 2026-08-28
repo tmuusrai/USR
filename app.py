@@ -2139,7 +2139,8 @@ def ask():
                 _label_direct = _label_only_index.get(year, {})
                 _label_hit = False
                 for _lk in sorted(_label_direct, key=len, reverse=True):
-                    if len(_lk) >= 2 and _lk in search_question and _lk not in _matched_kws:
+                    if (len(_lk) >= 2 and _lk in search_question and _lk not in _matched_kws
+                            and not any(_lk in mk or mk in _lk for mk in _matched_kws)):
                         _entries = _label_direct[_lk]
                         if not _entries:
                             continue
