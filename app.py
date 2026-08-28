@@ -2216,8 +2216,7 @@ def ask():
                     _kw_plan_list = sorted(_plan_set_pre)
                     print(f"[KW-PRE] 命中 {_matched_kws[:3]} → {len(_kw_plan_list)} 件")
                     # 額外未知詞 live scan 過濾（排除已匹配 label key 的子字串片段）
-                    # 已偵測到議題時跳過：問句其餘詞都是語氣詞，不是額外條件
-                    _extra_pre = [] if _usr_topic else [k for k in _q_terms_pre
+                    _extra_pre = [k for k in _q_terms_pre
                                   if k not in _matched_kws and k not in _kw_stop_pre
                                   and len(k) >= 2 and k not in _all_topic_kws_set
                                   and not any(k in mk for mk in _matched_kws)]
@@ -3237,7 +3236,11 @@ def _llm_parse_query(q: str) -> tuple[list[str], bool]:
         "分析以下 USR 計畫查詢，只輸出 JSON，不要任何其他文字：\n"
         '{"keywords": ["詞1","詞2",...], "is_listing": true或false}\n\n'
         "keywords：2~6 個最重要的繁體中文關鍵詞，保留完整詞（例：「流浪動物」不要切成「流浪」+「動物」）\n"
-        "  ✗ 不要抽取問句語氣詞或泛稱：相關計畫、有關計畫、相關的計畫、哪些計畫、哪些學校、計畫有哪些、USR計畫、USR相關等\n"
+        "  ✗ 不要抽取以下類型的詞：\n"
+        "    - 問句語氣詞：相關計畫、有關計畫、相關的計畫、哪些計畫、計畫有哪些\n"
+        "    - 泛稱：USR計畫、USR相關、大學計畫、社會實踐計畫\n"
+        "    - 動詞/介係詞：推動、執行、進行、透過、結合、針對\n"
+        "    - 單獨出現的「計畫」「學校」「大學」「哪些」「相關」\n"
         "is_listing：\n"
         "  true  → 問題在列舉計畫或學校（如「有哪些計畫」「哪些學校」「列出」「有關XXX的計畫」）\n"
         "  false → 詢問策略/做法/方法/影響/成效，或單一計畫/學校的內容問題\n\n"
