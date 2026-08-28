@@ -2125,7 +2125,7 @@ def ask():
                 _kw_idx_pre = _keyword_index.get(year, {})
                 _all_topic_kws_set: set[str] = {kw for kws in USR_TOPIC_KEYWORDS.values() for kw in kws}
                 _q_terms_pre = _llm_kws or _extract_query_terms(search_question)
-                _kw_stop_pre = {'計畫', '學校', '大學', '哪些', '相關', '有關', '年度', 'USR', '相關計畫', '有關計畫', '相關的計畫',
+                _kw_stop_pre = {'計畫', '學校', '大學', '哪些', '相關', '有關', '年度', 'USR', '相關計畫', '有關計畫', '相關的計畫', 'USR計畫', 'USR相關', 'USR計畫有哪些',
                                 '應用', '推動', '執行', '進行', '實施', '辦理', '提供', '建立',
                                 '發展', '促進', '改善', '提升', '強化', '增加', '協助', '支持',
                                 '透過', '結合', '整合', '運用', '方式', '計畫書', '成果',
@@ -3236,7 +3236,7 @@ def _llm_parse_query(q: str) -> tuple[list[str], bool]:
         "分析以下 USR 計畫查詢，只輸出 JSON，不要任何其他文字：\n"
         '{"keywords": ["詞1","詞2",...], "is_listing": true或false}\n\n'
         "keywords：2~6 個最重要的繁體中文關鍵詞，保留完整詞（例：「流浪動物」不要切成「流浪」+「動物」）\n"
-        "  ✗ 不要抽取問句語氣詞：相關計畫、有關計畫、相關的計畫、哪些計畫、哪些學校、計畫有哪些等\n"
+        "  ✗ 不要抽取問句語氣詞或泛稱：相關計畫、有關計畫、相關的計畫、哪些計畫、哪些學校、計畫有哪些、USR計畫、USR相關等\n"
         "is_listing：\n"
         "  true  → 問題在列舉計畫或學校（如「有哪些計畫」「哪些學校」「列出」「有關XXX的計畫」）\n"
         "  false → 詢問策略/做法/方法/影響/成效，或單一計畫/學校的內容問題\n\n"
