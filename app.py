@@ -2213,7 +2213,7 @@ def ask():
                         if _fres:
                             _fschools = {m.group(1) for r in _fres
                                          if (m := re.match(r'【(.+?)_', r))}
-                            if _fschools and not _query_is_or:
+                            if _fschools and not _query_is_or and not _label_hit:
                                 _orig_n = len(_kw_plan_list)
                                 _kw_plan_list = [e for e in _kw_plan_list
                                                  if e.split('：', 1)[0] in _fschools]
