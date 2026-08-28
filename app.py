@@ -2678,6 +2678,9 @@ def ask():
                         # fallback：LLM 說找不到內容，直接截原文
                         if "#RAW" in _out:
                             return "\x01"
+                        _skip_hints = ("資料未具體指名", "無法確認學校", "依據內文推斷")
+                        if any(h in _out for h in _skip_hints):
+                            return "\x01"
                         _refusal_hints = ("並未包含", "無法擷取", "沒有具體", "僅列出", "不包含描述")
                         if any(h in _out for h in _refusal_hints) or len(_out) < 10:
                             return _trunc_at_sent(_snip, 200)
