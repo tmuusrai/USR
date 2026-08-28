@@ -2125,7 +2125,7 @@ def ask():
                 _kw_idx_pre = _keyword_index.get(year, {})
                 _all_topic_kws_set: set[str] = {kw for kws in USR_TOPIC_KEYWORDS.values() for kw in kws}
                 _q_terms_pre = _llm_kws or _extract_query_terms(search_question)
-                _kw_stop_pre = {'計畫', '學校', '大學', '哪些', '相關', '有關', '年度', 'USR',
+                _kw_stop_pre = {'計畫', '學校', '大學', '哪些', '相關', '有關', '年度', 'USR', '相關計畫', '有關計畫', '相關的計畫',
                                 '應用', '推動', '執行', '進行', '實施', '辦理', '提供', '建立',
                                 '發展', '促進', '改善', '提升', '強化', '增加', '協助', '支持',
                                 '透過', '結合', '整合', '運用', '方式', '計畫書', '成果',
