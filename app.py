@@ -2216,7 +2216,8 @@ def ask():
                     _kw_plan_list = sorted(_plan_set_pre)
                     print(f"[KW-PRE] 命中 {_matched_kws[:3]} → {len(_kw_plan_list)} 件")
                     # 額外未知詞 live scan 過濾（排除已匹配 label key 的子字串片段）
-                    _extra_pre = [k for k in _q_terms_pre
+                    # 已偵測到議題時跳過：問句其餘詞都是語氣詞，不是額外條件
+                    _extra_pre = [] if _usr_topic else [k for k in _q_terms_pre
                                   if k not in _matched_kws and k not in _kw_stop_pre
                                   and len(k) >= 2 and k not in _all_topic_kws_set
                                   and not any(k in mk for mk in _matched_kws)]
