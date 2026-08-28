@@ -2149,16 +2149,6 @@ def ask():
                         print(f"[KW-PRE] label 直接命中：{_lk} → {len(_entries)} 件")
                         _label_hit = True
 
-                if not _label_hit and _usr_topic and _usr_topic in _PRIMARY_TOPICS:
-                    # 0b. 偵測到六大議題 → 直接從 label_index 拿全名單
-                    _entries = _label_direct.get(_usr_topic, [])
-                    if _entries:
-                        _matched_kws.append(_usr_topic)
-                        _plan_set_pre.update(_entries if isinstance(_entries[0], str)
-                                             else (_kw_entry_plan(e) for e in _entries))
-                        print(f"[KW-PRE] topic label 命中：{_usr_topic} → {len(_entries)} 件")
-                        _label_hit = True
-
                 if not _label_hit:
                     # 1. 退回 kw_chunks 文字比對
                     for _tk in (_usr_topic_kws or []):
