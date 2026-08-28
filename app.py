@@ -2206,21 +2206,6 @@ def ask():
                             print(f"[KW-PRE] label 命中：{_lk} → {len(_entries)} 件")
 
                 if _matched_kws:
-                    # 議題子詞縮小：問題含特定議題子詞（非 topic 名稱本身）→ AND 過濾
-                    if not _label_hit and not _usr_topic and len(_plan_set_pre) > 50:
-                        _specific_kws = [
-                            k for k in _q_terms_pre
-                            if k in _all_topic_kws_set and k in _kw_idx_pre
-                            and k != (_usr_topic or "") and k != "USR"
-                        ]
-                        if _specific_kws:
-                            _sp_plans: set[str] = set()
-                            for _stk in _specific_kws:
-                                _sp_plans.update(_kw_entry_plan(e) for e in _kw_idx_pre[_stk])
-                            _narrowed = _plan_set_pre & _sp_plans
-                            if _narrowed:
-                                _plan_set_pre = _narrowed
-                                print(f"[KW-PRE] 議題子詞縮小：{_specific_kws} → {len(_plan_set_pre)} 件")
                     _kw_list_hit = _matched_kws[0]
                     _kw_plan_list = sorted(_plan_set_pre)
                     print(f"[KW-PRE] 命中 {_matched_kws[:3]} → {len(_kw_plan_list)} 件")
