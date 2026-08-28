@@ -2207,7 +2207,7 @@ def ask():
 
                 if _matched_kws:
                     # 議題子詞縮小：問題含特定議題子詞（非 topic 名稱本身）→ AND 過濾
-                    if not _label_hit and len(_plan_set_pre) > 50:
+                    if not _label_hit and not _usr_topic and len(_plan_set_pre) > 50:
                         _specific_kws = [
                             k for k in _q_terms_pre
                             if k in _all_topic_kws_set and k in _kw_idx_pre
