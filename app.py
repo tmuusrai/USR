@@ -2036,8 +2036,7 @@ def ask():
             # ── LLM 分詞 + 列舉型判斷（取代 jieba + regex）──
             _llm_kws, _llm_is_listing = _llm_parse_query(search_question)
 
-            # ── USR 議題關鍵字偵測：建立 expand_query 供 FAISS 多輪搜尋 ──
-            expand_query: str | None = None
+            # ── USR 議題關鍵字偵測（僅供 keyword_index 比對，不做 FAISS 擴充）──
             _list_check = _llm_is_listing and not _LIST_CONCEPT_RE.search(search_question)
             # 一律只對應單一最高分議題
             _usr_topic, _usr_topic_kws = _detect_usr_topic(question)
@@ -2051,9 +2050,6 @@ def ask():
                         _usr_topic_kws = list(USR_TOPIC_KEYWORDS[_usr_topic])
                         print(f"[TOPIC] LLM詞直查議題：{_lkw} → {_usr_topic}")
                         break
-            if _usr_topic and _usr_topic_kws:
-                expand_query = " ".join(_usr_topic_kws)
-                print(f"[TOPIC] 議題展開 query（前60字）：{expand_query[:60]}")
 
             # ── LLM：議題語意分類 ──
             _explicit_followup = bool(_MULTI_REF_RE.search(question) and history)
@@ -2273,10 +2269,9 @@ def ask():
                     print(f"[ASK] 多校輪「{_s}」→ {len(_s_filtered)} 筆")
                 docs = docs_all
                 _school = None
-                expand_query = None
                 t_faiss = time.perf_counter()
             elif not _list:
-                # 一般模式：所有已知 query（含 expand）同時 embed
+                # 一般模式：所有已知 query 同時 embed
                 embed_tasks: dict[str, str] = {'main': search_question}
                 if _kw:
                     embed_tasks['kw'] = _kw
@@ -2286,16 +2281,11 @@ def ask():
                     embed_tasks['school'] = _school
                     if _topic:
                         embed_tasks['topic'] = _topic
-                if expand_query:
-                    embed_tasks['expand'] = expand_query
-
                 with ThreadPoolExecutor() as ex:
                     embed_futs = {k: ex.submit(embeddings.embed_query, v)
                                   for k, v in embed_tasks.items()}
                     vecs = {k: f.result() for k, f in embed_futs.items()}
                 t_voyage = time.perf_counter()
-
-                expand_vec = vecs.get('expand')
 
                 # ⑤ FAISS 多輪搜尋
                 docs1 = vs.similarity_search_by_vector(vecs['main'], k=_fetch)
@@ -2311,11 +2301,6 @@ def ask():
                     docs3 = vs.similarity_search_by_vector(vecs['role'], k=TOP_K * 2)
                     docs_all = _merge_docs(docs_all, docs3)
                     print(f"[ASK] 人員角色輪「{_role}」→ 合併後 {len(docs_all)} 筆")
-
-                if expand_vec:
-                    docs_expand = vs.similarity_search_by_vector(expand_vec, k=TOP_K * 2)
-                    docs_all = _merge_docs(docs_all, docs_expand)
-                    print(f"[ASK] 詞義擴充輪 → 合併後 {len(docs_all)} 筆")
 
                 if _school:
                     if _topic:
