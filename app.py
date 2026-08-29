@@ -2175,9 +2175,7 @@ def ask():
 
             # ── USR 議題關鍵字偵測（僅供 keyword_index 比對，不做 FAISS 擴充）──
             _list_check = _llm_is_listing and not _LIST_CONCEPT_RE.search(search_question)
-            # 一律只對應單一最高分議題
-            _usr_topic, _usr_topic_kws = _detect_usr_topic(question)
-            # 若原始問題偵測不到議題，拿 LLM 萃取詞查六大主要議題的關鍵字
+            # _usr_topic / _usr_topic_kws 已在早期 KW-PRE 設定；LLM 萃取詞補強
             if not _usr_topic and _llm_kws:
                 _kw_to_topic = {kw: t for t, kws in USR_TOPIC_KEYWORDS.items()
                                 for kw in kws if t in _PRIMARY_TOPICS}
