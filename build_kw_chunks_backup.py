@@ -123,12 +123,11 @@ def _build_chunks(year: str, vs, kw_allowed: dict[str, set[str]]) -> dict[str, l
 
             # 每個計畫最多存 3 個不同 chunk（相似度由高到低）
             chunks = plan_chunks.setdefault(plan, [])
-            if len(chunks) < 3 and text[:200] not in chunks:
-                chunks.append(text[:200])
+            if len(chunks) < 3 and text[:400] not in chunks:
+                chunks.append(text[:400])
 
-        # 每個 keyword 最多 50 件計畫，每件拆成多筆 entry
         entries: list[dict] = []
-        for plan, texts in list(plan_chunks.items())[:50]:
+        for plan, texts in plan_chunks.items():
             school = plan.split('：', 1)[0]
             for t in texts:
                 entries.append({"school": school, "plan": plan, "text": t, "hits": 1})
