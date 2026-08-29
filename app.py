@@ -1974,6 +1974,143 @@ def ask():
                     if len(_h) > _MAX_HISTORY:
                         _h.pop(0)
 
+            # ── 評量型（最優先，不需搜尋資源）──
+            if not skip_eval and _is_evaluation_question(question):
+                _clarify_msg = _generate_clarify_msg(question)
+                yield f"data: {json.dumps({'type': 'sources', 'sources': []}, ensure_ascii=False)}\n\n"
+                yield f"data: {json.dumps({'type': 'chunk', 'text': _clarify_msg}, ensure_ascii=False)}\n\n"
+                total_ms = round((time.perf_counter() - t0) * 1000)
+                if conv_id:
+                    try:
+                        _now = time.time()
+                        with _get_db() as _conn:
+                            _conn.execute(
+                                "INSERT OR IGNORE INTO conversations (id, user_id, title, created_at, updated_at) VALUES (?,?,?,?,?)",
+                                (conv_id, user_id, question[:30] if question else "新對話", _now, _now)
+                            )
+                            _conn.execute(
+                                "INSERT OR IGNORE INTO conv_messages (id, conversation_id, role, content, timestamp) VALUES (?,?,?,?,?)",
+                                (str(_uuid.uuid4()), conv_id, "user", question, _now - 0.001)
+                            )
+                            _conn.execute(
+                                "INSERT OR IGNORE INTO conv_messages (id, conversation_id, role, content, timestamp) VALUES (?,?,?,?,?)",
+                                (str(_uuid.uuid4()), conv_id, "assistant", _clarify_msg, _now)
+                            )
+                            _conn.execute("UPDATE conversations SET updated_at=? WHERE id=?", (_now, conv_id))
+                    except Exception as _e:
+                        print(f"[CONV] 儲存對話失敗: {_e}")
+                yield f"data: {json.dumps({'type': 'done', 'timing': {'total_ms': total_ms}, 'mode': 'clarify', 'original_question': question}, ensure_ascii=False)}\n\n"
+                return
+
+            # ── KW-PRE：label 比對（早期執行，結果作為後續所有路徑的搜尋範圍）──
+            _query_is_or = '或' in question
+            _usr_topic, _usr_topic_kws = _detect_usr_topic(question)
+            _kw_plan_list: list[str] = []
+            _kw_pre_schools: set[str] = set()
+            _kw_pre_live_results: list[str] = []
+            _kw_pre_extra: list[str] = []
+            _kw_list_hit: str | None = None
+            _kw_idx_pre = _keyword_index.get(year, {})
+            _all_topic_kws_set: set[str] = {kw for kws in USR_TOPIC_KEYWORDS.values() for kw in kws}
+            _q_terms_pre = _extract_query_terms(question)
+            _kw_stop_pre = {'計畫', '學校', '大學', '哪些', '相關', '有關', '年度', 'USR', '相關計畫', '有關計畫', '相關的計畫', 'USR計畫', 'USR相關', 'USR計畫有哪些',
+                            '應用', '推動', '執行', '進行', '實施', '辦理', '提供', '建立',
+                            '發展', '促進', '改善', '提升', '強化', '增加', '協助', '支持',
+                            '透過', '結合', '整合', '運用', '方式', '計畫書', '成果',
+                            '屬於', '屬', '歸屬', '分類', '類別', '屬什麼', '計畫屬',
+                            '議題', '領域', '方向', '面向', '主題', '類型', '類別'}
+            _plan_set_pre: set[str] = set()
+            _matched_kws: list[str] = []
+            _label_direct = _label_only_index.get(year, {})
+            _label_hit = False
+
+            # 0. 直接比對 label_index key（topic/SDG/地區/縣市/類型）
+            for _lk in sorted(_label_direct, key=len, reverse=True):
+                if len(_lk) >= 2 and _lk in question and _lk not in _matched_kws:
+                    _entries = _label_direct[_lk]
+                    if not _entries:
+                        continue
+                    _matched_kws.append(_lk)
+                    _plan_set_pre.update(_entries if isinstance(_entries[0], str)
+                                         else (_kw_entry_plan(e) for e in _entries))
+                    print(f"[KW-PRE] label 直接命中：{_lk} → {len(_entries)} 件")
+                    _label_hit = True
+
+            # 0b. 六大議題偵測
+            if not _label_hit and _usr_topic and _usr_topic in _PRIMARY_TOPICS:
+                _entries = _label_direct.get(_usr_topic, [])
+                if _entries:
+                    _matched_kws.append(_usr_topic)
+                    _plan_set_pre.update(_entries if isinstance(_entries[0], str)
+                                         else (_kw_entry_plan(e) for e in _entries))
+                    print(f"[KW-PRE] topic label 命中：{_usr_topic} → {len(_entries)} 件")
+                    _label_hit = True
+
+            if not _label_hit:
+                # 1. kw_chunks 文字比對
+                for _tk in (_usr_topic_kws or []):
+                    if _tk in _kw_idx_pre:
+                        _plan_set_pre.update(_kw_entry_plan(e) for e in _kw_idx_pre[_tk])
+                        if _tk not in _matched_kws:
+                            _matched_kws.append(_tk)
+                # 2. 問題裡其他 USR_TOPIC_KEYWORDS 詞
+                for _qt in _q_terms_pre:
+                    if _qt in _all_topic_kws_set and _qt in _kw_idx_pre and _qt not in _matched_kws:
+                        _plan_set_pre.update(_kw_entry_plan(e) for e in _kw_idx_pre[_qt])
+                        _matched_kws.append(_qt)
+
+            if not _label_hit:
+                # 3. SDG key
+                for _kw_pre_k in _kw_idx_pre:
+                    if re.match(r'^SDG\d{1,2}$', _kw_pre_k) and _kw_pre_k in question:
+                        if _kw_pre_k not in _matched_kws:
+                            _matched_kws.append(_kw_pre_k)
+                            _plan_set_pre.update(_kw_idx_pre[_kw_pre_k])
+                # 4. 計畫類型別名
+                for _alias, _full_key in _PLAN_TYPE_ALIAS.items():
+                    if _alias in question and _full_key and _full_key in _kw_idx_pre:
+                        if _full_key not in _matched_kws:
+                            _matched_kws.append(_full_key)
+                            _plan_set_pre.update(_kw_entry_plan(e) for e in _kw_idx_pre[_full_key])
+                # 5. 地區/縣市 label
+                _sdg_re_pre = re.compile(r'^SDG\d{1,2}$')
+                _label_skip_set = _all_topic_kws_set | set(_PLAN_TYPE_ALIAS.keys()) | set(_PLAN_TYPE_ALIAS.values())
+                for _lk in sorted(_kw_idx_pre, key=len, reverse=True):
+                    if _lk in _matched_kws or _lk in _label_skip_set or _sdg_re_pre.match(_lk):
+                        continue
+                    if len(_lk) >= 2 and _lk in question:
+                        _entries = _kw_idx_pre.get(_lk, [])
+                        if not _entries:
+                            continue
+                        _matched_kws.append(_lk)
+                        if isinstance(_entries[0], str):
+                            _plan_set_pre.update(_entries)
+                        else:
+                            _plan_set_pre.update(_kw_entry_plan(e) for e in _entries)
+                        print(f"[KW-PRE] label 命中：{_lk} → {len(_entries)} 件")
+
+            if _matched_kws:
+                _kw_list_hit = _matched_kws[0]
+                _kw_plan_list = sorted(_plan_set_pre)
+                print(f"[KW-PRE] 命中 {_matched_kws[:3]} → {len(_kw_plan_list)} 件")
+                # 額外未知詞 live scan（結果作補充，不 AND 縮小 label 清單）
+                _extra_pre = [k for k in _q_terms_pre
+                              if k not in _matched_kws and k not in _kw_stop_pre
+                              and len(k) >= 2 and k not in _all_topic_kws_set
+                              and not any(k in mk or mk in k for mk in _matched_kws)]
+                if _extra_pre:
+                    print(f"[KW-PRE] 額外詞：{_extra_pre}")
+                    _fres = _faiss_scan_kws(_extra_pre, vs, k=300, condense=True)
+                    _kw_pre_live_results = _fres
+                    _kw_pre_extra = _extra_pre
+                    if _fres:
+                        _kw_pre_schools = {m.group(1) for r in _fres
+                                           if (m := re.match(r'【(.+?)_', r))}
+                        print(f"[KW-PRE] 額外詞命中學校 {len(_kw_pre_schools)} 間")
+                # label 清單的學校集合即為搜尋範圍
+                if not _kw_pre_schools:
+                    _kw_pre_schools = {e.split('：', 1)[0] for e in _kw_plan_list}
+
             # ── ① 計畫類型短路：問萌芽型/深耕型/國際合作型/特色永續型（優先於 qa_custom）──
             plan_type_ctx = _try_plan_type_answer(question, year=year)
             if plan_type_ctx:
@@ -2055,34 +2192,6 @@ def ask():
             _explicit_followup = bool(_MULTI_REF_RE.search(question) and history)
             _is_followup: bool = _explicit_followup or (use_context and bool(history))
 
-            # ③ 主觀評量：含排名/比較/最佳等詞，或「哪些學校有完整/完善...制度」型，需釐清評估標準
-            if not skip_eval and _is_evaluation_question(question):
-                _clarify_msg = _generate_clarify_msg(question)
-                yield f"data: {json.dumps({'type': 'sources', 'sources': []}, ensure_ascii=False)}\n\n"
-                yield f"data: {json.dumps({'type': 'chunk', 'text': _clarify_msg}, ensure_ascii=False)}\n\n"
-                total_ms = round((time.perf_counter() - t0) * 1000)
-                if conv_id:
-                    try:
-                        _now = time.time()
-                        with _get_db() as _conn:
-                            _conn.execute(
-                                "INSERT OR IGNORE INTO conversations (id, user_id, title, created_at, updated_at) VALUES (?,?,?,?,?)",
-                                (conv_id, user_id, question[:30] if question else "新對話", _now, _now)
-                            )
-                            _conn.execute(
-                                "INSERT OR IGNORE INTO conv_messages (id, conversation_id, role, content, timestamp) VALUES (?,?,?,?,?)",
-                                (str(_uuid.uuid4()), conv_id, "user", question, _now - 0.001)
-                            )
-                            _conn.execute(
-                                "INSERT OR IGNORE INTO conv_messages (id, conversation_id, role, content, timestamp) VALUES (?,?,?,?,?)",
-                                (str(_uuid.uuid4()), conv_id, "assistant", _clarify_msg, _now)
-                            )
-                            _conn.execute("UPDATE conversations SET updated_at=? WHERE id=?", (_now, conv_id))
-                    except Exception as _e:
-                        print(f"[CONV] 儲存對話失敗: {_e}")
-                yield f"data: {json.dumps({'type': 'done', 'timing': {'total_ms': total_ms}, 'mode': 'clarify', 'original_question': question}, ensure_ascii=False)}\n\n"
-                return
-
             # ② 本地預計算（不需 API call）
             _school = _extract_school(search_question)
             if not _school and history:
@@ -2090,7 +2199,6 @@ def ask():
                 if _school:
                     print(f"[ASK] 從歷史補充學校：{_school}")
             _list      = _llm_is_listing and not _school and not _LIST_CONCEPT_RE.search(search_question) and not _eval_criterion
-            _query_is_or = '或' in question
             _personnel = bool(_PERSONNEL_RE.search(search_question))
             _kw        = _extract_keywords(search_question)
             _role      = _extract_role_term(question) if _personnel else None
@@ -2111,122 +2219,6 @@ def ask():
                 _src = "明確追問詞" if _explicit_followup else "LLM判斷"
                 print(f"[ASK] 追問偵測（{_src}），{len(_listed_schools)} 件：{_listed_schools[:3]}")
 
-            # ③-b 關鍵字索引查詢（USR議題詞 + SDG，優先於 TOPIC_LLM）
-            _kw_list_hit: str | None = None
-            _kw_plan_list: list[str] = []
-            _kw_pre_schools: set[str] = set()
-            _kw_pre_live_results: list[str] = []
-            _kw_pre_extra: list[str] = []
-            if not _listed_schools and not _school:
-                _kw_idx_pre = _keyword_index.get(year, {})
-                _all_topic_kws_set: set[str] = {kw for kws in USR_TOPIC_KEYWORDS.values() for kw in kws}
-                _q_terms_pre = _llm_kws or _extract_query_terms(search_question)
-                _kw_stop_pre = {'計畫', '學校', '大學', '哪些', '相關', '有關', '年度', 'USR', '相關計畫', '有關計畫', '相關的計畫', 'USR計畫', 'USR相關', 'USR計畫有哪些',
-                                '應用', '推動', '執行', '進行', '實施', '辦理', '提供', '建立',
-                                '發展', '促進', '改善', '提升', '強化', '增加', '協助', '支持',
-                                '透過', '結合', '整合', '運用', '方式', '計畫書', '成果',
-                                '屬於', '屬', '歸屬', '分類', '類別', '屬什麼', '計畫屬',
-                                '議題', '領域', '方向', '面向', '主題', '類型', '類別'}
-                _plan_set_pre: set[str] = set()
-                _matched_kws: list[str] = []
-
-                # 0. 直接比對 label_index.json 的 key（含 topic/SDG/地區/縣市/類型）
-                # 命中就直接用 label 結果，跳過 kw_chunks 關鍵字比對（步驟1-2）
-                _label_direct = _label_only_index.get(year, {})
-                _label_hit = False
-                for _lk in sorted(_label_direct, key=len, reverse=True):
-                    if len(_lk) >= 2 and _lk in search_question and _lk not in _matched_kws:
-                        _entries = _label_direct[_lk]
-                        if not _entries:
-                            continue
-                        _matched_kws.append(_lk)
-                        _plan_set_pre.update(_entries if isinstance(_entries[0], str)
-                                             else (_kw_entry_plan(e) for e in _entries))
-                        print(f"[KW-PRE] label 直接命中：{_lk} → {len(_entries)} 件")
-                        _label_hit = True
-
-                # 0b. 偵測到六大議題 → 直接用 label_index 拿完整計畫清單
-                if not _label_hit and _usr_topic and _usr_topic in _PRIMARY_TOPICS:
-                    _entries = _label_direct.get(_usr_topic, [])
-                    if _entries:
-                        _matched_kws.append(_usr_topic)
-                        _plan_set_pre.update(_entries if isinstance(_entries[0], str)
-                                             else (_kw_entry_plan(e) for e in _entries))
-                        print(f"[KW-PRE] topic label 命中：{_usr_topic} → {len(_entries)} 件")
-                        _label_hit = True
-
-                if not _label_hit:
-                    # 1. 退回 kw_chunks 文字比對
-                    for _tk in (_usr_topic_kws or []):
-                        if _tk in _kw_idx_pre:
-                            _plan_set_pre.update(_kw_entry_plan(e) for e in _kw_idx_pre[_tk])
-                            if _tk not in _matched_kws:
-                                _matched_kws.append(_tk)
-
-                    # 2. 問題裡其他 USR_TOPIC_KEYWORDS 詞
-                    for _qt in _q_terms_pre:
-                        if _qt in _all_topic_kws_set and _qt in _kw_idx_pre and _qt not in _matched_kws:
-                            _plan_set_pre.update(_kw_entry_plan(e) for e in _kw_idx_pre[_qt])
-                            _matched_kws.append(_qt)
-
-                if not _label_hit:
-                    # 3. SDG key 直接出現在問題裡（entries 為 str）
-                    for _kw_pre in _kw_idx_pre:
-                        if re.match(r'^SDG\d{1,2}$', _kw_pre) and _kw_pre in search_question:
-                            if _kw_pre not in _matched_kws:
-                                _matched_kws.append(_kw_pre)
-                                _plan_set_pre.update(_kw_idx_pre[_kw_pre])
-
-                    # 4. 計畫類型別名（萌芽型/深耕型/國際合作型/特色永續型 → 完整 key）
-                    for _alias, _full_key in _PLAN_TYPE_ALIAS.items():
-                        if _alias in search_question and _full_key and _full_key in _kw_idx_pre:
-                            if _full_key not in _matched_kws:
-                                _matched_kws.append(_full_key)
-                                _plan_set_pre.update(_kw_entry_plan(e) for e in _kw_idx_pre[_full_key])
-
-                    # 5. 地區/縣市 label 直接出現在問題裡（北區/南區/臺南市等）
-                    _sdg_re = re.compile(r'^SDG\d{1,2}$')
-                    _label_skip_set = _all_topic_kws_set | set(_PLAN_TYPE_ALIAS.keys()) | set(_PLAN_TYPE_ALIAS.values())
-                    for _lk in sorted(_kw_idx_pre, key=len, reverse=True):
-                        if _lk in _matched_kws or _lk in _label_skip_set or _sdg_re.match(_lk):
-                            continue
-                        if len(_lk) >= 2 and _lk in search_question:
-                            _entries = _kw_idx_pre.get(_lk, [])
-                            if not _entries:
-                                continue
-                            _matched_kws.append(_lk)
-                            if _entries and isinstance(_entries[0], str):
-                                _plan_set_pre.update(_entries)
-                            else:
-                                _plan_set_pre.update(_kw_entry_plan(e) for e in _entries)
-                            print(f"[KW-PRE] label 命中：{_lk} → {len(_entries)} 件")
-
-                if _matched_kws:
-                    _kw_list_hit = _matched_kws[0]
-                    _kw_plan_list = sorted(_plan_set_pre)
-                    print(f"[KW-PRE] 命中 {_matched_kws[:3]} → {len(_kw_plan_list)} 件")
-                    # 額外未知詞 live scan 過濾（排除已匹配 label key 的子字串片段）
-                    _extra_pre = [k for k in _q_terms_pre
-                                  if k not in _matched_kws and k not in _kw_stop_pre
-                                  and len(k) >= 2 and k not in _all_topic_kws_set
-                                  and not any(k in mk or mk in k for mk in _matched_kws)]
-                    if _extra_pre:
-                        print(f"[KW-PRE] 額外詞：{_extra_pre}（OR={_query_is_or}）")
-                        _fres = _faiss_scan_kws(_extra_pre, vs, k=300, condense=True)
-                        _kw_pre_live_results = _fres
-                        _kw_pre_extra = _extra_pre
-                        if _fres:
-                            _fschools = {m.group(1) for r in _fres
-                                         if (m := re.match(r'【(.+?)_', r))}
-                            if _fschools and not _query_is_or:
-                                _orig_n = len(_kw_plan_list)
-                                _kw_plan_list = [e for e in _kw_plan_list
-                                                 if e.split('：', 1)[0] in _fschools]
-                                _kw_pre_schools = _fschools
-                                print(f"[KW-PRE] AND 篩選後 {len(_kw_plan_list)}/{_orig_n} 件")
-                            elif _fschools and _query_is_or:
-                                _kw_pre_schools = _fschools
-                                print(f"[KW-PRE] OR 模式，額外命中學校 {len(_fschools)} 間")
 
             # ── LLM：議題語意分類（keyword_index 完全未命中才跑）──
             if _list_check and not _kw_list_hit:
