@@ -2632,13 +2632,37 @@ def ask():
                 _COMPLETION_RE = re.compile(r'已完成|已執行|已進行|完成.*評估|完成.*分析')
                 _completion_filter = ""
                 if _COMPLETION_RE.search(question):
-                    # 從查詢中提取「完成」後的核心行動詞（去掉疑問詞）
                     _action_kws = [k for k in _q_priority_kws if len(k) >= 2][:5]
                     _action_hint = '、'.join(_action_kws) if _action_kws else "該評估/分析"
                     _completion_filter = (
                         f"- 查詢問的是「已完成」的行動（關鍵詞：{_action_hint}）；"
                         f"若內文僅提到計劃進行、預計導入、學習方法、或參加相關工作坊，並非實際完成，直接輸出「#RAW」\n"
                     )
+
+                # 查詢詞中「非議題詞」的特定詞（如國名、特定機構、特定工具）
+                # 若計畫 snippet 完全不含這些詞，直接預篩掉，不送 LLM
+                _GENERIC_QKW = {'計畫', 'USR', '學校', '大學', '年度', '114年', '113年',
+                                 '計畫案', '參與', '台灣', '臺灣', '活動', '執行'}
+                _non_topic_specific_kws = [
+                    k for k in _q_priority_kws
+                    if k not in _all_topic_kws and k not in _GENERIC_QKW and len(k) >= 2
+                ]
+                _specificity_filter = ""
+                if _non_topic_specific_kws:
+                    _kws_hint_str = '、'.join(_non_topic_specific_kws[:5])
+                    _specificity_filter = (
+                        f"- 此查詢特別關注：{_kws_hint_str}；"
+                        f"若計畫書內文完全沒有提到這些詞的具體相關活動或事實，直接輸出「#RAW」\n"
+                    )
+                    # Pre-filter：snippet 完全不含特定詞的計畫直接略過
+                    _prefilter_before = len(_display_lines)
+                    _display_lines = [
+                        p for p in _display_lines
+                        if any(k in _plan_to_snippet.get(p, '') for k in _non_topic_specific_kws)
+                        or not _plan_to_snippet.get(p)  # 無 snippet 的計畫保留，讓 LLM 判斷
+                    ]
+                    if len(_display_lines) < _prefilter_before:
+                        print(f"[SPEC-PREFILTER] 特定詞{_non_topic_specific_kws[:3]} 預篩：{_prefilter_before} → {len(_display_lines)} 件")
 
                 def _sum_one_plan(_plan_line: str) -> str:
                     _snip = _strip_hr(_plan_to_snippet.get(_plan_line, ""))
@@ -2657,6 +2681,7 @@ def ask():
                         f"根據以下計畫書內容，用1～3句白話中文說明這個計畫**具體在做什麼**。"
                         f"規則：\n"
                         f"{_kw_hint}"
+                        f"{_specificity_filter}"
                         f"{_completion_filter}"
                         f"- 說明重點：做了什麼活動、服務對象是誰、在哪裡執行、達成什麼效果\n"
                         f"- 本計畫主導學校是【{_lead_school}】；若內文提及其他合作機構或協同主持人，可保留機構名，但說明主詞必須是【{_lead_school}】或其計畫，不得以合作機構為主詞\n"
