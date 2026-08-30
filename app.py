@@ -772,6 +772,34 @@ _chat_history: dict[str, list] = {}   # chat_id -> [{q, a}]
 _chat_history_lock = threading.Lock()
 _MAX_HISTORY  = 5                      # 每個 session 保留最近幾輪
 
+
+def _load_history_from_db(chat_id: str) -> list:
+    """伺服器重啟後記憶體為空時，從 SQLite 補回最近幾輪對話歷史。"""
+    try:
+        with _get_db() as conn:
+            rows = conn.execute(
+                "SELECT role, content FROM conv_messages "
+                "WHERE conversation_id=? ORDER BY timestamp ASC",
+                (chat_id,)
+            ).fetchall()
+        if not rows:
+            return []
+        pairs: list = []
+        i = 0
+        while i < len(rows) - 1:
+            if rows[i]["role"] == "user" and rows[i + 1]["role"] == "assistant":
+                pairs.append({
+                    "q": rows[i]["content"],
+                    "a": rows[i + 1]["content"][:5000],
+                    "plans": [],
+                })
+                i += 2
+            else:
+                i += 1
+        return pairs[-_MAX_HISTORY:]
+    except Exception:
+        return []
+
 # ── 使用者 profile cache ──────────────────────────────
 _user_profile_cache: dict[str, tuple[str, float]] = {}  # user_id -> (profile, timestamp)
 _USER_PROFILE_TTL = 300  # 5 分鐘
@@ -1961,7 +1989,15 @@ def ask():
                 yield f"data: {json.dumps({'type': 'highlight_terms', 'terms': _hl_terms}, ensure_ascii=False)}\n\n"
 
             # ── 對話記憶（提前載入，shortcut 路徑也能存取）──
-            history = (_chat_history.get(chat_id, []) if chat_id else []) if use_context else []
+            if not use_context or not chat_id:
+                history = []
+            else:
+                history = _chat_history.get(chat_id, [])
+                if not history:
+                    history = _load_history_from_db(chat_id)
+                    if history:
+                        with _chat_history_lock:
+                            _chat_history[chat_id] = history
 
             def _save_shortcut_history(ans: str, plans: list | None = None) -> None:
                 """shortcut 路徑用：將回答存入 _chat_history。"""
