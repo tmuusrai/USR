@@ -561,6 +561,24 @@ def _clean_plan_code(text: str) -> str:
     """移除 chunk 內容或檔名中的計畫編號與 _formatted。"""
     return _PLAN_CODE_RE.sub('', text).strip()
 
+def _sanitize_chunk(text: str, max_repeat: int = 4) -> str:
+    """折疊 chunk 內連續重複的行（防止資料損毀造成 LLM prompt 爆長）。"""
+    lines = text.split('\n')
+    out, i = [], 0
+    while i < len(lines):
+        line = lines[i]
+        j = i + 1
+        while j < len(lines) and lines[j] == line:
+            j += 1
+        count = j - i
+        out.append(line)
+        if count > max_repeat:
+            out.append(f'[…重複{count}次…]')
+        else:
+            out.extend(lines[i + 1:j])
+        i = j
+    return '\n'.join(out)
+
 def _trunc_at_sent(text: str, max_len: int) -> str:
     """在 max_len 字元內，優先在句號/換行處截斷，避免截到字中間。"""
     if len(text) <= max_len:
@@ -2430,19 +2448,19 @@ def ask():
                     for doc in docs
                 ]
             else:
-                faiss_texts = [_clean_plan_code(doc.page_content) for doc in docs]
+                faiss_texts = [_sanitize_chunk(_clean_plan_code(doc.page_content)) for doc in docs]
                 # label + 額外詞命中時，把 FAISS live results 加進 context（優先放前面）
                 # 若有 AND 篩選名單，live chunk 只保留名單內學校的文件
                 if _kw_pre_live_results:
                     if _kw_plan_list:
                         _allowed_schools = {e.split('：', 1)[0] for e in _kw_plan_list}
                         _live_texts = [
-                            _clean_plan_code(_lv) for _lv in _kw_pre_live_results
+                            _sanitize_chunk(_clean_plan_code(_lv)) for _lv in _kw_pre_live_results
                             if (m := re.match(r'【(.+?)_', _lv)) and m.group(1) in _allowed_schools
                         ]
                         print(f"[LIVE-NONLIST] label 過濾後 {len(_live_texts)}/{len(_kw_pre_live_results)} 筆 live 結果")
                     else:
-                        _live_texts = [_clean_plan_code(_lv) for _lv in _kw_pre_live_results]
+                        _live_texts = [_sanitize_chunk(_clean_plan_code(_lv)) for _lv in _kw_pre_live_results]
                         print(f"[LIVE-NONLIST] 補充 {len(_live_texts)} 筆 live 結果至 faiss_texts")
                     faiss_texts = _live_texts + faiss_texts
                 # AND 篩選後的 label 計畫清單注入 context，讓 LLM 能準確回答「嗎？」類問題
@@ -2610,6 +2628,18 @@ def ask():
                 # ── 列舉型並行路徑：每個計畫單獨送 LLM，擷取原文關鍵句 ──
                 from langchain_core.messages import HumanMessage as _HMList
 
+                # 「已完成X」類查詢：若內文無確認完成的證據，過濾掉
+                _COMPLETION_RE = re.compile(r'已完成|已執行|已進行|完成.*評估|完成.*分析')
+                _completion_filter = ""
+                if _COMPLETION_RE.search(question):
+                    # 從查詢中提取「完成」後的核心行動詞（去掉疑問詞）
+                    _action_kws = [k for k in _q_priority_kws if len(k) >= 2][:5]
+                    _action_hint = '、'.join(_action_kws) if _action_kws else "該評估/分析"
+                    _completion_filter = (
+                        f"- 查詢問的是「已完成」的行動（關鍵詞：{_action_hint}）；"
+                        f"若內文僅提到計劃進行、預計導入、學習方法、或參加相關工作坊，並非實際完成，直接輸出「#RAW」\n"
+                    )
+
                 def _sum_one_plan(_plan_line: str) -> str:
                     _snip = _strip_hr(_plan_to_snippet.get(_plan_line, ""))
                     if not _snip:
@@ -2627,6 +2657,7 @@ def ask():
                         f"根據以下計畫書內容，用1～3句白話中文說明這個計畫**具體在做什麼**。"
                         f"規則：\n"
                         f"{_kw_hint}"
+                        f"{_completion_filter}"
                         f"- 說明重點：做了什麼活動、服務對象是誰、在哪裡執行、達成什麼效果\n"
                         f"- 本計畫主導學校是【{_lead_school}】；若內文提及其他合作機構或協同主持人，可保留機構名，但說明主詞必須是【{_lead_school}】或其計畫，不得以合作機構為主詞\n"
                         f"- 若有具體合作對象（企業、社區、機構名稱）或數字（場次、人次、件數），必須保留\n"
@@ -2782,7 +2813,7 @@ def ask():
                             _allowed = {e.split('：', 1)[0] for e in _kw_plan_list}
                             _sub_docs = [d for d in _sub_docs
                                          if any(s in d.metadata.get('source', '') for s in _allowed)]
-                        _sub_context = "\n\n".join(d.page_content for d in _sub_docs[:30])
+                        _sub_context = "\n\n".join(_sanitize_chunk(d.page_content) for d in _sub_docs[:30])
                         print(f"[SUB-Q] RAG {len(_sub_docs)} 筆（chunk={_sub_chunk_count}≤45）")
 
                     _sub_prompt = (
@@ -2929,7 +2960,7 @@ def ask():
                     peer_docs = _dedup_by_school(peer_docs, k=3)
                     print(f"[ASK] 委員同儕「{plan_type}」→ {len(peer_docs)} 所學校")
                     if peer_docs:
-                        peer_ctx = "\n\n".join(_clean_plan_code(d.page_content) for d in peer_docs)
+                        peer_ctx = "\n\n".join(_sanitize_chunk(_clean_plan_code(d.page_content)) for d in peer_docs)
                         context = f"{context}\n\n【同類型計畫參考（{plan_type}）】\n{peer_ctx}"
 
             _user_profile = "" if user_type == "reviewer" else _get_user_profile(user_id)
@@ -3812,7 +3843,7 @@ def subagent_ask():
                         peer_docs = _dedup_by_school(peer_docs, k=3)
                         print(f"[SUBAGENT] 委員同儕「{_plan_type_sa}」→ {len(peer_docs)} 所學校")
                         if peer_docs:
-                            peer_ctx = "\n\n".join(_clean_plan_code(d.page_content) for d in peer_docs)
+                            peer_ctx = "\n\n".join(_sanitize_chunk(_clean_plan_code(d.page_content)) for d in peer_docs)
                             all_context.append(f"【同類型計畫參考（{_plan_type_sa}）】\n{peer_ctx}")
 
             yield f"data: {json.dumps({'type': 'sources', 'sources': all_sources}, ensure_ascii=False)}\n\n"
