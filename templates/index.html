@@ -13,7 +13,7 @@ body{font-family:"Segoe UI","Noto Sans TC",sans-serif;background:#f5f7fa;height:
 #layout{display:flex;flex:1;overflow:hidden}
 
 /* SIDEBAR */
-#sidebar{width:252px;background:#fff;border-right:1px solid #e2e8f0;display:flex;flex-direction:column;flex-shrink:0;overflow-y:auto}
+#sidebar{width:252px;background:#fff;border-right:1px solid #e2e8f0;display:flex;flex-direction:column;flex-shrink:0;overflow-y:hidden}
 #sidebar::-webkit-scrollbar{width:4px}
 #sidebar::-webkit-scrollbar-thumb{background:#e2e8f0;border-radius:4px}
 .sb-title{padding:16px 18px 8px;font-size:.67rem;color:#94a3b8;text-transform:uppercase;letter-spacing:.12em;font-weight:700}
@@ -121,7 +121,7 @@ strong.kw-hl{font-weight:700}
 }
 .new-conv-btn:hover { background: #1e3a8a; }
 
-#conv-list { padding: 0 8px; overflow-y: auto; }
+#conv-list { padding: 0 8px; overflow-y: auto; flex: 1; min-height: 0; }
 .conv-date-label {
   font-size: 0.72rem;
   color: #6b7280;
@@ -172,8 +172,10 @@ strong.kw-hl{font-weight:700}
   border-radius: 8px;
   cursor: pointer;
   box-sizing: border-box;
+  flex-shrink: 0;
 }
 .sb-section-toggle:hover { background: #1e3a8a; }
+#func-nav { overflow-y: auto; max-height: 52vh; flex-shrink: 0; }
 
 /* ── LOGIN OVERLAY ── */
 #login-overlay{position:fixed;inset:0;z-index:999;background:linear-gradient(135deg,#1e3a8a 0%,#1e40af 50%,#2563eb 100%);display:flex;align-items:center;justify-content:center}
