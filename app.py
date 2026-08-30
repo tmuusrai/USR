@@ -2760,7 +2760,7 @@ def ask():
 
                 # OUT4（計畫內容型 + 列舉型）& OUT7（計畫內容型 + 列舉型 + 一般型）
                 # 列完後附上各計畫完整摘要
-                _sum_cap = 0 if _list else (5 if _is_out7 else (10 if _SUMMARY_INTENT_RE.search(question) else 0))
+                _sum_cap = (5 if _is_out7 else (10 if (_SUMMARY_INTENT_RE.search(question) and not _list) else 0))
                 if _sum_cap and _para_collected:
                     _sep = "\n\n---\n\n"
                     _sum_hdr = f"### 計畫摘要（前 {_sum_cap} 件）\n\n"
