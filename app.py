@@ -773,14 +773,14 @@ _chat_history_lock = threading.Lock()
 _MAX_HISTORY  = 5                      # 每個 session 保留最近幾輪
 
 
-def _load_history_from_db(chat_id: str) -> list:
-    """伺服器重啟後記憶體為空時，從 SQLite 補回最近幾輪對話歷史。"""
+def _load_history_from_db(conv_id: str) -> list:
+    """從 SQLite 用 conv_id 補回最近幾輪對話歷史（跨重啟、跨 instance 都有效）。"""
     try:
         with _get_db() as conn:
             rows = conn.execute(
                 "SELECT role, content FROM conv_messages "
                 "WHERE conversation_id=? ORDER BY timestamp ASC",
-                (chat_id,)
+                (conv_id,)
             ).fetchall()
         if not rows:
             return []
@@ -1989,23 +1989,25 @@ def ask():
                 yield f"data: {json.dumps({'type': 'highlight_terms', 'terms': _hl_terms}, ensure_ascii=False)}\n\n"
 
             # ── 對話記憶（提前載入，shortcut 路徑也能存取）──
-            if not use_context or not chat_id:
+            # 用 conv_id 作為穩定 key（跨重啟、跨 instance 都一致）
+            _hist_key = conv_id or chat_id
+            if not use_context or not _hist_key:
                 history = []
             else:
-                history = _chat_history.get(chat_id, [])
-                if not history:
-                    history = _load_history_from_db(chat_id)
+                history = _chat_history.get(_hist_key, [])
+                if not history and conv_id:
+                    history = _load_history_from_db(conv_id)
                     if history:
                         with _chat_history_lock:
-                            _chat_history[chat_id] = history
+                            _chat_history[_hist_key] = history
 
             def _save_shortcut_history(ans: str, plans: list | None = None) -> None:
                 """shortcut 路徑用：將回答存入 _chat_history。"""
-                if not chat_id:
+                if not _hist_key:
                     return
                 _saved = plans if plans is not None else _extract_listed_plans(ans)
                 with _chat_history_lock:
-                    _h = _chat_history.setdefault(chat_id, [])
+                    _h = _chat_history.setdefault(_hist_key, [])
                     _h.append({"q": question, "a": ans[:5000], "plans": _saved})
                     if len(_h) > _MAX_HISTORY:
                         _h.pop(0)
@@ -2895,9 +2897,9 @@ def ask():
 
                 yield f"data: {json.dumps({'type': 'done', 'timing': _para_timing})}\n\n"
 
-                if chat_id:
+                if _hist_key:
                     with _chat_history_lock:
-                        _ph = _chat_history.setdefault(chat_id, [])
+                        _ph = _chat_history.setdefault(_hist_key, [])
                         _ph.append({"q": question, "a": _para_full_ans[:5000], "plans": _extract_listed_plans(_para_full_ans)})
                         if len(_ph) > _MAX_HISTORY:
                             _ph.pop(0)
@@ -3129,11 +3131,11 @@ def ask():
             yield f"data: {json.dumps({'type': 'done', 'timing': timing})}\n\n"
 
             # ── 儲存對話記憶 ──
-            if chat_id:
+            if _hist_key:
                 full_ans = _full_answer
                 saved_plans = _listed_schools if _listed_schools else _extract_listed_plans(full_ans)
                 with _chat_history_lock:
-                    hist = _chat_history.setdefault(chat_id, [])
+                    hist = _chat_history.setdefault(_hist_key, [])
                     # 多校追問時保留原始清單（而非從新答案重新提取，避免清單縮水）
                     hist.append({"q": question, "a": full_ans[:5000], "plans": saved_plans})
                     if len(hist) > _MAX_HISTORY:
