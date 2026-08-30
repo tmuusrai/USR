@@ -121,7 +121,7 @@ strong.kw-hl{font-weight:700}
 }
 .new-conv-btn:hover { background: #1e3a8a; }
 
-#conv-list { padding: 0 8px; flex: 1; overflow-y: auto; }
+#conv-list { padding: 0 8px; overflow-y: auto; }
 .conv-date-label {
   font-size: 0.72rem;
   color: #6b7280;
@@ -585,9 +585,26 @@ async function loadConversations() {
 function renderConvList(convs) {
   const el = document.getElementById("conv-list");
   if (!convs.length) {
-    el.innerHTML = '<div style="padding:16px 12px;font-size:0.82rem;color:#9ca3af;">尚無對話紀錄</div>';
+    el.innerHTML = '<div style="padding:8px 12px;font-size:0.82rem;color:#9ca3af;">尚無對話紀錄</div>';
     return;
   }
+  const recent = convs.slice(0, 2);
+  let html = "";
+  recent.forEach(c => {
+    const active = c.id === currentConvId ? " active" : "";
+    html += `<div class="conv-item${active}" onclick="loadConversation('${c.id}')" data-id="${c.id}">
+      <span class="conv-item-title">${escHtml(c.title)}</span>
+      <button class="conv-del-btn" onclick="event.stopPropagation();deleteConversation('${c.id}')" title="刪除">✕</button>
+    </div>`;
+  });
+  if (convs.length > 2) {
+    html += `<div style="padding:4px 4px 8px;font-size:0.75rem;color:#6b7280;cursor:pointer;text-align:right;" onclick="toggleFullConvList(this, ${JSON.stringify(convs).replace(/"/g,'&quot;')})">▼ 全部 ${convs.length} 筆</div>`;
+  }
+  el.innerHTML = html;
+}
+
+function toggleFullConvList(btn, convs) {
+  const el = document.getElementById("conv-list");
   const now = Date.now() / 1000;
   const groups = { "今天": [], "昨天": [], "本週": [], "更早": [] };
   convs.forEach(c => {
@@ -609,6 +626,7 @@ function renderConvList(convs) {
       </div>`;
     });
   }
+  html += `<div style="padding:4px 4px 8px;font-size:0.75rem;color:#6b7280;cursor:pointer;text-align:right;" onclick="renderConvList(${JSON.stringify(convs).replace(/"/g,'&quot;')})">▲ 收起</div>`;
   el.innerHTML = html;
 }
 
