@@ -2393,7 +2393,10 @@ def ask():
                 if _direct_plan_chunks:
                     _direct_kw_hit = True
                     _plan_list_lines = sorted(_direct_plan_chunks.keys())
-                    _plan_to_snippet = {p: "\n\n".join(chunks[:3]) for p, chunks in _direct_plan_chunks.items()}
+                    _plan_to_snippet = {
+                        p: f"【{p}】\n" + "\n\n".join(chunks[:3])
+                        for p, chunks in _direct_plan_chunks.items()
+                    }
                     print(f"[KW-DIRECT] 查詢詞 {_q_priority_kws[:3]} 直接命中 kw_chunks → {len(_plan_list_lines)} 件，跳過 topic label")
 
                 if not _direct_kw_hit:
