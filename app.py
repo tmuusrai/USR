@@ -1025,16 +1025,58 @@ def _strip_summary_header(text: str) -> str:
             lines.pop(0)
     return '\n'.join(lines).strip()
 
-def _try_summary_answer(question: str, year: str) -> str | None:
-    """若問到特定學校或議題/SDG 計畫內容，直接回傳 summary TXT 內容。"""
+def _try_summary_answer(question: str, year: str,
+                        kw_plan_list: list[str] | None = None) -> str | None:
+    """若問到特定學校或議題/SDG 計畫內容，直接回傳 summary TXT 內容。
+    kw_plan_list：KW-PRE 已過濾的計畫清單（優先使用，避免重複偵測 label）。
+    """
     if year != "114":
         return None
     if not _SUMMARY_INTENT_RE.search(question):
         return None
 
-    _yr_labels = _label_only_index.get(year, {})
+    school = _extract_school(question)
 
-    # 偵測 label key：SDG 編號優先，再找 USR 議題名稱
+    def _fmt(s, plan, content):
+        body = _strip_summary_header(_strip_hr(content))
+        return f"## {s}｜{plan}\n\n{body}"
+
+    if kw_plan_list:
+        # KW-PRE 已做好 LABEL 過濾，直接用這份清單找摘要
+        if school:
+            _school_plans = {e.split('：', 1)[1] for e in kw_plan_list
+                             if e.startswith(school + '：')}
+            summaries = _find_school_summaries(school)
+            if not summaries:
+                return None
+            if _school_plans:
+                summaries = [(p, c) for p, c in summaries if p in _school_plans]
+            if not summaries:
+                return None
+            if len(summaries) == 1:
+                return _fmt(school, *summaries[0])
+            for plan, content in summaries:
+                plan_parts = [p for p in plan.split('：') if len(p) >= 4]
+                if plan[:10] in question or any(p in question for p in plan_parts):
+                    return _fmt(school, plan, content)
+            return "\n\n".join(_fmt(school, p, c) for p, c in summaries)
+        else:
+            _out_parts = []
+            for _entry in kw_plan_list:
+                if len(_out_parts) >= 8:
+                    break
+                _s = _entry.split('：', 1)[0]
+                _pkey = _entry.split('：', 1)[1] if '：' in _entry else ''
+                _ssums = _find_school_summaries(_s)
+                if _ssums:
+                    _matched = [(p, c) for p, c in _ssums
+                                if not _pkey or p == _pkey or _pkey[:12] in p or p[:12] in _pkey]
+                    if _matched:
+                        _out_parts.append(_fmt(_s, *_matched[0]))
+            return "\n\n".join(_out_parts) if _out_parts else None
+
+    # fallback：kw_plan_list 為空時自行偵測 label key
+    _yr_labels = _label_only_index.get(year, {})
     _sdg_m = re.search(r'SDG\s*(\d+)', question, re.IGNORECASE)
     _label_key = f"SDG{_sdg_m.group(1)}" if _sdg_m else None
     if not _label_key:
@@ -1043,19 +1085,13 @@ def _try_summary_answer(question: str, year: str) -> str | None:
                 _label_key = _k
                 break
 
-    school = _extract_school(question)
-
-    def _fmt(s, plan, content):
-        body = _strip_summary_header(_strip_hr(content))
-        return f"## {s}｜{plan}\n\n{body}"
-
     if school:
-        # 有指定學校：過濾出屬於該 label 的計畫
         summaries = _find_school_summaries(school)
         if not summaries:
             return None
         if _label_key and _yr_labels.get(_label_key):
-            _allowed = {e.split('：', 1)[1] for e in _yr_labels[_label_key] if e.startswith(school + '：')}
+            _allowed = {e.split('：', 1)[1] for e in _yr_labels[_label_key]
+                        if e.startswith(school + '：')}
             if _allowed:
                 summaries = [(p, c) for p, c in summaries if p in _allowed]
         if not summaries:
@@ -1068,7 +1104,6 @@ def _try_summary_answer(question: str, year: str) -> str | None:
                 return _fmt(school, plan, content)
         return "\n\n".join(_fmt(school, p, c) for p, c in summaries)
     else:
-        # 無指定學校：需要 label key，最多輸出 8 份摘要
         if not _label_key or not _yr_labels.get(_label_key):
             return None
         _entries = _yr_labels[_label_key]
@@ -1080,7 +1115,8 @@ def _try_summary_answer(question: str, year: str) -> str | None:
             _pkey = _entry.split('：', 1)[1] if '：' in _entry else ''
             _ssums = _find_school_summaries(_s)
             if _ssums:
-                _matched = [(p, c) for p, c in _ssums if not _pkey or p == _pkey or _pkey[:12] in p or p[:12] in _pkey]
+                _matched = [(p, c) for p, c in _ssums
+                            if not _pkey or p == _pkey or _pkey[:12] in p or p[:12] in _pkey]
                 if _matched:
                     _out_parts.append(_fmt(_s, *_matched[0]))
         return "\n\n".join(_out_parts) if _out_parts else None
@@ -2204,7 +2240,8 @@ def ask():
                 return
 
             # ── ①-d 計畫總覽/內容短路：直接回傳 summary TXT ──
-            summary_ctx = _try_summary_answer(question, year=year)
+            summary_ctx = _try_summary_answer(question, year=year,
+                                              kw_plan_list=_kw_plan_list or None)
             _out5_summary: str | None = None  # OUT5 暫存摘要（計畫內容型 + 一般型）
             if summary_ctx:
                 _sum_q_segs = [p.strip() for p in re.split(r'[？?]', question) if p.strip()]
@@ -2520,11 +2557,14 @@ def ask():
                     for doc in docs
                 ]
             else:
-                # 概念型／摘要型：LABEL 有設學校範圍時，只保留那幾間學校的文件
-                if _kw_pre_schools:
+                # 概念型／摘要型：LABEL 命中（含六大議題）時，只保留那幾間學校的文件
+                _nonlist_school_filter = _kw_pre_schools or (
+                    {e.split('：', 1)[0] for e in _kw_plan_list} if _kw_plan_list else set()
+                )
+                if _nonlist_school_filter:
                     _orig_doc_count = len(docs)
                     docs = [doc for doc in docs
-                            if any(s in doc.metadata.get('source', '') for s in _kw_pre_schools)]
+                            if any(s in doc.metadata.get('source', '') for s in _nonlist_school_filter)]
                     print(f"[NONLIST-FILTER] LABEL 學校過濾：{_orig_doc_count} → {len(docs)} 筆")
                 faiss_texts = [_sanitize_chunk(_clean_plan_code(doc.page_content)) for doc in docs]
                 # label + 額外詞命中時，把 FAISS live results 加進 context（優先放前面）
