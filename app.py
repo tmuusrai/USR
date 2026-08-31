@@ -2379,31 +2379,52 @@ def ask():
                 _q_terms = _llm_kws or _extract_query_terms(question)
                 _q_priority_kws = [k for k in _q_terms if k in search_question]
                 _kw_idx = _keyword_index.get(year) or _keyword_index.get("114", {})
-                # KW-PRE 已建立 label 名單，直接作為初始 _plan_list_lines
-                if _kw_plan_list:
-                    _plan_list_lines = list(_kw_plan_list)
-                    print(f"[KW-SEED] label 名單 → _plan_list_lines {len(_plan_list_lines)} 件")
-                # 純 label 模式：label 直接命中且無額外詞
+                _stem_strip_re_direct = re.compile(r'\s*\(\d{3}USR-[^)]*\)?|_formatted(?:\(\d+\))?')
+
+                # 優先：查詢關鍵字直接在 kw_chunks 有命中 → 直接用那批 chunk，跳過 topic label
+                _direct_kw_hit = False
+                _direct_plan_chunks: dict[str, list[str]] = {}
+                for _dkw in _q_priority_kws:
+                    for _de in _kw_idx.get(_dkw, []):
+                        if not isinstance(_de, dict) or "text" not in _de:
+                            continue
+                        _dpk = _stem_strip_re_direct.sub('', _de.get("plan", "")).strip('_ ')
+                        _direct_plan_chunks.setdefault(_dpk, []).append(_de["text"])
+                if _direct_plan_chunks:
+                    _direct_kw_hit = True
+                    _plan_list_lines = sorted(_direct_plan_chunks.keys())
+                    _plan_to_snippet = {p: "\n\n".join(chunks[:3]) for p, chunks in _direct_plan_chunks.items()}
+                    print(f"[KW-DIRECT] 查詢詞 {_q_priority_kws[:3]} 直接命中 kw_chunks → {len(_plan_list_lines)} 件，跳過 topic label")
+
+                if not _direct_kw_hit:
+                    # KW-PRE 已建立 label 名單，直接作為初始 _plan_list_lines
+                    if _kw_plan_list:
+                        _plan_list_lines = list(_kw_plan_list)
+                        print(f"[KW-SEED] label 名單 → _plan_list_lines {len(_plan_list_lines)} 件")
+
+                # 純 label 模式：label 直接命中且無額外詞（direct hit 時不適用）
                 _pure_label_mode = (
-                    bool(_kw_plan_list) and not _kw_pre_extra and _label_hit
+                    bool(_kw_plan_list) and not _kw_pre_extra and _label_hit and not _direct_kw_hit
                 )
                 _all_topic_kws: set[str] = {kw for kws in USR_TOPIC_KEYWORDS.values() for kw in kws}
 
                 # ── keyword_index 查詢：_usr_topic_kws + 問題中的已知議題詞 ──
+                # direct hit 時已有精確清單，跳過 topic label 擴充
                 _topic_plan_set: set[str] = set()
                 _kw_idx_chunks: dict[str, list[str]] = {}  # plan → chunk texts（本次 query 臨時）
-                _lookup_kws = list(dict.fromkeys(
-                    list(_usr_topic_kws or []) + [k for k in _q_terms if k in _all_topic_kws]
-                ))
-                for _lk in _lookup_kws:
-                    if _lk in _kw_idx:
-                        for _e in _kw_idx[_lk]:
-                            _ep = _kw_entry_plan(_e)
-                            _topic_plan_set.add(_ep)
-                            if isinstance(_e, dict) and _e.get("text"):
-                                _kw_idx_chunks.setdefault(_ep, []).append(_e["text"])
-                if _topic_plan_set:
-                    print(f"[KW-IDX] 議題詞 {len(_lookup_kws)} 個 → {len(_topic_plan_set)} 件計畫")
+                if not _direct_kw_hit:
+                    _lookup_kws = list(dict.fromkeys(
+                        list(_usr_topic_kws or []) + [k for k in _q_terms if k in _all_topic_kws]
+                    ))
+                    for _lk in _lookup_kws:
+                        if _lk in _kw_idx:
+                            for _e in _kw_idx[_lk]:
+                                _ep = _kw_entry_plan(_e)
+                                _topic_plan_set.add(_ep)
+                                if isinstance(_e, dict) and _e.get("text"):
+                                    _kw_idx_chunks.setdefault(_ep, []).append(_e["text"])
+                    if _topic_plan_set:
+                        print(f"[KW-IDX] 議題詞 {len(_lookup_kws)} 個 → {len(_topic_plan_set)} 件計畫")
                     if not _plan_list_lines:
                         _plan_list_lines = sorted(_topic_plan_set)
                     elif not _pure_label_mode and not _label_hit:
