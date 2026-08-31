@@ -2166,9 +2166,12 @@ def ask():
                         _kw_pre_schools = {m.group(1) for r in _fres
                                            if (m := re.match(r'【(.+?)_', r))}
                         print(f"[KW-PRE] 額外詞命中學校 {len(_kw_pre_schools)} 間")
-                # label 清單的學校集合即為搜尋範圍
+                # 只有非六大議題的 label（SDG/縣市/類型）才設搜尋範圍
                 if not _kw_pre_schools:
-                    _kw_pre_schools = {e.split('：', 1)[0] for e in _kw_plan_list}
+                    _non_primary_kws = [k for k in _matched_kws if k not in _PRIMARY_TOPICS]
+                    if _non_primary_kws:
+                        _kw_pre_schools = {e.split('：', 1)[0] for e in _kw_plan_list}
+                        print(f"[KW-PRE] 搜尋範圍學校 {len(_kw_pre_schools)} 間（SDG/縣市/類型 filter）")
 
             # ── ① 計畫類型短路：問萌芽型/深耕型/國際合作型/特色永續型（優先於 qa_custom）──
             plan_type_ctx = _try_plan_type_answer(question, year=year)
@@ -2392,6 +2395,8 @@ def ask():
                         if not isinstance(_de, dict) or "text" not in _de:
                             continue
                         _dpk = _stem_strip_re_direct.sub('', _de.get("plan", "")).strip('_ ')
+                        if _kw_pre_schools and _dpk.split('：', 1)[0] not in _kw_pre_schools:
+                            continue
                         _direct_plan_chunks.setdefault(_dpk, []).append(_de["text"])
                 if _direct_plan_chunks:
                     _direct_kw_hit = True
@@ -2403,7 +2408,7 @@ def ask():
                     print(f"[KW-DIRECT] 查詢詞 {_q_priority_kws[:3]} 直接命中 kw_chunks → {len(_plan_list_lines)} 件，跳過 topic label")
 
                 if not _direct_kw_hit:
-                    # KW-PRE 已建立 label 名單，直接作為初始 _plan_list_lines
+                    # KW-SEED：label 有計畫清單就直接作為初始名單（六大議題問題走這條）
                     if _kw_plan_list:
                         _plan_list_lines = list(_kw_plan_list)
                         print(f"[KW-SEED] label 名單 → _plan_list_lines {len(_plan_list_lines)} 件")
@@ -2426,6 +2431,8 @@ def ask():
                         if _lk in _kw_idx:
                             for _e in _kw_idx[_lk]:
                                 _ep = _kw_entry_plan(_e)
+                                if _kw_pre_schools and _ep.split('：', 1)[0] not in _kw_pre_schools:
+                                    continue
                                 _topic_plan_set.add(_ep)
                                 if isinstance(_e, dict) and _e.get("text"):
                                     _kw_idx_chunks.setdefault(_ep, []).append(_e["text"])
