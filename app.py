@@ -2119,6 +2119,7 @@ def ask():
             _kw_idx_pre = _keyword_index.get(year, {})
             _all_topic_kws_set: set[str] = {kw for kws in USR_TOPIC_KEYWORDS.values() for kw in kws}
             _q_terms_pre = list(_llm_kws)
+            _llm_kws_set = set(_llm_kws)
             _kw_stop_pre = {'計畫', '學校', '大學', '哪些', '相關', '有關', '年度', 'USR', '相關計畫', '有關計畫', '相關的計畫', 'USR計畫', 'USR相關', 'USR計畫有哪些',
                             '應用', '推動', '執行', '進行', '實施', '辦理', '提供', '建立',
                             '發展', '促進', '改善', '提升', '強化', '增加', '協助', '支持',
@@ -2135,7 +2136,7 @@ def ask():
             for _lk in sorted(_label_direct, key=len, reverse=True):
                 if _lk in _SKIP_REGION_LABELS:
                     continue
-                if len(_lk) >= 2 and _lk in question and _lk not in _matched_kws:
+                if len(_lk) >= 2 and (_lk in question or _lk in _llm_kws_set) and _lk not in _matched_kws:
                     _entries = _label_direct[_lk]
                     if not _entries:
                         continue
@@ -2187,7 +2188,7 @@ def ask():
                 for _lk in sorted(_kw_idx_pre, key=len, reverse=True):
                     if _lk in _matched_kws or _lk in _label_skip_set or _sdg_re_pre.match(_lk):
                         continue
-                    if len(_lk) >= 2 and _lk in question:
+                    if len(_lk) >= 2 and (_lk in question or _lk in _llm_kws_set):
                         _entries = _kw_idx_pre.get(_lk, [])
                         if not _entries:
                             continue
