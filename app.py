@@ -2097,6 +2097,17 @@ def ask():
                 yield f"data: {json.dumps({'type': 'done', 'timing': {'total_ms': total_ms}, 'mode': 'clarify', 'original_question': question}, ensure_ascii=False)}\n\n"
                 return
 
+            # ── 搜尋問題準備（移至 KW-PRE 之前，供 LLM 拆詞使用）──
+            t_prepare_start = time.perf_counter()
+            if _eval_criterion:
+                search_question = _eval_criterion
+            elif history:
+                search_question = _prepare_search_query(question, history)
+            else:
+                search_question = question
+            _llm_kws, _llm_is_listing = _llm_parse_query(search_question)
+            t_prepare_end = time.perf_counter()
+
             # ── KW-PRE：label 比對（早期執行，結果作為後續所有路徑的搜尋範圍）──
             _query_is_or = '或' in question
             _usr_topic, _usr_topic_kws = _detect_usr_topic(question)
@@ -2107,7 +2118,7 @@ def ask():
             _kw_list_hit: str | None = None
             _kw_idx_pre = _keyword_index.get(year, {})
             _all_topic_kws_set: set[str] = {kw for kws in USR_TOPIC_KEYWORDS.values() for kw in kws}
-            _q_terms_pre = _extract_query_terms(question)
+            _q_terms_pre = list(_llm_kws)
             _kw_stop_pre = {'計畫', '學校', '大學', '哪些', '相關', '有關', '年度', 'USR', '相關計畫', '有關計畫', '相關的計畫', 'USR計畫', 'USR相關', 'USR計畫有哪些',
                             '應用', '推動', '執行', '進行', '實施', '辦理', '提供', '建立',
                             '發展', '促進', '改善', '提升', '強化', '增加', '協助', '支持',
@@ -2260,20 +2271,6 @@ def ask():
                 # OUT5：計畫內容型 + 一般型，先暫存摘要，繼續跑一般型流程
                 _out5_summary = summary_ctx
                 print(f"[OUT5] 偵測到子問題，摘要暫存，繼續一般型")
-
-            # ── 搜尋問題準備 ──
-            t_prepare_start = time.perf_counter()
-            if _eval_criterion:
-                # 評量模式：用使用者給的標準當搜尋詞，精準找相關計畫
-                search_question = _eval_criterion
-            elif history:
-                search_question = _prepare_search_query(question, history)
-            else:
-                search_question = question
-            t_prepare_end = time.perf_counter()
-
-            # ── LLM 分詞 + 列舉型判斷（取代 jieba + regex）──
-            _llm_kws, _llm_is_listing = _llm_parse_query(search_question)
 
             # ── USR 議題關鍵字偵測（僅供 keyword_index 比對，不做 FAISS 擴充）──
             _list_check = _llm_is_listing and not _LIST_CONCEPT_RE.search(search_question)
