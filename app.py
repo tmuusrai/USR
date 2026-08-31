@@ -1623,6 +1623,9 @@ def _load_kw_index() -> None:
                     _keyword_index.setdefault(yr, {})[k] = v
                     if tag == "LABEL-IDX":
                         _label_only_index.setdefault(yr, {})[k] = v
+                        # label key 加入 jieba 字典，防止被拆開
+                        if len(k) >= 2:
+                            jieba.add_word(k)
             total = sum(len(v) for v in _keyword_index.values())
             print(f"[{tag}] 載入 {actual_path.name}，目前共 {total} 個索引")
         except Exception as _e:
