@@ -2520,6 +2520,12 @@ def ask():
                     for doc in docs
                 ]
             else:
+                # 概念型／摘要型：LABEL 有設學校範圍時，只保留那幾間學校的文件
+                if _kw_pre_schools:
+                    _orig_doc_count = len(docs)
+                    docs = [doc for doc in docs
+                            if any(s in doc.metadata.get('source', '') for s in _kw_pre_schools)]
+                    print(f"[NONLIST-FILTER] LABEL 學校過濾：{_orig_doc_count} → {len(docs)} 筆")
                 faiss_texts = [_sanitize_chunk(_clean_plan_code(doc.page_content)) for doc in docs]
                 # label + 額外詞命中時，把 FAISS live results 加進 context（優先放前面）
                 # 若有 AND 篩選名單，live chunk 只保留名單內學校的文件
