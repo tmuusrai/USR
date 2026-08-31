@@ -98,6 +98,7 @@ tr:hover td{background:#fafbfc}
         <input id="new-pw" type="password" placeholder="密碼" style="width:150px">
         <button type="button" class="eye-btn" style="position:absolute;right:6px" onclick="toggleEye('new-pw',this)" tabindex="-1">👁</button>
       </div>
+      <button type="button" class="btn btn-gray" onclick="hashNewPw()" title="將密碼欄的內容 SHA256 後填回">SHA256</button>
       <button class="btn btn-blue" onclick="addUser()">新增帳號</button>
       <span id="add-msg" style="font-size:.8rem;color:#dc2626"></span>
     </div>
@@ -178,6 +179,16 @@ tr:hover td{background:#fafbfc}
 
 </div>
 <script>
+async function hashNewPw() {
+  const inp = document.getElementById('new-pw');
+  const pw = inp.value.trim();
+  if (!pw) { alert('請先輸入密碼'); return; }
+  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(pw));
+  const hex = Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,'0')).join('');
+  inp.value = hex;
+  inp.type = 'text';
+}
+
 function toggleEye(inputId, btn) {
   const inp = document.getElementById(inputId);
   const show = inp.type === 'password';
