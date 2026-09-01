@@ -2268,7 +2268,7 @@ def ask():
             _out5_summary: str | None = None  # OUT5 暫存摘要（計畫內容型 + 一般型）
             if summary_ctx:
                 _sum_q_segs = [p.strip() for p in re.split(r'[？?]', question) if p.strip()]
-                _sum_has_sub = len(_sum_q_segs) > 1 or bool(re.search(r'[，、]', question))
+                _sum_has_sub = len(_sum_q_segs) > 1
                 if not _sum_has_sub:
                     # OUT1：純計畫內容型，直接短路輸出
                     _save_shortcut_history(summary_ctx)
@@ -2742,10 +2742,9 @@ def ask():
                                 _plan_to_snippet[_s] = '\n'.join(_school_to_live[_s_school][:3])
                     print(f"[CHUNK-LIVE] live 補充後 _plan_to_snippet {len(_plan_to_snippet)} 件")
 
-                # 偵測子問題：含逗號（附帶條件）或多個問號（複合問題）即觸發
+                # 偵測子問題：多個問號（複合問題）才觸發
                 _q_segs = [p.strip() for p in re.split(r'[？?]', question) if p.strip()]
-                _has_comma = bool(re.search(r'[，、]', question))
-                _extra_sub_qs = _q_segs[1:] if len(_q_segs) > 1 else (["_comma"] if _has_comma else [])
+                _extra_sub_qs = _q_segs[1:] if len(_q_segs) > 1 else []
                 _is_out7 = bool(_extra_sub_qs and _SUMMARY_INTENT_RE.search(question))
                 _SUB_CAP = 15 if _is_out7 else 25  # OUT7：列舉限 15 間
                 # 多取緩衝以補足跳過件，收集後再截至 _SUB_CAP
@@ -2955,12 +2954,7 @@ def ask():
 
                 # 子問題分析：列完後再送 LLM 回答
                 if _extra_sub_qs:
-                    # 取子問題文字（逗號觸發時從原問題切出逗號後半段）
-                    if _extra_sub_qs == ["_comma"]:
-                        _comma_parts = re.split(r'[，、]', question, maxsplit=1)
-                        _sub_q_text = _comma_parts[1].strip() if len(_comma_parts) > 1 else question
-                    else:
-                        _sub_q_text = "\n".join(f"- {q}" for q in _extra_sub_qs)
+                    _sub_q_text = "\n".join(f"- {q}" for q in _extra_sub_qs)
 
                     # chunk > 45 → live scan；否 → RAG
                     _sub_chunk_count = len(_plan_list_lines)
