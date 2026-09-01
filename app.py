@@ -2128,6 +2128,7 @@ def ask():
                             '議題', '領域', '方向', '面向', '主題', '類型', '類別'}
             _plan_set_pre: set[str] = set()
             _matched_kws: list[str] = []
+            _matched_kw_counts: dict[str, int] = {}
             _label_direct = _label_only_index.get(year, {})
             _label_hit = False
 
@@ -2141,6 +2142,7 @@ def ask():
                     if not _entries:
                         continue
                     _matched_kws.append(_lk)
+                    _matched_kw_counts[_lk] = len(_entries)
                     _plan_set_pre.update(_entries if isinstance(_entries[0], str)
                                          else (_kw_entry_plan(e) for e in _entries))
                     print(f"[KW-PRE] label 直接命中：{_lk} → {len(_entries)} 件")
@@ -2151,6 +2153,7 @@ def ask():
                 _entries = _label_direct.get(_usr_topic, [])
                 if _entries:
                     _matched_kws.append(_usr_topic)
+                    _matched_kw_counts[_usr_topic] = len(_entries)
                     _plan_set_pre.update(_entries if isinstance(_entries[0], str)
                                          else (_kw_entry_plan(e) for e in _entries))
                     print(f"[KW-PRE] topic label 命中：{_usr_topic} → {len(_entries)} 件")
@@ -2175,6 +2178,7 @@ def ask():
                     if re.match(r'^SDG\d{1,2}$', _kw_pre_k) and _kw_pre_k in question:
                         if _kw_pre_k not in _matched_kws:
                             _matched_kws.append(_kw_pre_k)
+                            _matched_kw_counts[_kw_pre_k] = len(_kw_idx_pre[_kw_pre_k])
                             _plan_set_pre.update(_kw_idx_pre[_kw_pre_k])
                 # 4. 計畫類型別名
                 for _alias, _full_key in _PLAN_TYPE_ALIAS.items():
@@ -2193,6 +2197,7 @@ def ask():
                         if not _entries:
                             continue
                         _matched_kws.append(_lk)
+                        _matched_kw_counts[_lk] = len(_entries)
                         if isinstance(_entries[0], str):
                             _plan_set_pre.update(_entries)
                         else:
@@ -2223,6 +2228,50 @@ def ask():
                     if _non_primary_kws:
                         _kw_pre_schools = {e.split('：', 1)[0] for e in _kw_plan_list}
                         print(f"[KW-PRE] 搜尋範圍學校 {len(_kw_pre_schools)} 間（SDG/縣市/類型 filter）")
+
+            # ── ①-count 計數型短路：多 LABEL 命中且問幾案/幾件 ──
+            _COUNT_Q_RE = re.compile(r'幾案|幾件|多少案|各.{0,5}幾|分別.{0,5}幾')
+            _in_q_counts = {k: v for k, v in _matched_kw_counts.items()
+                            if k in question or k in _llm_kws_set}
+            if len(_in_q_counts) >= 2 and _COUNT_Q_RE.search(question):
+                _REGION_SET = {'北北基金馬', '桃竹苗宜花', '中彰投', '雲嘉南', '高屏澎東',
+                               '北北基金馬區', '桃竹苗宜花區', '中彰投區', '雲嘉南區', '高屏澎東區'}
+                _TYPE_SET   = {'萌芽型', '深耕型', '特色永續型', '國際合作型',
+                               '永續發展類國際合作型', '永續發展類特色永續型'}
+                _SDG_RE_CNT = re.compile(r'^SDG\d{1,2}$')
+                _region_hits = [(k, v) for k, v in _in_q_counts.items() if k in _REGION_SET]
+                _type_hits   = [(k, v) for k, v in _in_q_counts.items() if k in _TYPE_SET]
+                _sdg_hits    = [(k, v) for k, v in _in_q_counts.items() if _SDG_RE_CNT.match(k)]
+                _other_hits  = [(k, v) for k, v in _in_q_counts.items()
+                                if k not in _REGION_SET and k not in _TYPE_SET and not _SDG_RE_CNT.match(k)]
+                _cnt_lines: list[str] = []
+                if _region_hits:
+                    _cnt_lines.append("**依教育區域分：**")
+                    for _ck, _cv in sorted(_region_hits, key=lambda x: -x[1]):
+                        _cnt_lines.append(f"- {_ck}：{_cv} 件")
+                if _type_hits:
+                    if _cnt_lines: _cnt_lines.append("")
+                    _cnt_lines.append("**依計畫類型分：**")
+                    for _ck, _cv in sorted(_type_hits, key=lambda x: -x[1]):
+                        _cnt_lines.append(f"- {_ck}：{_cv} 件")
+                if _sdg_hits:
+                    if _cnt_lines: _cnt_lines.append("")
+                    _cnt_lines.append("**依 SDG 分：**")
+                    for _ck, _cv in sorted(_sdg_hits, key=lambda x: -x[1]):
+                        _cnt_lines.append(f"- {_ck}：{_cv} 件")
+                if _other_hits:
+                    if _cnt_lines: _cnt_lines.append("")
+                    _cnt_lines.append("**其他：**")
+                    for _ck, _cv in sorted(_other_hits, key=lambda x: -x[1]):
+                        _cnt_lines.append(f"- {_ck}：{_cv} 件")
+                if _cnt_lines:
+                    _count_ctx = "\n".join(_cnt_lines)
+                    _save_shortcut_history(_count_ctx)
+                    yield f"data: {json.dumps({'type': 'sources', 'sources': []}, ensure_ascii=False)}\n\n"
+                    yield f"data: {json.dumps({'type': 'chunk', 'text': _count_ctx}, ensure_ascii=False)}\n\n"
+                    total_ms = round((time.perf_counter() - t0) * 1000)
+                    yield f"data: {json.dumps({'type': 'done', 'timing': {'total_ms': total_ms}, 'mode': 'label_count'}, ensure_ascii=False)}\n\n"
+                    return
 
             # ── ① 計畫類型短路：問萌芽型/深耕型/國際合作型/特色永續型（優先於 qa_custom）──
             plan_type_ctx = _try_plan_type_answer(question, year=year)
