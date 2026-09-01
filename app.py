@@ -2467,6 +2467,7 @@ def ask():
                 # direct hit 時已有精確清單，跳過 topic label 擴充
                 _topic_plan_set: set[str] = set()
                 _kw_idx_chunks: dict[str, list[str]] = {}  # plan → chunk texts（本次 query 臨時）
+                _lookup_kws: list[str] = []
                 if not _direct_kw_hit:
                     _lookup_kws = list(dict.fromkeys(
                         list(_usr_topic_kws or []) + [k for k in _q_terms if k in _all_topic_kws]
