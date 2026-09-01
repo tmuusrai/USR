@@ -992,9 +992,11 @@ def _try_plan_type_answer(question: str, year: str) -> str | None:
 
 
 _SUMMARY_INTENT_RE = re.compile(
-    r'計[畫劃](總覽|內容|摘要|介紹|重點|概述|說明|成果|亮點|執行)'
+    r'計[畫劃](總覽|內容|摘要|介紹|重點|概述|說明|成果|亮點|執行|簡介)'
     r'|執行(內容|成果|重點|情形|進度)'
     r'|成果(摘要|報告|亮點|說明)'
+    r'|介紹.{0,8}(計[畫劃]|這些|各[個計])'  # 「介紹這些計畫」「介紹各計畫」
+    r'|簡介'
 )
 
 _SUMMARY_DIR = Path("114_output/summary")
@@ -2925,9 +2927,10 @@ def ask():
                     _para_ans_parts.append(_pchunk)
                     yield f"data: {json.dumps({'type': 'chunk', 'text': _pchunk}, ensure_ascii=False)}\n\n"
 
-                # OUT4（計畫內容型 + 列舉型）& OUT7（計畫內容型 + 列舉型 + 一般型）
-                # 列完後附上各計畫完整摘要
-                _sum_cap = (5 if _is_out7 else (10 if (_SUMMARY_INTENT_RE.search(question) and not _list) else 0))
+                # OUT4（列舉 + Summary）& OUT7（列舉 + Summary + 概念子問題）
+                # _is_out7: 列舉15 + 前5摘要 + 概念回答
+                # _SUMMARY_INTENT_RE + _list: 列舉25 + 前5摘要（無概念子問題）
+                _sum_cap = 5 if (_is_out7 or _SUMMARY_INTENT_RE.search(question)) else 0
                 if _sum_cap and _para_collected:
                     _sep = "\n\n---\n\n"
                     _sum_hdr = f"### 計畫摘要（前 {_sum_cap} 件）\n\n"
