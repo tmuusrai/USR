@@ -2262,10 +2262,8 @@ def ask():
                             _out.append(f"- {_gk}：{len(_gv)} 件")
                         else:
                             _out.append(f"\n**{_gk}（{len(_gv)} 件）：**")
-                            for _i, _p in enumerate(sorted(_gv)[:30], 1):
+                            for _i, _p in enumerate(sorted(_gv), 1):
                                 _out.append(f"{_i}. {_p}")
-                            if len(_gv) > 30:
-                                _out.append(f"…共 {len(_gv)} 件，僅顯示前 30 件")
                 return "\n".join(_out)
 
             _in_q_plans = {k: v for k, v in _matched_kw_plans.items()
