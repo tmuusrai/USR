@@ -2271,15 +2271,9 @@ def ask():
             _COUNT_Q_RE  = re.compile(r'幾案|幾件|多少案|各.{0,5}幾|分別.{0,5}幾')
             _GROUP_Q_RE  = re.compile(r'各.{0,8}哪些|分別.{0,8}哪些|各.{0,8}有什麼|分別.{0,8}有什麼')
 
-            if len(_in_q_plans) >= 1 and _COUNT_Q_RE.search(question) and not _kw_pre_extra:
-                _count_ctx = _fmt_multi_label(_in_q_plans, 'count')
-                if _count_ctx:
-                    _save_shortcut_history(_count_ctx)
-                    yield f"data: {json.dumps({'type': 'sources', 'sources': []}, ensure_ascii=False)}\n\n"
-                    yield f"data: {json.dumps({'type': 'chunk', 'text': _count_ctx}, ensure_ascii=False)}\n\n"
-                    total_ms = round((time.perf_counter() - t0) * 1000)
-                    yield f"data: {json.dumps({'type': 'done', 'timing': {'total_ms': total_ms}, 'mode': 'label_count'}, ensure_ascii=False)}\n\n"
-                    return
+            # 計數短路暫停使用
+            # if len(_in_q_plans) >= 1 and _COUNT_Q_RE.search(question) and not _kw_pre_extra:
+            #     ...
 
             if len(_in_q_plans) >= 1 and (_GROUP_Q_RE.search(question) or (_llm_is_listing and not _COUNT_Q_RE.search(question))):
                 _group_ctx = _fmt_multi_label(_in_q_plans, 'list')
