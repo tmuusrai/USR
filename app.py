@@ -2271,7 +2271,7 @@ def ask():
             _COUNT_Q_RE  = re.compile(r'幾案|幾件|多少案|各.{0,5}幾|分別.{0,5}幾')
             _GROUP_Q_RE  = re.compile(r'各.{0,8}哪些|分別.{0,8}哪些|各.{0,8}有什麼|分別.{0,8}有什麼')
 
-            if len(_in_q_plans) >= 1 and _COUNT_Q_RE.search(question):
+            if len(_in_q_plans) >= 1 and _COUNT_Q_RE.search(question) and not _kw_pre_extra:
                 _count_ctx = _fmt_multi_label(_in_q_plans, 'count')
                 if _count_ctx:
                     _save_shortcut_history(_count_ctx)
