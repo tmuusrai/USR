@@ -2132,11 +2132,8 @@ def ask():
             _label_direct = _label_only_index.get(year, {})
             _label_hit = False
 
-            # 0. 直接比對 label_index key（topic/SDG/縣市/類型，排除寬泛地區）
-            _SKIP_REGION_LABELS = {'北區', '中區', '南區', '東區', '北部', '中部', '南部', '東部'}
+            # 0. 直接比對 label_index key（topic/SDG/縣市/類型）
             for _lk in sorted(_label_direct, key=len, reverse=True):
-                if _lk in _SKIP_REGION_LABELS:
-                    continue
                 if len(_lk) >= 2 and (_lk in question or _lk in _llm_kws_set) and _lk not in _matched_kws:
                     _entries = _label_direct[_lk]
                     if not _entries:
