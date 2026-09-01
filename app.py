@@ -2232,58 +2232,6 @@ def ask():
                         _kw_pre_schools = {e.split('：', 1)[0] for e in _kw_plan_list}
                         print(f"[KW-PRE] 搜尋範圍學校 {len(_kw_pre_schools)} 間（SDG/縣市/類型 filter）")
 
-            # ── ①-count / ①-group 多 LABEL 短路 ──
-            _MULTI_LABEL_REGION = {'北北基金馬', '桃竹苗宜花', '中彰投', '雲嘉南', '高屏澎東',
-                                   '北北基金馬區', '桃竹苗宜花區', '中彰投區', '雲嘉南區', '高屏澎東區'}
-            _MULTI_LABEL_TYPE   = {'萌芽型', '深耕型', '特色永續型', '國際合作型',
-                                   '永續發展類國際合作型', '永續發展類特色永續型'}
-            _MULTI_SDG_RE       = re.compile(r'^SDG\d{1,2}$')
-
-            def _fmt_multi_label(in_q_plans: dict[str, list[str]], mode: str) -> str:
-                """格式化多 LABEL 輸出：mode='count' 只輸出件數，mode='list' 分組列計畫。"""
-                _region = [(k, v) for k, v in in_q_plans.items() if k in _MULTI_LABEL_REGION]
-                _types  = [(k, v) for k, v in in_q_plans.items() if k in _MULTI_LABEL_TYPE]
-                _sdgs   = [(k, v) for k, v in in_q_plans.items() if _MULTI_SDG_RE.match(k)]
-                _others = [(k, v) for k, v in in_q_plans.items()
-                           if k not in _MULTI_LABEL_REGION and k not in _MULTI_LABEL_TYPE
-                           and not _MULTI_SDG_RE.match(k)]
-                _out: list[str] = []
-                for _heading, _group in [("**依教育區域分：**", _region),
-                                         ("**依計畫類型分：**", _types),
-                                         ("**依 SDG 分：**", _sdgs),
-                                         ("**其他：**", _others)]:
-                    if not _group:
-                        continue
-                    if _out:
-                        _out.append("")
-                    _out.append(_heading)
-                    for _gk, _gv in sorted(_group, key=lambda x: -len(x[1])):
-                        if mode == 'count':
-                            _out.append(f"- {_gk}：{len(_gv)} 件")
-                        else:
-                            _out.append(f"\n**{_gk}（{len(_gv)} 件）：**")
-                            for _i, _p in enumerate(sorted(_gv), 1):
-                                _out.append(f"{_i}. {_p}")
-                return "\n".join(_out)
-
-            _in_q_plans = {k: v for k, v in _matched_kw_plans.items()
-                           if k in question or k in _llm_kws_set}
-            _COUNT_Q_RE  = re.compile(r'幾案|幾件|多少案|各.{0,5}幾|分別.{0,5}幾')
-            _GROUP_Q_RE  = re.compile(r'各.{0,8}哪些|分別.{0,8}哪些|各.{0,8}有什麼|分別.{0,8}有什麼')
-
-            # 計數短路暫停使用
-            # if len(_in_q_plans) >= 1 and _COUNT_Q_RE.search(question) and not _kw_pre_extra:
-            #     ...
-
-            if len(_in_q_plans) >= 1 and (_GROUP_Q_RE.search(question) or (_llm_is_listing and not _COUNT_Q_RE.search(question))):
-                _group_ctx = _fmt_multi_label(_in_q_plans, 'list')
-                if _group_ctx:
-                    _save_shortcut_history(_group_ctx)
-                    yield f"data: {json.dumps({'type': 'sources', 'sources': []}, ensure_ascii=False)}\n\n"
-                    yield f"data: {json.dumps({'type': 'chunk', 'text': _group_ctx}, ensure_ascii=False)}\n\n"
-                    total_ms = round((time.perf_counter() - t0) * 1000)
-                    yield f"data: {json.dumps({'type': 'done', 'timing': {'total_ms': total_ms}, 'mode': 'label_group'}, ensure_ascii=False)}\n\n"
-                    return
 
             # ── ① 計畫類型短路：問萌芽型/深耕型/國際合作型/特色永續型（優先於 qa_custom）──
             plan_type_ctx = _try_plan_type_answer(question, year=year)
