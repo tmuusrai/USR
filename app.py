@@ -2987,17 +2987,13 @@ def ask():
                 _para_ans_parts: list[str] = []
                 _para_t0 = time.perf_counter()
 
-                # 計數模式：問句只問件數（幾件/幾個…），或明確說「數字就好」，跳過摘要
+                # 計數模式：使用者明確要求「只給數字」，跳過摘要
                 _COUNT_ONLY_RE = re.compile(
-                    r'(?:共|有|總共|請問)?幾(?:件|個|所|間|項)(?:計畫|學校|大學)?'
+                    r'數字就好|只要數字|給數字就好'
                     r'|只(?:要|給)(?:數字|件數|數量)'
-                    r'|請給(?:數字|件數)|數字就好|給數字就好|只要數字'
+                    r'|請(?:直接)?給(?:我)?(?:數字|件數|數量)'
                 )
-                _HAS_LISTING_RE = re.compile(r'哪些|列出|列舉|介紹|說明|有哪')
-                _count_only_mode = (
-                    _COUNT_ONLY_RE.search(question) is not None
-                    and _HAS_LISTING_RE.search(question) is None
-                )
+                _count_only_mode = _COUNT_ONLY_RE.search(question) is not None
 
                 # 先收集所有結果，才能在標頭寫正確件數
                 _para_collected: list[tuple[str, str]] = []
