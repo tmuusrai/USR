@@ -2750,6 +2750,14 @@ def ask():
                 # 純 label 模式時跳過（KW-PRE 已用縣市 label AND 交集，不需再過濾）
                 _question_counties = set() if _pure_label_mode else _detect_question_counties(question)
                 if _question_counties and not _pure_label_mode:
+                    # 「國外」查詢：LIVE/SEQ 覆蓋不到所有國外場域計畫，先補齊
+                    if "國外" in _question_counties:
+                        _overseas_seed = list(_location_county_plans.get("國外", set()))
+                        if _overseas_seed:
+                            _existing_set = set(_plan_list_lines)
+                            _plan_list_lines = list(dict.fromkeys(
+                                _plan_list_lines + [p for p in _overseas_seed if p not in _existing_set]
+                            ))
                     # 找出實踐場域在目標縣市的計畫名稱集合
                     _loc_county_set: set[str] = set()
                     for _qc in _question_counties:
