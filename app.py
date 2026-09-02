@@ -2208,6 +2208,19 @@ def ask():
 
             if _matched_kws:
                 _kw_list_hit = _matched_kws[0]
+                # 縣市 label AND 過濾：縣市 label（高雄/屏東…）與議題 label 同時命中時取交集
+                _county_label_keys = set(_COUNTY_KEYWORDS.values())
+                _matched_county_lks = [k for k in _matched_kws if k in _county_label_keys]
+                _matched_topic_lks  = [k for k in _matched_kws if k not in _county_label_keys]
+                if _matched_county_lks and _matched_topic_lks:
+                    _county_set_pre = set.union(*[set(_matched_kw_plans.get(k, [])) for k in _matched_county_lks])
+                    _topic_set_pre  = set.union(*[set(_matched_kw_plans.get(k, [])) for k in _matched_topic_lks])
+                    _and_pre = _county_set_pre & _topic_set_pre
+                    if _and_pre:
+                        _plan_set_pre = _and_pre
+                        print(f"[KW-PRE] 場域縣市 {_matched_county_lks} AND 議題 → {len(_and_pre)} 件")
+                    else:
+                        print(f"[KW-PRE] 場域縣市 AND 結果為空，維持 OR → {len(_plan_set_pre)} 件")
                 _kw_plan_list = sorted(_plan_set_pre)
                 print(f"[KW-PRE] 命中 {_matched_kws[:3]} → {len(_kw_plan_list)} 件")
                 # 額外未知詞 live scan（結果作補充，不 AND 縮小 label 清單）
