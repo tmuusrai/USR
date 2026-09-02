@@ -2812,9 +2812,11 @@ def ask():
                     print(f"[CHUNK-KW] kw_chunks 直查完成，_plan_to_snippet {len(_plan_to_snippet)} 件")
 
                 # 有額外詞時（如漁業），用 FAISS live 結果為無 chunk 的計畫補充內容
-                if _kw_pre_live_results and _plan_list_lines:
+                # CHUNK-LIVE：優先用 KW-PRE 額外詞掃描結果；純 LIVE 路徑時改用 annotated
+                _live_src = _kw_pre_live_results or annotated
+                if _live_src and _plan_list_lines:
                     _school_to_live: dict[str, list[str]] = {}
-                    for _lv in _kw_pre_live_results:
+                    for _lv in _live_src:
                         _lv_parts = _lv.split('\n', 1)
                         _lv_hdr = _lv_parts[0]
                         _lv_txt = _lv_parts[1] if len(_lv_parts) > 1 else _lv
