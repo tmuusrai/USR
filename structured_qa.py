@@ -131,12 +131,11 @@ def _match_custom_qa(question: str, qa_list: list[dict]) -> str | None:
     1. Token 命中率：phrase 的關鍵詞有幾個出現在問題中
     2. Bigram Dice：字元 bigram 重疊（容忍「幾件」vs「幾個」等近義詞）
     3. SequenceMatcher：整句字元序列相似度
-    取三者最高分，門檻 0.75。
+    取三者最高分，門檻 0.75。收集所有候選後，依分數高→低找第一個
+    _has_extra_content 通過的 phrase，避免高分但被擋的 phrase 遮蔽正確 phrase。
     """
     q_lower = _half(question).lower()
-    best_score = 0.0
-    best_answer = None
-    best_phrase = None
+    candidates: list[tuple[float, str, str]] = []  # (score, answer, phrase)
 
     for entry in qa_list:
         for kw_phrase in entry["keywords"]:
@@ -145,15 +144,13 @@ def _match_custom_qa(question: str, qa_list: list[dict]) -> str | None:
             bigram_s = _bigram_score(q_lower, phrase_norm)
             seq_s    = _seq_score(q_lower, phrase_norm)
             score = max(token_s, bigram_s * 0.9, seq_s * 0.85)
-            if score > best_score:
-                best_score = score
-                best_answer = entry["answer"]
-                best_phrase = kw_phrase
+            if score >= 0.75:
+                candidates.append((score, entry["answer"], kw_phrase))
 
-    if best_score >= 0.75 and best_phrase:
-        if _has_extra_content(question, best_phrase):
-            return None
-        return best_answer
+    candidates.sort(reverse=True)
+    for _score, answer, phrase in candidates:
+        if not _has_extra_content(question, phrase):
+            return answer
     return None
 
 
