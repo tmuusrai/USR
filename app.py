@@ -2987,17 +2987,34 @@ def ask():
                 _para_ans_parts: list[str] = []
                 _para_t0 = time.perf_counter()
 
+                # 計數模式：問句只問件數（幾件/幾個…），或明確說「數字就好」，跳過摘要
+                _COUNT_ONLY_RE = re.compile(
+                    r'(?:共|有|總共|請問)?幾(?:件|個|所|間|項)(?:計畫|學校|大學)?'
+                    r'|只(?:要|給)(?:數字|件數|數量)'
+                    r'|請給(?:數字|件數)|數字就好|給數字就好|只要數字'
+                )
+                _HAS_LISTING_RE = re.compile(r'哪些|列出|列舉|介紹|說明|有哪')
+                _count_only_mode = (
+                    _COUNT_ONLY_RE.search(question) is not None
+                    and _HAS_LISTING_RE.search(question) is None
+                )
+
                 # 先收集所有結果，才能在標頭寫正確件數
                 _para_collected: list[tuple[str, str]] = []
                 _skipped = 0
-                with ThreadPoolExecutor(max_workers=25) as _para_ex:
-                    _para_futs = [(_pl, _para_ex.submit(_sum_one_plan, _pl)) for _pl in _display_lines]
-                    for _pl, _pf in _para_futs:
-                        _ps2 = _pf.result()
-                        if not _ps2 or _ps2 == "\x01":
-                            _skipped += 1
-                            continue
-                        _para_collected.append((_pl, _ps2))
+                if _count_only_mode:
+                    # 只列計畫名稱，不呼叫 LLM 產生摘要
+                    _para_collected = [(_pl, "") for _pl in _display_lines]
+                    print(f"[COUNT-ONLY] 計數模式，{len(_para_collected)} 件，略過摘要")
+                else:
+                    with ThreadPoolExecutor(max_workers=25) as _para_ex:
+                        _para_futs = [(_pl, _para_ex.submit(_sum_one_plan, _pl)) for _pl in _display_lines]
+                        for _pl, _pf in _para_futs:
+                            _ps2 = _pf.result()
+                            if not _ps2 or _ps2 == "\x01":
+                                _skipped += 1
+                                continue
+                            _para_collected.append((_pl, _ps2))
 
                 # 依相關度排序：描述中含查詢詞越多排越前
                 if _q_priority_kws or _q_terms:
@@ -3025,7 +3042,7 @@ def ask():
                 # OUT4（列舉 + Summary）& OUT7（列舉 + Summary + 概念子問題）
                 # _is_out7: 列舉15 + 前5摘要 + 概念回答
                 # _SUMMARY_INTENT_RE + _list: 列舉25 + 前5摘要（無概念子問題）
-                _sum_cap = 5 if (_is_out7 or _SUMMARY_INTENT_RE.search(question)) else 0
+                _sum_cap = 0 if _count_only_mode else (5 if (_is_out7 or _SUMMARY_INTENT_RE.search(question)) else 0)
                 if _sum_cap and _para_collected:
                     _sep = "\n\n---\n\n"
                     _sum_hdr = f"### 計畫摘要（前 {_sum_cap} 件）\n\n"
