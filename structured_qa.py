@@ -10,6 +10,7 @@
 """
 import re
 import unicodedata
+from difflib import SequenceMatcher
 from pathlib import Path
 
 
@@ -106,28 +107,50 @@ def _load_custom_qa(path: Path, year: str = "114") -> None:
     _flush()
 
 
+def _bigram_score(a: str, b: str) -> float:
+    """字元 bigram Dice 係數：容忍同義詞、不同語序的模糊比對。"""
+    a_c = re.sub(r'\s+', '', a)
+    b_c = re.sub(r'\s+', '', b)
+    bg_a = {a_c[i:i+2] for i in range(len(a_c) - 1)}
+    bg_b = {b_c[i:i+2] for i in range(len(b_c) - 1)}
+    if not bg_a or not bg_b:
+        return 0.0
+    return 2 * len(bg_a & bg_b) / (len(bg_a) + len(bg_b))
+
+
+def _seq_score(a: str, b: str) -> float:
+    """difflib 字元序列相似度。"""
+    a_c = re.sub(r'\s+', '', a)
+    b_c = re.sub(r'\s+', '', b)
+    return SequenceMatcher(None, a_c, b_c).ratio()
+
+
 def _match_custom_qa(question: str, qa_list: list[dict]) -> str | None:
     """
-    比對邏輯：
-    - 問題中包含 Q 的任一同義句，視為命中
-    - 同義句比對：問題包含該句的所有「實詞」（≥2字元，非助詞）
-    - 若問題有額外內容詞（非列舉/疑問詞），交給 RAG 處理
+    模糊比對邏輯（三層）：
+    1. Token 命中率：phrase 的關鍵詞有幾個出現在問題中
+    2. Bigram Dice：字元 bigram 重疊（容忍「幾件」vs「幾個」等近義詞）
+    3. SequenceMatcher：整句字元序列相似度
+    取三者最高分，門檻 0.75。
     """
     q_lower = _half(question).lower()
-    best_score = 0
+    best_score = 0.0
     best_answer = None
     best_phrase = None
 
     for entry in qa_list:
         for kw_phrase in entry["keywords"]:
-            score = _phrase_score(q_lower, _half(kw_phrase).lower())
+            phrase_norm = _half(kw_phrase).lower()
+            token_s  = _phrase_score(q_lower, phrase_norm)
+            bigram_s = _bigram_score(q_lower, phrase_norm)
+            seq_s    = _seq_score(q_lower, phrase_norm)
+            score = max(token_s, bigram_s * 0.9, seq_s * 0.85)
             if score > best_score:
                 best_score = score
                 best_answer = entry["answer"]
                 best_phrase = kw_phrase
 
-    if best_score >= 0.8 and best_phrase:
-        # 若問題有額外內容詞（不在 phrase tokens 中），讓 label+FAISS 處理
+    if best_score >= 0.75 and best_phrase:
         if _has_extra_content(question, best_phrase):
             return None
         return best_answer
@@ -143,11 +166,19 @@ _QUERY_STOPS = {
 }
 
 def _has_extra_content(question: str, phrase: str) -> bool:
-    """若問題在 phrase 覆蓋範圍之外還有實質內容詞，回傳 True（應讓 RAG 處理）。"""
+    """若問題有實質內容詞完全不在 phrase 覆蓋範圍內，回傳 True（讓 RAG 處理）。
+    使用子字串包含判斷：q_token 是某個 phrase_token 的子字串（或反向），視為已覆蓋。
+    """
     phrase_tokens = set(_tokenize(_half(phrase).lower()))
     q_tokens = _tokenize(_half(question).lower())
-    extra = [t for t in q_tokens
-             if t not in phrase_tokens and t not in _QUERY_STOPS and len(t) >= 2]
+
+    def _covered(tok: str) -> bool:
+        if tok in _QUERY_STOPS:
+            return True
+        # 正向：tok 是某 phrase_token 的子字串，或某 phrase_token 是 tok 的子字串
+        return any(tok in pt or pt in tok for pt in phrase_tokens)
+
+    extra = [t for t in q_tokens if not _covered(t) and len(t) >= 2]
     return len(extra) > 0
 
 
