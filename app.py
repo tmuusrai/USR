@@ -2713,11 +2713,15 @@ def ask():
                     _plan_list_lines.sort(key=_plan_kw_score, reverse=True)
                     print(f"[KW-SORT] 依查詢詞重排，優先詞={_sort_kws[:5]}，lookup相關詞={_kw_in_lookup}，bonus計畫={len(_lookup_plan_bonus)}")
 
-                # 地區過濾：問題含縣市/大區域關鍵字時只保留對應縣市學校
+                # 地區過濾：問題含縣市/大區域關鍵字時，保留「學校在目標縣市」或「計畫場域提到目標地名」的計畫
                 # 純 label 模式時跳過（label 已按地區分類，不需再過濾）
                 _question_counties = set() if _pure_label_mode else _detect_question_counties(question)
                 if _question_counties:
-                    _region_filtered = [l for l in _plan_list_lines if _get_school_county(l.split('：')[0]) in _question_counties]
+                    _region_filtered = [
+                        l for l in _plan_list_lines
+                        if _get_school_county(l.split('：')[0]) in _question_counties          # 學校所在縣市
+                        or any(c in _plan_to_snippet.get(l, '') for c in _question_counties)  # 或計畫場域提到地名
+                    ]
                     if _region_filtered:
                         _plan_list_lines = _region_filtered
                         print(f"[LIST-REGION] 縣市過濾={_question_counties}，剩餘 {len(_plan_list_lines)} 件")
