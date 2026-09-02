@@ -1653,6 +1653,24 @@ def _load_location_index() -> None:
 
 _load_location_index()
 
+# 縣市→計畫反查表（以實踐場域為準，非學校地址）
+_FULL_TO_SHORT_COUNTY: dict[str, str] = {
+    '高雄市': '高雄', '屏東縣': '屏東', '臺東縣': '台東', '台東縣': '台東',
+    '臺南市': '台南', '台南市': '台南', '臺北市': '台北', '台北市': '台北',
+    '新北市': '新北', '臺中市': '台中', '台中市': '台中', '桃園市': '桃園',
+    '新竹市': '新竹', '新竹縣': '新竹', '苗栗縣': '苗栗', '彰化縣': '彰化',
+    '南投縣': '南投', '雲林縣': '雲林', '嘉義市': '嘉義', '嘉義縣': '嘉義',
+    '宜蘭縣': '宜蘭', '花蓮縣': '花蓮', '澎湖縣': '澎湖', '金門縣': '金門',
+    '連江縣': '馬祖', '基隆市': '基隆',
+}
+_location_county_plans: dict[str, set[str]] = {}
+for _yr_loc in _location_index.values():
+    for _loc_plan, _loc_info in _yr_loc.get("plans", {}).items():
+        for _full_c in _loc_info.get("counties", []):
+            _short_c = _FULL_TO_SHORT_COUNTY.get(_full_c)
+            if _short_c:
+                _location_county_plans.setdefault(_short_c, set()).add(_loc_plan)
+
 
 _LOCATION_INTENT_RE = re.compile(
     r'實踐場域|計畫場域|場域(在哪|位置|縣市|鄉鎮|所在|地點|有哪)|'
@@ -2726,20 +2744,23 @@ def ask():
                     _plan_list_lines.sort(key=_plan_kw_score, reverse=True)
                     print(f"[KW-SORT] 依查詢詞重排，優先詞={_sort_kws[:5]}，lookup相關詞={_kw_in_lookup}，bonus計畫={len(_lookup_plan_bonus)}")
 
-                # 地區過濾：問題含縣市/大區域關鍵字時，保留「學校在目標縣市」或「計畫場域提到目標地名」的計畫
-                # 純 label 模式時跳過（label 已按地區分類，不需再過濾）
+                # 地區過濾：問題含縣市關鍵字時，以實踐場域（location_index）為準過濾
+                # 純 label 模式時跳過（KW-PRE 已用縣市 label AND 交集，不需再過濾）
                 _question_counties = set() if _pure_label_mode else _detect_question_counties(question)
-                if _question_counties:
-                    _region_filtered = [
-                        l for l in _plan_list_lines
-                        if _get_school_county(l.split('：')[0]) in _question_counties          # 學校所在縣市
-                        or any(c in _plan_to_snippet.get(l, '') for c in _question_counties)  # 或計畫場域提到地名
-                    ]
-                    if _region_filtered:
-                        _plan_list_lines = _region_filtered
-                        print(f"[LIST-REGION] 縣市過濾={_question_counties}，剩餘 {len(_plan_list_lines)} 件")
+                if _question_counties and not _pure_label_mode:
+                    # 找出實踐場域在目標縣市的計畫名稱集合
+                    _loc_county_set: set[str] = set()
+                    for _qc in _question_counties:
+                        _loc_county_set.update(_location_county_plans.get(_qc, set()))
+                    if _loc_county_set:
+                        _region_filtered = [l for l in _plan_list_lines if l in _loc_county_set]
+                        if _region_filtered:
+                            _plan_list_lines = _region_filtered
+                            print(f"[LIST-REGION] 實踐場域過濾={_question_counties}，剩餘 {len(_plan_list_lines)} 件")
+                        else:
+                            print(f"[LIST-REGION] 實踐場域過濾={_question_counties}，無匹配，不過濾")
                     else:
-                        print(f"[LIST-REGION] 縣市過濾={_question_counties}，無匹配，不過濾")
+                        print(f"[LIST-REGION] 縣市={_question_counties}，location_index 無資料，不過濾")
 
                 # ── 列舉型：直接從 kw_chunks (_keyword_index) 取各計畫內文 ──
                 if _plan_list_lines:
