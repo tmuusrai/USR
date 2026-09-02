@@ -959,11 +959,22 @@ _PLAN_TYPE_ALIAS: dict[str, str] = {
     "永續發展類": None,  # 需進一步判斷，預設列出兩個子類型
 }
 
+_PLAN_TYPE_EXTRA_COND_RE = re.compile(
+    r'越南|日本|美國|泰國|韓國|印尼|新加坡|馬來西亞|菲律賓|帛琉|印度|德國|法國|英國|澳洲'
+    r'|場域在|實踐場域|在哪|哪個縣|哪個市'
+    r'|科技大學|國立大學|私立大學|技職|醫學大學|科大'
+    r'|台北|新北|桃園|新竹|苗栗|台中|彰化|南投|雲林|嘉義|台南|高雄|屏東'
+    r'|宜蘭|花蓮|台東|澎湖|金門|馬祖|基隆'
+)
+
 def _try_plan_type_answer(question: str, year: str) -> str | None:
-    """若問到計畫類型（萌芽型/深耕型/國際合作型/特色永續型），直接回傳清單。"""
+    """若問到計畫類型（萌芽型/深耕型/國際合作型/特色永續型），直接回傳清單。
+    有額外過濾條件（國家/縣市/學校類型）時返回 None，讓完整列舉流程處理。"""
     m = _PLAN_TYPE_QUERY_RE.search(question)
     if not m:
         return None
+    if _PLAN_TYPE_EXTRA_COND_RE.search(question):
+        return None  # 有額外條件，不走短路
     matched = m.group(1).rstrip("計畫有哪些的大學的學校")
     idx = _keyword_index.get(year, {})
     if not idx:
