@@ -3030,8 +3030,8 @@ def ask():
                 _para_t_first = time.perf_counter()
 
                 for _i, (_pl, _ps2) in enumerate(_para_collected, 1):
-                    _pchunk = (f"{_i}. {_clean_plan_code(_pl)}\n{_ps2}\n" if _ps2
-                               else f"{_i}. {_clean_plan_code(_pl)}\n")
+                    _pchunk = (f"{_i}. **{_clean_plan_code(_pl)}**\n{_ps2}\n" if _ps2
+                               else f"{_i}. **{_clean_plan_code(_pl)}**\n")
                     _para_ans_parts.append(_pchunk)
                     yield f"data: {json.dumps({'type': 'chunk', 'text': _pchunk}, ensure_ascii=False)}\n\n"
 
