@@ -2130,6 +2130,25 @@ def ask():
                 yield f"data: {json.dumps({'type': 'done', 'timing': {'total_ms': total_ms}, 'mode': 'clarify', 'original_question': question}, ensure_ascii=False)}\n\n"
                 return
 
+            # ── Meta-query 偵測：詢問計畫書以外的外部資訊（媒體報導、得獎等）──
+            _META_QUERY_RE = re.compile(
+                r'社會新聞|上過新聞|登上新聞|上了新聞|登報|新聞報導|媒體報導|媒體曝光'
+                r'|電視新聞|電視報導|網路新聞|被報導|受報導|新聞採訪|受訪'
+                r'|得過獎|曾獲獎|獲得獎項|得獎紀錄|獲頒|曾得獎|拿過獎'
+            )
+            if _META_QUERY_RE.search(question):
+                _meta_msg = (
+                    "您詢問的是計畫的**外部媒體報導或得獎紀錄**，這類資訊不包含在計畫書內容中，"
+                    "系統無法從現有資料庫查詢。\n\n"
+                    "若想了解各計畫的**執行內容**、**實踐場域**、**議題主題**或**合作對象**，歡迎重新提問。"
+                )
+                yield f"data: {json.dumps({'type': 'sources', 'sources': []}, ensure_ascii=False)}\n\n"
+                yield f"data: {json.dumps({'type': 'chunk', 'text': _meta_msg}, ensure_ascii=False)}\n\n"
+                total_ms = round((time.perf_counter() - t0) * 1000)
+                _save_shortcut_history(_meta_msg, [])
+                yield f"data: {json.dumps({'type': 'done', 'timing': {'total_ms': total_ms}, 'mode': 'meta_query'}, ensure_ascii=False)}\n\n"
+                return
+
             # ── 搜尋問題準備（移至 KW-PRE 之前，供 LLM 拆詞使用）──
             t_prepare_start = time.perf_counter()
             if _eval_criterion:
