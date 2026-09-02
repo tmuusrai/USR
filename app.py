@@ -2807,9 +2807,9 @@ def ask():
                     _plan_list_set = set(_plan_list_lines)
                     # label 模式時用所有議題關鍵字；否則用 query 詞 + 議題關鍵字
                     _chunk_kws = list(dict.fromkeys(
-                        list(_usr_topic_kws or []) + _q_terms
+                        list(_usr_topic_kws or []) + _q_terms + _matched_kws
                         if _pure_label_mode
-                        else _q_terms + list(_usr_topic_kws or [])
+                        else _q_terms + list(_usr_topic_kws or []) + _matched_kws
                     ))
                     _plan_all_chunks: dict[str, list[str]] = {}
                     _stem_strip_re = re.compile(r'\s*\(\d{3}USR-[^)]*\)?|_formatted(?:\(\d+\))?')
