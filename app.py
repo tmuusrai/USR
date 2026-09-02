@@ -2436,6 +2436,7 @@ def ask():
                 # 優先：查詢關鍵字直接在 kw_chunks 有命中 → 直接用那批 chunk，跳過 topic label
                 _direct_kw_hit = False
                 _direct_plan_chunks: dict[str, list[str]] = {}
+                _direct_plan_kw_hits: dict[str, set[str]] = {}  # plan → 命中的 keyword 集合
                 for _dkw in _q_priority_kws:
                     for _de in _kw_idx.get(_dkw, []):
                         if not isinstance(_de, dict) or "text" not in _de:
@@ -2444,8 +2445,34 @@ def ask():
                         if _kw_pre_schools and _dpk.split('：', 1)[0] not in _kw_pre_schools:
                             continue
                         _direct_plan_chunks.setdefault(_dpk, []).append(_de["text"])
+                        _direct_plan_kw_hits.setdefault(_dpk, set()).add(_dkw)
                 if _direct_plan_chunks:
                     _direct_kw_hit = True
+                    # AND 過濾：有 2+ 個「內容詞」時，計畫必須同時命中所有內容詞
+                    # 縣市名（高雄/台東/屏東…）已由 _question_counties region filter 處理，不計入 AND
+                    _COUNTY_KWS = {
+                        '高雄', '台東', '屏東', '台北', '新北', '台中', '台南', '基隆',
+                        '桃園', '新竹', '苗栗', '彰化', '南投', '雲林', '嘉義', '宜蘭',
+                        '花蓮', '澎湖', '金門', '連江',
+                    }
+                    _GENERIC_DIRECT = {'計畫', 'USR', '學校', '大學', '年度', '114年', '113年',
+                                       '計畫案', '參與', '台灣', '臺灣', '活動', '執行'}
+                    # 只取「kw_chunks 有收錄」的詞（避免某詞無 index 導致 AND 結果為空）
+                    _direct_content_kws = [
+                        k for k in _q_priority_kws
+                        if k not in _COUNTY_KWS and k not in _GENERIC_DIRECT
+                        and len(k) >= 2 and _kw_idx.get(k)
+                    ]
+                    if len(_direct_content_kws) >= 2:
+                        _and_pass = {
+                            p for p, hits in _direct_plan_kw_hits.items()
+                            if all(k in hits for k in _direct_content_kws)
+                        }
+                        if _and_pass:
+                            _direct_plan_chunks = {p: v for p, v in _direct_plan_chunks.items() if p in _and_pass}
+                            print(f"[KW-DIRECT-AND] 內容詞 AND 過濾 {_direct_content_kws[:3]}：{len(_direct_plan_kw_hits)} → {len(_and_pass)} 件")
+                        else:
+                            print(f"[KW-DIRECT-AND] AND 結果為空，退回 OR {_direct_content_kws[:3]}")
                     _plan_list_lines = sorted(_direct_plan_chunks.keys())
                     _plan_to_snippet = {
                         p: f"【{p}】\n" + "\n\n".join(chunks[:3])
