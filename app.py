@@ -1670,6 +1670,8 @@ for _yr_loc in _location_index.values():
             _short_c = _FULL_TO_SHORT_COUNTY.get(_full_c)
             if _short_c:
                 _location_county_plans.setdefault(_short_c, set()).add(_loc_plan)
+        if _loc_info.get("overseas_countries"):
+            _location_county_plans.setdefault("國外", set()).add(_loc_plan)
 
 
 _LOCATION_INTENT_RE = re.compile(
@@ -3681,6 +3683,7 @@ _COUNTY_KEYWORDS: dict[str, str] = {
     '高雄': '高雄', '屏東': '屏東',
     '花蓮': '花蓮', '台東': '台東', '臺東': '台東',
     '金門': '金門', '澎湖': '澎湖', '馬祖': '馬祖',
+    '國外': '國外', '海外': '國外', '境外': '國外', '國際場域': '國外',
 }
 
 def _get_school_county(school_name: str) -> str:
