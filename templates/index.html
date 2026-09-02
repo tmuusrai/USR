@@ -1095,6 +1095,18 @@ function renderAnswer(raw) {
       console.log('[COLOR-DEBUG] 未命中計畫名:', _candidate);
   }
   s = s.replace(_PLAN_RE, m => `<span style="color:#8b0000;text-decoration:underline">${m}</span>`);
+  // 列舉行 fallback：_PLAN_RE 未命中時，把 ： 之後的計畫名直接上深紅色
+  s = s.split('\n').map(line => {
+    if (!/^\d{1,3}\./.test(line.replace(/<[^>]+>/g, ''))) return line;
+    // 學校名已被 <span> 包住時：找 </span>：後面的部分
+    if (line.includes('</span>：')) {
+      return line.replace(/(<\/span>：)(?!<span)(.*?)$/, (_, pre, name) =>
+        name.trim() ? pre + `<span style="color:#8b0000;font-weight:600;text-decoration:underline">${name}</span>` : pre + name);
+    }
+    // 學校名未被包住：找第一個 ： 後面的部分
+    return line.replace(/^(\d{1,3}\. [^：<]{1,30}：)(?!<span)(.*?)$/, (_, pre, name) =>
+      name.trim() ? pre + `<span style="color:#8b0000;font-weight:600;text-decoration:underline">${name}</span>` : pre + name);
+  }).join('\n');
   s = s.replace(/〔([^〕\n]{1,40})〕/g, (_, p) => `<u>${p}</u>`);
   s = s.replace(_COUNTY_RE, m => `<u>${m}</u>`);
   s = convertTables(s);
