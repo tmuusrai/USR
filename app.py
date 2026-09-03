@@ -976,7 +976,7 @@ def _try_plan_type_answer(question: str, year: str) -> str | None:
     if _PLAN_TYPE_EXTRA_COND_RE.search(question):
         return None  # 有額外條件，不走短路
     matched = m.group(1).rstrip("計畫有哪些的大學的學校")
-    idx = _keyword_index.get(year, {})
+    idx = _label_only_index.get(year, {})
     if not idx:
         return None
 
@@ -1178,8 +1178,8 @@ def _extract_listed_schools(text: str) -> list[str]:
 _KW_THRESHOLD = 15  # 命中學校數超過此值就退回 FAISS
 
 def _keyword_lookup(question: str, year: str = "114") -> list[str]:
-    """直接關鍵字比對：問題詞 → keyword_index → 學校清單。"""
-    idx = _keyword_index.get(year, {})
+    """直接關鍵字比對：問題詞 → label_index → 學校清單。"""
+    idx = _label_only_index.get(year, {})
     if not idx:
         return []
     matched: dict[str, int] = {}
@@ -1610,7 +1610,7 @@ def _kw_entry_plan(e) -> str:
     return e["plan"] if isinstance(e, dict) else e
 
 def _load_kw_index() -> None:
-    """載入 label_index.json（標籤資料）與 kw_chunks.json（chunk 資料），合併至 _keyword_index。"""
+    """載入 label_index.json（標籤資料）至 _label_only_index；kw_chunks.json（chunk 資料）至 _keyword_index。兩者分開不合併。"""
     import gzip
     _skip_chunks = os.getenv("SKIP_KW_CHUNKS", "").strip() == "1"
     for path, tag in [(_LABEL_INDEX_PATH, "LABEL-IDX"), (_KW_CHUNKS_PATH, "KW-CHUNKS")]:
@@ -1633,14 +1633,17 @@ def _load_kw_index() -> None:
                     _data = json.load(_f)
             for yr in ("114", "113"):
                 for k, v in _data.get(yr, {}).items():
-                    _keyword_index.setdefault(yr, {})[k] = v
                     if tag == "LABEL-IDX":
+                        # label 只存 _label_only_index，不進 _keyword_index
                         _label_only_index.setdefault(yr, {})[k] = v
-                        # label key 加入 jieba 字典，防止被拆開
                         if len(k) >= 2:
                             jieba.add_word(k)
-            total = sum(len(v) for v in _keyword_index.values())
-            print(f"[{tag}] 載入 {actual_path.name}，目前共 {total} 個索引")
+                    else:
+                        # kw_chunks 只存 _keyword_index
+                        _keyword_index.setdefault(yr, {})[k] = v
+            total_kw = sum(len(v) for v in _keyword_index.values())
+            total_lbl = sum(len(v) for v in _label_only_index.values())
+            print(f"[{tag}] 載入 {actual_path.name}，kw_index={total_kw} / label_index={total_lbl}")
         except Exception as _e:
             print(f"[{tag}] 載入失敗：{_e}")
 
@@ -2273,20 +2276,42 @@ def ask():
                         print(f"[KW-PRE] 場域縣市 AND 結果為空，維持 OR → {len(_plan_set_pre)} 件")
                 _kw_plan_list = sorted(_plan_set_pre)
                 print(f"[KW-PRE] 命中 {_matched_kws[:3]} → {len(_kw_plan_list)} 件")
-                # 額外未知詞 live scan（結果作補充，不 AND 縮小 label 清單）
+                # 額外詞：先查 kw_chunks，有就直接用；沒有才 live scan
                 _extra_pre = [k for k in _q_terms_pre
                               if k not in _matched_kws and k not in _kw_stop_pre
                               and len(k) >= 2 and k not in _all_topic_kws_set
                               and not any(k in mk or mk in k for mk in _matched_kws)]
                 if _extra_pre:
                     print(f"[KW-PRE] 額外詞：{_extra_pre}")
-                    _fres = _faiss_scan_kws(_extra_pre, vs, k=300, condense=True)
-                    _kw_pre_live_results = _fres
+                    _kw_chunks_cur = _keyword_index.get(year, {})
+                    _stem_re_extra = re.compile(r'\s*\(\d{3}USR-[^)]*\)?|_formatted(?:\(\d+\))?')
+                    _label_filter_set = set(_kw_plan_list) if _kw_plan_list else None
+                    _extra_in_kw = [k for k in _extra_pre if _kw_chunks_cur.get(k)]
+                    _extra_no_kw = [k for k in _extra_pre if k not in _extra_in_kw]
                     _kw_pre_extra = _extra_pre
-                    if _fres:
-                        _kw_pre_schools = {m.group(1) for r in _fres
-                                           if (m := re.match(r'【(.+?)_', r))}
-                        print(f"[KW-PRE] 額外詞命中學校 {len(_kw_pre_schools)} 間")
+                    # kw_chunks 有收錄 → 直接取 chunk，用 label 計畫集過濾
+                    if _extra_in_kw:
+                        for _ek in _extra_in_kw:
+                            for _ee in _kw_chunks_cur.get(_ek, []):
+                                if not isinstance(_ee, dict) or "text" not in _ee:
+                                    continue
+                                _eplan = _stem_re_extra.sub('', _ee.get("plan", "")).strip('_ ')
+                                if _label_filter_set and _eplan not in _label_filter_set:
+                                    continue
+                                _eschool = _eplan.split('：', 1)[0]
+                                _kw_pre_live_results.append(f"【{_eplan}_片段】\n{_ee['text'][:200]}")
+                                _kw_pre_schools.add(_eschool)
+                        if _kw_pre_schools:
+                            print(f"[KW-PRE] 額外詞 kw_chunks 命中 {len(_kw_pre_schools)} 間")
+                    # kw_chunks 沒有 → live scan
+                    if _extra_no_kw:
+                        _fres = _seq_query_live(_extra_no_kw, '', vs, condense=True)
+                        _kw_pre_live_results.extend(_fres)
+                        if _fres:
+                            _live_schools = {_m.group(1) for _r in _fres
+                                             if (_m := re.match(r'【(.+?)_', _r))}
+                            _kw_pre_schools.update(_live_schools)
+                            print(f"[KW-PRE] 額外詞 live scan 命中 {len(_live_schools)} 間")
                 # 只有非六大議題的 label（SDG/縣市/類型）才設搜尋範圍
                 if not _kw_pre_schools:
                     _non_primary_kws = [k for k in _matched_kws if k not in _PRIMARY_TOPICS]
@@ -2500,12 +2525,22 @@ def ask():
                 _direct_kw_hit = False
                 _direct_plan_chunks: dict[str, list[str]] = {}
                 _direct_plan_kw_hits: dict[str, set[str]] = {}  # plan → 命中的 keyword 集合
+                # 有 label region（如雲嘉南）時，用 label 計畫集合當 scope；否則用 FAISS extra schools
+                _direct_label_set = set(_kw_plan_list) if _kw_plan_list else None
+                _direct_scope_schools = (
+                    {p.split('：', 1)[0] for p in _kw_plan_list} if _kw_plan_list
+                    else _kw_pre_schools
+                )
                 for _dkw in _q_priority_kws:
                     for _de in _kw_idx.get(_dkw, []):
                         if not isinstance(_de, dict) or "text" not in _de:
                             continue
                         _dpk = _stem_strip_re_direct.sub('', _de.get("plan", "")).strip('_ ')
-                        if _kw_pre_schools and _dpk.split('：', 1)[0] not in _kw_pre_schools:
+                        # label region 時：精確比對計畫集；否則：學校集過濾
+                        if _direct_label_set is not None:
+                            if _dpk not in _direct_label_set:
+                                continue
+                        elif _direct_scope_schools and _dpk.split('：', 1)[0] not in _direct_scope_schools:
                             continue
                         _direct_plan_chunks.setdefault(_dpk, []).append(_de["text"])
                         _direct_plan_kw_hits.setdefault(_dpk, set()).add(_dkw)
@@ -2520,11 +2555,12 @@ def ask():
                     }
                     _GENERIC_DIRECT = {'計畫', 'USR', '學校', '大學', '年度', '114年', '113年',
                                        '計畫案', '參與', '台灣', '臺灣', '活動', '執行'}
-                    # 只取「kw_chunks 有收錄」的詞（避免某詞無 index 導致 AND 結果為空）
+                    # 只取「kw_chunks 有 dict 格式收錄」的詞（排除純 label 字串 key，避免 AND 永遠為空）
                     _direct_content_kws = [
                         k for k in _q_priority_kws
                         if k not in _COUNTY_KWS and k not in _GENERIC_DIRECT
-                        and len(k) >= 2 and _kw_idx.get(k)
+                        and len(k) >= 2
+                        and any(isinstance(_e, dict) and "text" in _e for _e in _kw_idx.get(k, []))
                     ]
                     if len(_direct_content_kws) >= 2:
                         _and_pass = {
