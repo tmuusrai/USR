@@ -2930,47 +2930,7 @@ def ask():
                         f"若內文僅提到計劃進行、預計導入、學習方法、或參加相關工作坊，並非實際完成，直接輸出「#RAW」\n"
                     )
 
-                # 查詢詞中「非議題詞」的特定詞（如國名、特定工具）
-                # 含外國名稱時用 AND 邏輯（必須含有該外國名），否則用 OR 邏輯
-                _GENERIC_QKW = {'計畫', 'USR', '學校', '大學', '年度', '114年', '113年',
-                                 '計畫案', '參與', '台灣', '臺灣', '活動', '執行'}
-                _FOREIGN_COUNTRY_RE = re.compile(
-                    r'日本|美國|韓國|德國|法國|英國|澳洲|泰國|越南|印尼|馬來西亞|'
-                    r'新加坡|菲律賓|帛琉|印度|阿根廷|巴西|加拿大|荷蘭|義大利|西班牙'
-                )
-                _non_topic_specific_kws = [
-                    k for k in _q_priority_kws
-                    if k not in _all_topic_kws and k not in _GENERIC_QKW and len(k) >= 2
-                ]
-                _foreign_kws = [k for k in _non_topic_specific_kws if _FOREIGN_COUNTRY_RE.search(k)]
                 _specificity_filter = ""
-                if _non_topic_specific_kws:
-                    _kws_hint_str = '、'.join(_non_topic_specific_kws[:5])
-                    _must_str = f"（必須有「{'、'.join(_foreign_kws)}」的具體交流活動）" if _foreign_kws else ""
-                    _specificity_filter = (
-                        f"- 此查詢特別關注：{_kws_hint_str}{_must_str}；"
-                        f"若計畫書內文沒有相關的具體事實，直接輸出「#RAW」\n"
-                    )
-                    # Pre-filter：
-                    # 含外國名稱 → AND 邏輯，snippet 必須含有外國名稱
-                    # 一般特定詞 → OR 邏輯，任一命中即保留
-                    # _direct_kw_hit=True 時已從 kw_chunks 精準取得，不再 pre-filter
-                    _prefilter_before = len(_display_lines)
-                    if _foreign_kws:
-                        _display_lines = [
-                            p for p in _display_lines
-                            if all(k in _plan_to_snippet.get(p, '') for k in _foreign_kws)
-                            or not _plan_to_snippet.get(p)
-                        ]
-                    elif not _direct_kw_hit:
-                        _display_lines = [
-                            p for p in _display_lines
-                            if any(k in _plan_to_snippet.get(p, '') for k in _non_topic_specific_kws)
-                            or not _plan_to_snippet.get(p)
-                        ]
-                    if len(_display_lines) < _prefilter_before:
-                        _mode = "AND外國名" if _foreign_kws else "OR特定詞"
-                        print(f"[SPEC-PREFILTER] {_mode} {_non_topic_specific_kws[:3]} 預篩：{_prefilter_before} → {len(_display_lines)} 件")
 
                 def _sum_one_plan(_plan_line: str) -> str:
                     _snip = _strip_hr(_plan_to_snippet.get(_plan_line, ""))
