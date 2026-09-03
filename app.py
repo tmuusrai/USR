@@ -2954,6 +2954,7 @@ def ask():
                     # Pre-filter：
                     # 含外國名稱 → AND 邏輯，snippet 必須含有外國名稱
                     # 一般特定詞 → OR 邏輯，任一命中即保留
+                    # _direct_kw_hit=True 時已從 kw_chunks 精準取得，不再 pre-filter
                     _prefilter_before = len(_display_lines)
                     if _foreign_kws:
                         _display_lines = [
@@ -2961,7 +2962,7 @@ def ask():
                             if all(k in _plan_to_snippet.get(p, '') for k in _foreign_kws)
                             or not _plan_to_snippet.get(p)
                         ]
-                    else:
+                    elif not _direct_kw_hit:
                         _display_lines = [
                             p for p in _display_lines
                             if any(k in _plan_to_snippet.get(p, '') for k in _non_topic_specific_kws)
