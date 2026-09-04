@@ -2284,7 +2284,7 @@ def ask():
                 if _extra_pre:
                     print(f"[KW-PRE] 額外詞：{_extra_pre}")
                     _kw_chunks_cur = _keyword_index.get(year, {})
-                    _stem_re_extra = re.compile(r'\s*\(\d{3}USR-[^)]*\)?|_formatted(?:\(\d+\))?')
+                    _stem_re_extra = re.compile(r'\s*\(\d{3}USR-[^)]*\)?|_formatted(?:\(\d+\))?|\(\d+\)$')
                     _label_filter_set = set(_kw_plan_list) if _kw_plan_list else None
                     _extra_in_kw = [k for k in _extra_pre if _kw_chunks_cur.get(k)]
                     _extra_no_kw = [k for k in _extra_pre if k not in _extra_in_kw]
@@ -2519,7 +2519,7 @@ def ask():
                 _q_terms = _llm_kws or _extract_query_terms(question)
                 _q_priority_kws = [k for k in _q_terms if k in search_question]
                 _kw_idx = _keyword_index.get(year) or _keyword_index.get("114", {})
-                _stem_strip_re_direct = re.compile(r'\s*\(\d{3}USR-[^)]*\)?|_formatted(?:\(\d+\))?')
+                _stem_strip_re_direct = re.compile(r'\s*\(\d{3}USR-[^)]*\)?|_formatted(?:\(\d+\))?|\(\d+\)$')
 
                 # 優先：查詢關鍵字直接在 kw_chunks 有命中 → 直接用那批 chunk，跳過 topic label
                 _direct_kw_hit = False
@@ -2848,7 +2848,7 @@ def ask():
                         else _q_terms + list(_usr_topic_kws or []) + _matched_kws
                     ))
                     _plan_all_chunks: dict[str, list[str]] = {}
-                    _stem_strip_re = re.compile(r'\s*\(\d{3}USR-[^)]*\)?|_formatted(?:\(\d+\))?')
+                    _stem_strip_re = re.compile(r'\s*\(\d{3}USR-[^)]*\)?|_formatted(?:\(\d+\))?|\(\d+\)$')
                     for _ckw in _chunk_kws:
                         for _e in _keyword_index.get(year, {}).get(_ckw, []):
                             if not isinstance(_e, dict) or "text" not in _e:
