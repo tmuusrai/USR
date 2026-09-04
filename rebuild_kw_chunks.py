@@ -291,7 +291,7 @@ def main():
             window = extract_window(text, terms)
             if window is not None:
                 chunks = result[kw][plan]
-                if len(chunks) < 3 and window not in chunks:
+                if len(chunks) < 6 and window not in chunks:
                     chunks.append(window)
 
         if (i + 1) % 500 == 0:
