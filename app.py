@@ -1003,11 +1003,15 @@ def _try_plan_type_answer(question: str, year: str) -> str | None:
 
 
 _SUMMARY_INTENT_RE = re.compile(
-    r'計[畫劃](總覽|內容|摘要|介紹|重點|概述|說明|成果|亮點|執行|簡介)'
-    r'|執行(內容|成果|重點|情形|進度)'
-    r'|成果(摘要|報告|亮點|說明)'
+    r'計[畫劃](總覽|內容|摘要|介紹|重點|概述|說明|成果|亮點|執行|簡介|架構|目標|基本)'
+    r'|執行(內容|成果|重點|情形|進度|率|狀況|數據)'
+    r'|成果(摘要|報告|亮點|說明|評估|數據)'
     r'|介紹.{0,8}(計[畫劃]|這些|各[個計])'  # 「介紹這些計畫」「介紹各計畫」
     r'|簡介'
+    r'|經費(執行|核定|狀況|使用)?|補助(款|金額|額度)|核定(金額|補助|款)|執行率'
+    r'|外部資源|資源鏈結|合作(夥伴|單位|機構|網絡)'
+    r'|成效評估|評估機制|量化成效'
+    r'|技術創新|創新特色|特色亮點'
 )
 
 _SUMMARY_DIR = Path("114_output/summary")
@@ -2160,7 +2164,7 @@ def ask():
                 search_question = _prepare_search_query(question, history)
             else:
                 search_question = question
-            _llm_kws, _llm_is_listing = _llm_parse_query(search_question)
+            _llm_kws, _llm_extended_kws, _llm_is_listing = _llm_parse_query(search_question)
             t_prepare_end = time.perf_counter()
 
             # ── KW-PRE：label 比對（早期執行，結果作為後續所有路徑的搜尋範圍）──
@@ -2171,7 +2175,6 @@ def ask():
             _kw_pre_live_results: list[str] = []
             _kw_pre_extra: list[str] = []
             _kw_list_hit: str | None = None
-            _kw_idx_pre = _keyword_index.get(year, {})
             _all_topic_kws_set: set[str] = {kw for kws in USR_TOPIC_KEYWORDS.values() for kw in kws}
             _q_terms_pre = list(_llm_kws)
             _llm_kws_set = set(_llm_kws)
@@ -2213,51 +2216,6 @@ def ask():
                     print(f"[KW-PRE] topic label 命中：{_usr_topic} → {len(_lk_plans)} 件")
                     _label_hit = True
 
-            if not _label_hit:
-                # 1. kw_chunks 文字比對
-                for _tk in (_usr_topic_kws or []):
-                    if _tk in _kw_idx_pre:
-                        _plan_set_pre.update(_kw_entry_plan(e) for e in _kw_idx_pre[_tk])
-                        if _tk not in _matched_kws:
-                            _matched_kws.append(_tk)
-                # 2. 問題裡其他 USR_TOPIC_KEYWORDS 詞
-                for _qt in _q_terms_pre:
-                    if _qt in _all_topic_kws_set and _qt in _kw_idx_pre and _qt not in _matched_kws:
-                        _plan_set_pre.update(_kw_entry_plan(e) for e in _kw_idx_pre[_qt])
-                        _matched_kws.append(_qt)
-
-            if not _label_hit:
-                # 3. SDG key
-                for _kw_pre_k in _kw_idx_pre:
-                    if re.match(r'^SDG\d{1,2}$', _kw_pre_k) and _kw_pre_k in question:
-                        if _kw_pre_k not in _matched_kws:
-                            _matched_kws.append(_kw_pre_k)
-                            _sdg_plans = [_kw_entry_plan(e) if isinstance(e, dict) else e
-                                          for e in _kw_idx_pre[_kw_pre_k]]
-                            _matched_kw_plans[_kw_pre_k] = _sdg_plans
-                            _plan_set_pre.update(_sdg_plans)
-                # 4. 計畫類型別名
-                for _alias, _full_key in _PLAN_TYPE_ALIAS.items():
-                    if _alias in question and _full_key and _full_key in _kw_idx_pre:
-                        if _full_key not in _matched_kws:
-                            _matched_kws.append(_full_key)
-                            _plan_set_pre.update(_kw_entry_plan(e) for e in _kw_idx_pre[_full_key])
-                # 5. 地區/縣市 label
-                _sdg_re_pre = re.compile(r'^SDG\d{1,2}$')
-                _label_skip_set = _all_topic_kws_set | set(_PLAN_TYPE_ALIAS.keys()) | set(_PLAN_TYPE_ALIAS.values())
-                for _lk in sorted(_kw_idx_pre, key=len, reverse=True):
-                    if _lk in _matched_kws or _lk in _label_skip_set or _sdg_re_pre.match(_lk):
-                        continue
-                    if len(_lk) >= 2 and (_lk in question or _lk in _llm_kws_set):
-                        _entries = _kw_idx_pre.get(_lk, [])
-                        if not _entries:
-                            continue
-                        _matched_kws.append(_lk)
-                        _lk_plans = (_entries if isinstance(_entries[0], str)
-                                     else [_kw_entry_plan(e) for e in _entries])
-                        _matched_kw_plans[_lk] = _lk_plans
-                        _plan_set_pre.update(_lk_plans)
-                        print(f"[KW-PRE] label 命中：{_lk} → {len(_lk_plans)} 件")
 
             if _matched_kws:
                 _kw_list_hit = _matched_kws[0]
@@ -2516,7 +2474,8 @@ def ask():
             _plan_list_lines: list[str] = []
 
             if _list and not _multi_enumerate:
-                _q_terms = _llm_kws or _extract_query_terms(question)
+                _base_terms = _llm_kws or _extract_query_terms(question)
+                _q_terms = list(dict.fromkeys(_base_terms + _llm_extended_kws))
                 _q_priority_kws = [k for k in _q_terms if k in search_question]
                 _kw_idx = _keyword_index.get(year) or _keyword_index.get("114", {})
                 _stem_strip_re_direct = re.compile(r'\s*\(\d{3}USR-[^)]*\)?|_formatted(?:\(\d+\))?|\(\d+\)$')
@@ -2525,6 +2484,7 @@ def ask():
                 _direct_kw_hit = False
                 _direct_plan_chunks: dict[str, list[str]] = {}
                 _direct_plan_kw_hits: dict[str, set[str]] = {}  # plan → 命中的 keyword 集合
+                _ext_plan_set: set[str] = set()  # LLM 擴充詞帶出的計畫（不在 core 內）
                 # 有 label region（如雲嘉南）時，用 label 計畫集合當 scope；否則用 FAISS extra schools
                 _direct_label_set = set(_kw_plan_list) if _kw_plan_list else None
                 _direct_scope_schools = (
@@ -2572,12 +2532,55 @@ def ask():
                             print(f"[KW-DIRECT-AND] 內容詞 AND 過濾 {_direct_content_kws[:3]}：{len(_direct_plan_kw_hits)} → {len(_and_pass)} 件")
                         else:
                             print(f"[KW-DIRECT-AND] AND 結果為空，退回 OR {_direct_content_kws[:3]}")
+                    # 沒有 chunk 的查詢詞 → live scan 取交集
+                    _no_chunk_kws = [
+                        k for k in _q_priority_kws
+                        if k not in _COUNTY_KWS and k not in _GENERIC_DIRECT
+                        and len(k) >= 2
+                        and not any(isinstance(_e, dict) and "text" in _e for _e in _kw_idx.get(k, []))
+                    ]
+                    if _no_chunk_kws and _direct_plan_chunks:
+                        _live_nc = _seq_query_live(_no_chunk_kws, '', vs, condense=True)
+                        if _live_nc:
+                            _live_nc_plans = {
+                                _m.group(1) for _r in _live_nc
+                                if (_m := re.match(r'【(.+?)】', _r))
+                            }
+                            _intersected = {p: v for p, v in _direct_plan_chunks.items()
+                                            if p in _live_nc_plans}
+                            if _intersected:
+                                _direct_plan_chunks = _intersected
+                                print(f"[KW-NO-CHUNK-AND] live scan {_no_chunk_kws[:3]} → {len(_direct_plan_chunks)} 件")
+                            else:
+                                print(f"[KW-NO-CHUNK-AND] AND 結果為空，退回 OR")
                     _plan_list_lines = sorted(_direct_plan_chunks.keys())
+                    _core_plan_set = set(_plan_list_lines)
                     _plan_to_snippet = {
                         p: f"【{p}】\n" + "\n\n".join(chunks[:3])
                         for p, chunks in _direct_plan_chunks.items()
                     }
                     print(f"[KW-DIRECT] 查詢詞 {_q_priority_kws[:3]} 直接命中 kw_chunks → {len(_plan_list_lines)} 件，跳過 topic label")
+                    # 擴展詞查找：LLM extended kws → 不在 core 的額外計畫
+                    _ext_only_kws = [k for k in _llm_extended_kws if k in _kw_idx and k not in set(_q_priority_kws)]
+                    _ext_chunks_tmp: dict[str, list[str]] = {}
+                    for _ek in _ext_only_kws:
+                        for _ee in _kw_idx.get(_ek, []):
+                            if not isinstance(_ee, dict) or "text" not in _ee:
+                                continue
+                            _epk = _stem_strip_re_direct.sub('', _ee.get("plan", "")).strip('_ ')
+                            if _epk in _core_plan_set:
+                                continue
+                            if _direct_label_set is not None:
+                                if _epk not in _direct_label_set:
+                                    continue
+                            elif _direct_scope_schools and _epk.split('：', 1)[0] not in _direct_scope_schools:
+                                continue
+                            _ext_chunks_tmp.setdefault(_epk, []).append(_ee["text"])
+                    if _ext_chunks_tmp:
+                        _ext_plan_set = set(_ext_chunks_tmp.keys())
+                        for _ep, _ecs in _ext_chunks_tmp.items():
+                            _plan_to_snippet[_ep] = f"【{_ep}】\n" + "\n\n".join(_ecs[:3])
+                        print(f"[KW-EXT] 擴充詞 {_ext_only_kws[:3]} → {len(_ext_plan_set)} 件擴展計畫")
 
                 if not _direct_kw_hit:
                     # KW-SEED：label 有計畫清單就直接作為初始名單（六大議題問題走這條）
@@ -2597,9 +2600,8 @@ def ask():
                 _kw_idx_chunks: dict[str, list[str]] = {}  # plan → chunk texts（本次 query 臨時）
                 _lookup_kws: list[str] = []
                 if not _direct_kw_hit:
-                    _lookup_kws = list(dict.fromkeys(
-                        list(_usr_topic_kws or []) + [k for k in _q_terms if k in _all_topic_kws]
-                    ))
+                    # 只查詢詞中直接在 keyword_index 有收錄的詞（移除 USR_TOPIC_KEYWORDS 議題擴充）
+                    _lookup_kws = [k for k in _q_terms if k in _kw_idx]
                     for _lk in _lookup_kws:
                         if _lk in _kw_idx:
                             for _e in _kw_idx[_lk]:
@@ -2622,10 +2624,10 @@ def ask():
                             _plan_list_lines = _plan_list_lines + _extra
                             print(f"[KW-IDX] 補充 {len(_extra)} 件計畫，共 {len(_plan_list_lines)} 件")
 
-                # ── live scan：KW-IDX 已有結果則跳過；無結果才掃問題詞中不在議題詞典的詞 ──
+                # ── live scan：KW-IDX 已有結果則跳過；無結果才掃 keyword_index 未收錄的詞 ──
                 _live_scan_kws = (
                     [] if _plan_list_lines
-                    else [k for k in _q_terms if k not in _all_topic_kws]
+                    else [k for k in _q_terms if k not in _kw_idx]
                 )
                 annotated = []
                 if _live_scan_kws:
@@ -2842,11 +2844,7 @@ def ask():
                 if _plan_list_lines:
                     _plan_list_set = set(_plan_list_lines)
                     # label 模式時用所有議題關鍵字；否則用 query 詞 + 議題關鍵字
-                    _chunk_kws = list(dict.fromkeys(
-                        list(_usr_topic_kws or []) + _q_terms + _matched_kws
-                        if _pure_label_mode
-                        else _q_terms + list(_usr_topic_kws or []) + _matched_kws
-                    ))
+                    _chunk_kws = list(dict.fromkeys(_q_terms + _matched_kws))
                     _plan_all_chunks: dict[str, list[str]] = {}
                     _stem_strip_re = re.compile(r'\s*\(\d{3}USR-[^)]*\)?|_formatted(?:\(\d+\))?|\(\d+\)$')
                     for _ckw in _chunk_kws:
@@ -2913,8 +2911,9 @@ def ask():
                 _SUB_CAP = 15 if _is_out7 else 25  # OUT7：列舉限 15 間
                 # 多取緩衝以補足跳過件，收集後再截至 _SUB_CAP
                 _display_lines = _plan_list_lines[:_SUB_CAP * 2] if _extra_sub_qs else _plan_list_lines
+                _ext_display_lines = sorted(_ext_plan_set)  # 擴展計畫（獨立處理）
                 _list_display_note = f"（另有更多計畫，以下列出前{_SUB_CAP}件）" if _extra_sub_qs and len(_plan_list_lines) > _SUB_CAP else ""
-                print(f"[LIST-SUB] extra_sub_qs={_extra_sub_qs} display={len(_display_lines)} cap={_SUB_CAP if _extra_sub_qs else '∞'} total={len(_plan_list_lines)}")
+                print(f"[LIST-SUB] extra_sub_qs={_extra_sub_qs} display={len(_display_lines)} ext={len(_ext_display_lines)} cap={_SUB_CAP if _extra_sub_qs else '∞'} total={len(_plan_list_lines)}")
 
                 # ── 列舉型並行路徑：每個計畫單獨送 LLM，擷取原文關鍵句 ──
                 from langchain_core.messages import HumanMessage as _HMList
@@ -2938,7 +2937,7 @@ def ask():
                         return ""
                     _lead_school = _plan_line.split('：', 1)[0].strip()
                     _topic_kws_for_prompt = list(dict.fromkeys(
-                        k for k in (_q_priority_kws + list(_usr_topic_kws or []))
+                        k for k in _q_priority_kws
                         if len(k) >= 2
                     ))[:20]
                     _kw_hint = (
@@ -3041,6 +3040,19 @@ def ask():
                                 continue
                             _para_collected.append((_pl, _ps2))
 
+                # 擴展計畫並行收集
+                _ext_para_collected: list[tuple[str, str]] = []
+                if _ext_display_lines:
+                    if _count_only_mode:
+                        _ext_para_collected = [(_pl, "") for _pl in _ext_display_lines]
+                    else:
+                        with ThreadPoolExecutor(max_workers=25) as _ext_ex:
+                            _ext_futs = [(_pl, _ext_ex.submit(_sum_one_plan, _pl)) for _pl in _ext_display_lines]
+                            for _pl, _pf in _ext_futs:
+                                _ps2 = _pf.result()
+                                if _ps2 and _ps2 != "\x01":
+                                    _ext_para_collected.append((_pl, _ps2))
+
                 # 依相關度排序：描述中含查詢詞越多排越前
                 if _q_priority_kws or _q_terms:
                     _rank_kws = list(dict.fromkeys(_q_priority_kws + _q_terms))
@@ -3048,21 +3060,48 @@ def ask():
                         key=lambda x: sum(1 for k in _rank_kws if k in x[1]),
                         reverse=True
                     )
+                    _ext_para_collected.sort(
+                        key=lambda x: sum(1 for k in _rank_kws if k in x[1]),
+                        reverse=True
+                    )
                 # 有子問題時截至上限
                 if _extra_sub_qs:
                     _para_collected = _para_collected[:_SUB_CAP]
 
-                _out_idx = len(_para_collected)
-                _header_txt = f"找到 {_out_idx} 件相關計畫{_list_display_note}{_t1_label}\n\n"
-                _para_ans_parts.append(_header_txt)
-                yield f"data: {json.dumps({'type': 'chunk', 'text': _header_txt}, ensure_ascii=False)}\n\n"
                 _para_t_first = time.perf_counter()
+                _use_two_sections = bool(_ext_para_collected and _para_collected)
 
-                for _i, (_pl, _ps2) in enumerate(_para_collected, 1):
-                    _pchunk = (f"{_i}. {_clean_plan_code(_pl)}\n{_ps2}\n" if _ps2
-                               else f"{_i}. {_clean_plan_code(_pl)}\n")
-                    _para_ans_parts.append(_pchunk)
-                    yield f"data: {json.dumps({'type': 'chunk', 'text': _pchunk}, ensure_ascii=False)}\n\n"
+                if _use_two_sections:
+                    # 兩段輸出：最相關 + 擴展相關
+                    _total_count = len(_para_collected) + len(_ext_para_collected)
+                    _header_txt = f"找到 {_total_count} 件相關計畫{_list_display_note}\n\n### 最相關（{len(_para_collected)} 件）\n\n"
+                    _para_ans_parts.append(_header_txt)
+                    yield f"data: {json.dumps({'type': 'chunk', 'text': _header_txt}, ensure_ascii=False)}\n\n"
+                    for _i, (_pl, _ps2) in enumerate(_para_collected, 1):
+                        _pchunk = (f"{_i}. {_clean_plan_code(_pl)}\n{_ps2}\n" if _ps2
+                                   else f"{_i}. {_clean_plan_code(_pl)}\n")
+                        _para_ans_parts.append(_pchunk)
+                        yield f"data: {json.dumps({'type': 'chunk', 'text': _pchunk}, ensure_ascii=False)}\n\n"
+                    _ext_hdr = f"\n### 擴展相關（{len(_ext_para_collected)} 件）\n\n"
+                    _para_ans_parts.append(_ext_hdr)
+                    yield f"data: {json.dumps({'type': 'chunk', 'text': _ext_hdr}, ensure_ascii=False)}\n\n"
+                    for _i, (_pl, _ps2) in enumerate(_ext_para_collected, 1):
+                        _pchunk = (f"{_i}. {_clean_plan_code(_pl)}\n{_ps2}\n" if _ps2
+                                   else f"{_i}. {_clean_plan_code(_pl)}\n")
+                        _para_ans_parts.append(_pchunk)
+                        yield f"data: {json.dumps({'type': 'chunk', 'text': _pchunk}, ensure_ascii=False)}\n\n"
+                    # 合併供後續 OUT4/7 使用
+                    _para_collected = _para_collected + _ext_para_collected
+                else:
+                    _out_idx = len(_para_collected)
+                    _header_txt = f"找到 {_out_idx} 件相關計畫{_list_display_note}{_t1_label}\n\n"
+                    _para_ans_parts.append(_header_txt)
+                    yield f"data: {json.dumps({'type': 'chunk', 'text': _header_txt}, ensure_ascii=False)}\n\n"
+                    for _i, (_pl, _ps2) in enumerate(_para_collected, 1):
+                        _pchunk = (f"{_i}. {_clean_plan_code(_pl)}\n{_ps2}\n" if _ps2
+                                   else f"{_i}. {_clean_plan_code(_pl)}\n")
+                        _para_ans_parts.append(_pchunk)
+                        yield f"data: {json.dumps({'type': 'chunk', 'text': _pchunk}, ensure_ascii=False)}\n\n"
 
                 # OUT4（列舉 + Summary）& OUT7（列舉 + Summary + 概念子問題）
                 # _is_out7: 列舉15 + 前5摘要 + 概念回答
@@ -3533,20 +3572,22 @@ def _extract_query_terms(q: str) -> list[str]:
     return list(dict.fromkeys(result))
 
 
-def _llm_parse_query(q: str) -> tuple[list[str], bool]:
-    """用 LLM 提取關鍵字並判斷是否為列舉型問題，取代 jieba 斷詞 + regex。
-    失敗時退回 jieba + _LIST_INTENT_RE。
+def _llm_parse_query(q: str) -> tuple[list[str], list[str], bool]:
+    """用 LLM 提取關鍵字、擴充相關詞、並判斷是否為列舉型問題。
+    回傳 (keywords, extended, is_listing)。失敗時退回 jieba + _LIST_INTENT_RE。
     """
     from langchain_core.messages import HumanMessage as _HMParse
     prompt = (
         "分析以下 USR 計畫查詢，只輸出 JSON，不要任何其他文字：\n"
-        '{"keywords": ["詞1","詞2",...], "is_listing": true或false}\n\n'
+        '{"keywords": ["詞1","詞2",...], "extended": ["擴充詞1",...], "is_listing": true或false}\n\n'
         "keywords：2~6 個最重要的繁體中文關鍵詞，保留完整詞（例：「流浪動物」不要切成「流浪」+「動物」）\n"
         "  ✗ 不要抽取以下類型的詞：\n"
         "    - 問句語氣詞：相關計畫、有關計畫、相關的計畫、哪些計畫、計畫有哪些\n"
         "    - 泛稱：USR計畫、USR相關、大學計畫、社會實踐計畫\n"
         "    - 動詞/介係詞：推動、執行、進行、透過、結合、針對\n"
         "    - 單獨出現的「計畫」「學校」「大學」「哪些」「相關」\n"
+        "extended：針對 keywords 補充 3~8 個繁體中文同義詞或密切相關詞（供全文搜尋擴充，不可與 keywords 重複）\n"
+        "  例：keywords=[\"農業\"] → extended=[\"食農教育\",\"農村\",\"農產品\",\"農業加值\",\"有機農業\"]\n"
         "is_listing：\n"
         "  true  → 問題在列舉計畫或學校（如「有哪些計畫」「哪些學校」「列出」「有關XXX的計畫」）\n"
         "  false → 詢問策略/做法/方法/影響/成效，或單一計畫/學校的內容問題\n\n"
@@ -3561,12 +3602,15 @@ def _llm_parse_query(q: str) -> tuple[list[str], bool]:
         if m:
             d = json.loads(m.group())
             kws = [str(k).strip() for k in d.get("keywords", []) if k and str(k).strip()]
+            kws_set = set(kws)
+            extended = [str(k).strip() for k in d.get("extended", [])
+                        if k and str(k).strip() and str(k).strip() not in kws_set]
             is_listing = bool(d.get("is_listing", False))
-            print(f"[LLM-PARSE] keywords={kws} is_listing={is_listing}")
-            return kws, is_listing
+            print(f"[LLM-PARSE] keywords={kws} extended={extended} is_listing={is_listing}")
+            return kws, extended, is_listing
     except Exception as e:
         print(f"[LLM-PARSE] 失敗，退回 jieba：{e}")
-    return _extract_query_terms(q), bool(_LIST_INTENT_RE.search(q))
+    return _extract_query_terms(q), [], bool(_LIST_INTENT_RE.search(q))
 
 
 
