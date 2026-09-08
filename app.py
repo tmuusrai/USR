@@ -1599,8 +1599,13 @@ init_qa()
 # ── 關鍵字索引 ────────────────────────────────────────
 _keyword_index: dict[str, dict] = {}
 _LABEL_INDEX_PATH    = Path("114_output/label_index.json")
-_KW_CHUNKS_PATH      = Path("114_output/kw_chunks_test.json")
+# 優先 kw_chunks_test（本地開發用大檔），Render 沒有時 fallback 到 kw_chunks.json
+_KW_CHUNKS_FULL_PATH = Path("114_output/kw_chunks_test.json")
 _KW_CHUNKS_GZ_PATH   = Path("114_output/kw_chunks_test.json.gz")
+_KW_CHUNKS_PATH      = (
+    _KW_CHUNKS_FULL_PATH if _KW_CHUNKS_FULL_PATH.exists()
+    else Path("114_output/kw_chunks.json")
+)
 _LOCATION_INDEX_PATH = Path("114_output/location_index.json")
 
 # 純 label 索引（不被 kw_chunks 蓋掉），供 KW-PRE step 0 直接命中用
