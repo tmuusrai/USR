@@ -168,6 +168,50 @@
             "district": "二水鄉",
             "location": "源泉社區發展協會"
           }
+        ],
+        "overseas_countries": [
+          "日本"
+        ],
+        "overseas_fields": [
+          {
+            "country": "日本",
+            "region": "東北亞",
+            "city": "",
+            "location": "北海道大學",
+            "site_type": "教育／課程實踐",
+            "partner_type": "大專校院",
+            "period": "下半年",
+            "start_date": "2025-08-05",
+            "dates": [
+              "2025-08-05"
+            ]
+          },
+          {
+            "country": "日本",
+            "region": "東北亞",
+            "city": "",
+            "location": "黑松內山毛櫸森林自然學校",
+            "site_type": "教育／課程實踐",
+            "partner_type": "中小學",
+            "period": "下半年",
+            "start_date": "2025-08-07",
+            "dates": [
+              "2025-08-07"
+            ]
+          },
+          {
+            "country": "日本",
+            "region": "東北亞",
+            "city": "",
+            "location": "北海道然別湖自然中心",
+            "site_type": "環境／永續",
+            "partner_type": "企業／產業機構",
+            "period": "下半年",
+            "start_date": "2025-08-04",
+            "dates": [
+              "2025-08-04"
+            ]
+          }
         ]
       },
       "馬偕醫學院：給三芝全面的愛:社區老人多層面健康促進計畫": {
@@ -319,6 +363,24 @@
             "district": "內門區",
             "location": "全境"
           }
+        ],
+        "overseas_countries": [
+          "日本"
+        ],
+        "overseas_fields": [
+          {
+            "country": "日本",
+            "region": "東北亞",
+            "city": "兵庫縣豐岡市城崎溫泉",
+            "location": "城崎温泉觀光協會",
+            "site_type": "教育／課程實踐",
+            "partner_type": "NGO／協會／基金會",
+            "period": "上半年",
+            "start_date": "2025-02-01",
+            "dates": [
+              "2025-02-01"
+            ]
+          }
         ]
       },
       "亞洲大學：與智慧科技共學：偏鄉國中與社區高中語言學伴培育計畫": {
@@ -435,9 +497,89 @@
           }
         ],
         "overseas_countries": [
-          "印尼",
           "日本",
           "越南"
+        ],
+        "overseas_fields": [
+          {
+            "country": "越南",
+            "region": "東南亞",
+            "city": "峴港",
+            "location": "外語峴港大學",
+            "site_type": "社區／地方創生／服務學習",
+            "partner_type": "大專校院",
+            "period": "上半年",
+            "start_date": "2025-06-01",
+            "dates": [
+              "2025-06-01"
+            ]
+          },
+          {
+            "country": "越南",
+            "region": "東南亞",
+            "city": "峴港",
+            "location": "峴港建築大學",
+            "site_type": "社區／地方創生／服務學習",
+            "partner_type": "大專校院",
+            "period": "上半年",
+            "start_date": "2025-06-01",
+            "dates": [
+              "2025-06-01"
+            ]
+          },
+          {
+            "country": "越南",
+            "region": "東南亞",
+            "city": "峴港",
+            "location": "峴港計劃經濟高專",
+            "site_type": "社區／地方創生／服務學習",
+            "partner_type": "教育機構／學校",
+            "period": "上半年",
+            "start_date": "2025-06-01",
+            "dates": [
+              "2025-06-01"
+            ]
+          },
+          {
+            "country": "越南",
+            "region": "東南亞",
+            "city": "峴港",
+            "location": "Powerplus education 留學中心",
+            "site_type": "社區／地方創生／服務學習",
+            "partner_type": "企業／產業機構",
+            "period": "上半年",
+            "start_date": "2025-06-01",
+            "dates": [
+              "2025-06-01"
+            ]
+          },
+          {
+            "country": "日本",
+            "region": "東北亞",
+            "city": "",
+            "location": "名櫻大學Meio Universit",
+            "site_type": "教育／課程實踐",
+            "partner_type": "大專校院",
+            "period": "下半年",
+            "start_date": "2025-07-01",
+            "dates": [
+              "2025-07-01"
+            ]
+          },
+          {
+            "country": "日本",
+            "region": "東北亞",
+            "city": "",
+            "location": "琉球大學",
+            "site_type": "社區／地方創生／社會實踐",
+            "partner_type": "大專校院",
+            "period": "上下半年",
+            "start_date": "2025-07-01",
+            "dates": [
+              "2025-07-01",
+              "2025-08-01"
+            ]
+          }
         ]
       },
       "亞洲大學：食品安全與健康的守護者": {
@@ -618,6 +760,24 @@
             "district": "鼓山區",
             "location": "國中小學"
           }
+        ],
+        "overseas_countries": [
+          "美國"
+        ],
+        "overseas_fields": [
+          {
+            "country": "美國",
+            "region": "大洋洲",
+            "city": "夏威夷檀香山",
+            "location": "威基基水族館",
+            "site_type": "教育／課程實踐",
+            "partner_type": "文化／教育／宗教機構",
+            "period": "上半年",
+            "start_date": "2025-06-28",
+            "dates": [
+              "2025-06-28"
+            ]
+          }
         ]
       },
       "國立臺東大學：里山都歷永續USR計畫": {
@@ -720,6 +880,25 @@
             "county": "臺東縣",
             "district": "臺東市",
             "location": "建農里"
+          }
+        ],
+        "overseas_countries": [
+          "馬來西亞"
+        ],
+        "overseas_fields": [
+          {
+            "country": "馬來西亞",
+            "region": "東南亞",
+            "city": "",
+            "location": "拉曼大學",
+            "site_type": "海外實習／見習",
+            "partner_type": "大專校院",
+            "period": "上下半年",
+            "start_date": "2025-05-29",
+            "dates": [
+              "2025-05-29",
+              "2025-08-10"
+            ]
           }
         ]
       },
@@ -839,6 +1018,24 @@
             "district": "旗津區",
             "location": "全區"
           }
+        ],
+        "overseas_countries": [
+          "匈牙利"
+        ],
+        "overseas_fields": [
+          {
+            "country": "匈牙利",
+            "region": "歐洲",
+            "city": "",
+            "location": "賽格德大學",
+            "site_type": "教育／課程實踐",
+            "partner_type": "大專校院",
+            "period": "下半年",
+            "start_date": "2025-09-13",
+            "dates": [
+              "2025-09-13"
+            ]
+          }
         ]
       },
       "輔仁大學：水圳文化的傳承與創新：建構新莊生活環境博物園區": {
@@ -947,6 +1144,25 @@
             "county": "花蓮縣",
             "district": "",
             "location": "洄瀾醬人有限公司"
+          }
+        ],
+        "overseas_countries": [
+          "印尼"
+        ],
+        "overseas_fields": [
+          {
+            "country": "印尼",
+            "region": "東南亞",
+            "city": "",
+            "location": "Bakrie University",
+            "site_type": "工程／防災／環境實作",
+            "partner_type": "大專校院",
+            "period": "上下半年",
+            "start_date": "2025-07-01",
+            "dates": [
+              "2025-07-01",
+              "2025-10-29"
+            ]
           }
         ]
       },
@@ -1064,7 +1280,212 @@
           }
         ],
         "overseas_countries": [
-          "日本"
+          "加拿大",
+          "德國",
+          "日本",
+          "法國",
+          "瑞士",
+          "美國",
+          "英國"
+        ],
+        "overseas_fields": [
+          {
+            "country": "日本",
+            "region": "東北亞",
+            "city": "鳥取縣",
+            "location": "鳥取大學",
+            "site_type": "社區／地方創生／服務學習",
+            "partner_type": "大專校院",
+            "period": "上半年",
+            "start_date": "2025-07-21",
+            "dates": [
+              "2025-07-21"
+            ]
+          },
+          {
+            "country": "日本",
+            "region": "東北亞",
+            "city": "鳥取縣",
+            "location": "sand-place株式會社",
+            "site_type": "農業／漁業／產業實作",
+            "partner_type": "企業／產業機構",
+            "period": "上半年",
+            "start_date": "2025-06-01",
+            "dates": [
+              "2025-06-01"
+            ]
+          },
+          {
+            "country": "日本",
+            "region": "東北亞",
+            "city": "鳥取縣",
+            "location": "大山陣構茶園組合",
+            "site_type": "農業／漁業／產業實作",
+            "partner_type": "其他機構",
+            "period": "上半年",
+            "start_date": "2025-06-01",
+            "dates": [
+              "2025-06-01"
+            ]
+          },
+          {
+            "country": "日本",
+            "region": "東北亞",
+            "city": "鳥取縣用瀨町",
+            "location": "用瀨町社區發展協會",
+            "site_type": "社區／地方創生／服務學習",
+            "partner_type": "NGO／協會／基金會",
+            "period": "上半年",
+            "start_date": "2025-06-01",
+            "dates": [
+              "2025-06-01"
+            ]
+          },
+          {
+            "country": "日本",
+            "region": "東北亞",
+            "city": "鳥取縣若櫻町",
+            "location": "若櫻鐵道車站",
+            "site_type": "農業／漁業／產業實作",
+            "partner_type": "其他機構",
+            "period": "上半年",
+            "start_date": "2025-06-01",
+            "dates": [
+              "2025-06-01"
+            ]
+          },
+          {
+            "country": "日本",
+            "region": "東北亞",
+            "city": "鳥取縣",
+            "location": "野花日和",
+            "site_type": "農業／漁業／產業實作",
+            "partner_type": "其他機構",
+            "period": "上半年",
+            "start_date": "2025-06-01",
+            "dates": [
+              "2025-06-01"
+            ]
+          },
+          {
+            "country": "日本",
+            "region": "東北亞",
+            "city": "鳥取縣",
+            "location": "長田茶店",
+            "site_type": "農業／漁業／產業實作",
+            "partner_type": "其他機構",
+            "period": "上半年",
+            "start_date": "2025-06-01",
+            "dates": [
+              "2025-06-01"
+            ]
+          },
+          {
+            "country": "日本",
+            "region": "東北亞",
+            "city": "鳥取市",
+            "location": "鳥取市政府",
+            "site_type": "跨國社會實踐",
+            "partner_type": "政府／公部門",
+            "period": "上半年",
+            "start_date": "2025-06-01",
+            "dates": [
+              "2025-06-01"
+            ]
+          },
+          {
+            "country": "德國",
+            "region": "歐洲",
+            "city": "柏林",
+            "location": "柏林佛光山",
+            "site_type": "海外實習／見習",
+            "partner_type": "文化／教育／宗教機構",
+            "period": "上下半年",
+            "start_date": "2025-02-01",
+            "dates": [
+              "2025-02-01",
+              "2026-01-01"
+            ]
+          },
+          {
+            "country": "法國",
+            "region": "歐洲",
+            "city": "",
+            "location": "佛光山法華禪寺",
+            "site_type": "海外實習／見習",
+            "partner_type": "文化／教育／宗教機構",
+            "period": "下半年",
+            "start_date": "2026-01-01",
+            "dates": [
+              "2026-01-01"
+            ]
+          },
+          {
+            "country": "法國",
+            "region": "歐洲",
+            "city": "",
+            "location": "法華禪寺",
+            "site_type": "海外實習／見習",
+            "partner_type": "文化／教育／宗教機構",
+            "period": "上半年",
+            "start_date": "2025-02-01",
+            "dates": [
+              "2025-02-01"
+            ]
+          },
+          {
+            "country": "瑞士",
+            "region": "歐洲",
+            "city": "日內瓦",
+            "location": "日內瓦佛光山",
+            "site_type": "海外實習／見習",
+            "partner_type": "其他機構",
+            "period": "上半年",
+            "start_date": "2025-02-01",
+            "dates": [
+              "2025-02-01"
+            ]
+          },
+          {
+            "country": "英國",
+            "region": "歐洲",
+            "city": "倫敦",
+            "location": "倫敦佛光山",
+            "site_type": "海外實習／見習",
+            "partner_type": "其他機構",
+            "period": "上半年",
+            "start_date": "2025-02-01",
+            "dates": [
+              "2025-02-01"
+            ]
+          },
+          {
+            "country": "加拿大",
+            "region": "美洲",
+            "city": "多倫多",
+            "location": "多倫多佛光山",
+            "site_type": "海外實習／見習",
+            "partner_type": "文化／教育／宗教機構",
+            "period": "上下半年",
+            "start_date": "2025-02-01",
+            "dates": [
+              "2025-02-01",
+              "2026-01-01"
+            ]
+          },
+          {
+            "country": "美國",
+            "region": "美洲",
+            "city": "德州",
+            "location": "德州佛光山香雲寺",
+            "site_type": "海外實習／見習",
+            "partner_type": "文化／教育／宗教機構",
+            "period": "上半年",
+            "start_date": "2025-02-01",
+            "dates": [
+              "2025-02-01"
+            ]
+          }
         ]
       },
       "國立暨南國際大學：WalkTall：戶外教育生態系統創新plus計畫": {
@@ -1523,6 +1944,24 @@
             "county": "新北市",
             "district": "中和區",
             "location": "雙和醫院"
+          }
+        ],
+        "overseas_countries": [
+          "日本"
+        ],
+        "overseas_fields": [
+          {
+            "country": "日本",
+            "region": "東北亞",
+            "city": "",
+            "location": "千葉商科大學",
+            "site_type": "教育／課程實踐",
+            "partner_type": "大專校院",
+            "period": "上半年",
+            "start_date": "2025-05-26",
+            "dates": [
+              "0114-05-26"
+            ]
           }
         ]
       },
@@ -2389,6 +2828,24 @@
             "district": "萬華區",
             "location": "萬華區"
           }
+        ],
+        "overseas_countries": [
+          "泰國"
+        ],
+        "overseas_fields": [
+          {
+            "country": "泰國",
+            "region": "東南亞",
+            "city": "",
+            "location": "Kaigo House",
+            "site_type": "海外實習／見習",
+            "partner_type": "其他機構",
+            "period": "上半年",
+            "start_date": "2025-06-23",
+            "dates": [
+              "2025-06-23"
+            ]
+          }
         ]
       },
       "國立中興大學：「綠旱雙脈•興水同心」─兩河流域守護實驗室": {
@@ -2461,6 +2918,24 @@
             "county": "苗栗縣",
             "district": "苗栗市",
             "location": "大千綜合醫院"
+          }
+        ],
+        "overseas_countries": [
+          "馬來西亞"
+        ],
+        "overseas_fields": [
+          {
+            "country": "馬來西亞",
+            "region": "東南亞",
+            "city": "",
+            "location": "砂勞越畢理學院",
+            "site_type": "教育／課程實踐",
+            "partner_type": "大專校院",
+            "period": "上半年",
+            "start_date": "2025-05-25",
+            "dates": [
+              "2025-05-25"
+            ]
           }
         ]
       },
@@ -2789,6 +3264,22 @@
         ],
         "overseas_countries": [
           "日本"
+        ],
+        "overseas_fields": [
+          {
+            "country": "日本",
+            "region": "東北亞",
+            "city": "奈良縣明日香村",
+            "location": "畿央大學",
+            "site_type": "社區／地方創生／服務學習",
+            "partner_type": "大專校院",
+            "period": "上下半年",
+            "start_date": "2025-05-14",
+            "dates": [
+              "2025-05-14",
+              "2025-05-14"
+            ]
+          }
         ]
       },
       "長庚大學：人工智慧與創新兒童早期療育與健康促進全方位計畫": {
@@ -3202,9 +3693,77 @@
           }
         ],
         "overseas_countries": [
-          "印尼",
+          "捷克",
           "日本",
           "馬來西亞"
+        ],
+        "overseas_fields": [
+          {
+            "country": "日本",
+            "region": "東北亞",
+            "city": "北海道",
+            "location": "北海道教育大學",
+            "site_type": "教育／課程實踐",
+            "partner_type": "大專校院",
+            "period": "上下半年",
+            "start_date": "2025-03-20",
+            "dates": [
+              "2025/03/20；2025/03/21；2025/07/08",
+              "2025/10/24；2025/11/05"
+            ]
+          },
+          {
+            "country": "馬來西亞",
+            "region": "東南亞",
+            "city": "馬來西亞",
+            "location": "拉曼大學",
+            "site_type": "教育／課程實踐",
+            "partner_type": "大專校院",
+            "period": "上半年",
+            "start_date": "2025-04-23",
+            "dates": [
+              "2025/04/23；2025/05/07；2025/05/14"
+            ]
+          },
+          {
+            "country": "馬來西亞",
+            "region": "東南亞",
+            "city": "馬來西亞",
+            "location": "拉曼大學與華文小學",
+            "site_type": "教育／課程實踐",
+            "partner_type": "大專校院",
+            "period": "上半年",
+            "start_date": "2025-06-07",
+            "dates": [
+              "2025-06-07"
+            ]
+          },
+          {
+            "country": "捷克",
+            "region": "歐洲",
+            "city": "布拉格",
+            "location": "布拉格正體中文學",
+            "site_type": "教育／課程實踐",
+            "partner_type": "教育機構／學校",
+            "period": "上半年",
+            "start_date": "2025-04-24",
+            "dates": [
+              "2025-04-24"
+            ]
+          },
+          {
+            "country": "捷克",
+            "region": "歐洲",
+            "city": "布拉格",
+            "location": "布拉格正體中文學校",
+            "site_type": "教育／課程實踐",
+            "partner_type": "中小學",
+            "period": "上半年",
+            "start_date": "2025-06-21",
+            "dates": [
+              "2025-06-21"
+            ]
+          }
         ]
       },
       "國立東華大學：智匯綠經濟合作永共融": {
@@ -3311,9 +3870,35 @@
           }
         ],
         "overseas_countries": [
-          "日本",
-          "緬甸",
           "馬來西亞"
+        ],
+        "overseas_fields": [
+          {
+            "country": "馬來西亞",
+            "region": "東南亞",
+            "city": "柔佛州峇株巴轄",
+            "location": "柔佛峇株巴轄華仁中學",
+            "site_type": "社區／地方創生／服務學習",
+            "partner_type": "中小學",
+            "period": "下半年",
+            "start_date": "2025-01-01",
+            "dates": [
+              "2025-01-01"
+            ]
+          },
+          {
+            "country": "馬來西亞",
+            "region": "東南亞",
+            "city": "柔佛州峇株巴轄",
+            "location": "柔佛州峇株巴轄華仁中學",
+            "site_type": "社區／地方創生／服務學習",
+            "partner_type": "中小學",
+            "period": "上半年",
+            "start_date": "2025-01-01",
+            "dates": [
+              "2025-01-01"
+            ]
+          }
         ]
       },
       "亞洲大學：永續高齡失智友善包容社區：數位創新x護智處方x社會共融": {
@@ -3385,6 +3970,86 @@
         ],
         "overseas_countries": [
           "日本"
+        ],
+        "overseas_fields": [
+          {
+            "country": "日本",
+            "region": "東北亞",
+            "city": "川崎市",
+            "location": "「クロスハート幸・川崎」特別養護老人ホーム",
+            "site_type": "海外實習／見習",
+            "partner_type": "醫療／照護／社福",
+            "period": "上半年",
+            "start_date": "2025-07-14",
+            "dates": [
+              "2025-07-14"
+            ]
+          },
+          {
+            "country": "日本",
+            "region": "東北亞",
+            "city": "橫濱市港南區",
+            "location": "「クロスハート港南・横浜」護理小規模多機能型居家照護(護小機)",
+            "site_type": "海外實習／見習",
+            "partner_type": "醫療／照護／社福",
+            "period": "上半年",
+            "start_date": "2025-07-13",
+            "dates": [
+              "2025-07-13"
+            ]
+          },
+          {
+            "country": "日本",
+            "region": "東北亞",
+            "city": "藤澤市",
+            "location": "「クロスハート石名坂・藤沢」介護付有料老人ホーム",
+            "site_type": "海外實習／見習",
+            "partner_type": "醫療／照護／社福",
+            "period": "上半年",
+            "start_date": "2025-07-15",
+            "dates": [
+              "2025-07-15"
+            ]
+          },
+          {
+            "country": "日本",
+            "region": "東北亞",
+            "city": "橫濱市磯子區",
+            "location": "「横浜市屏風ヶ浦地域ケアプラザについて」社區整合型照顧服務中心/日照",
+            "site_type": "海外實習／見習",
+            "partner_type": "企業／產業機構",
+            "period": "上半年",
+            "start_date": "2025-07-16",
+            "dates": [
+              "2025-07-16"
+            ]
+          },
+          {
+            "country": "日本",
+            "region": "東北亞",
+            "city": "橫濱",
+            "location": "「社会福祉法人伸こう福祉会」總部",
+            "site_type": "海外實習／見習",
+            "partner_type": "醫療／照護／社福",
+            "period": "上半年",
+            "start_date": "2025-07-12",
+            "dates": [
+              "2025-07-12"
+            ]
+          },
+          {
+            "country": "日本",
+            "region": "東北亞",
+            "city": "藤澤／橫濱地區",
+            "location": "日本橫濱葵照護(小規模多機能/失智症團體家屋/青銀共生宅(社區在宅醫療)",
+            "site_type": "社區／地方創生／服務學習",
+            "partner_type": "醫療／照護／社福",
+            "period": "上半年",
+            "start_date": "2025-07-18",
+            "dates": [
+              "2025-07-18"
+            ]
+          }
         ]
       },
       "國立中山大學：作為NATIVE博物館的霧台─原民社會自然文化共構之永續學習計畫": {
@@ -3460,6 +4125,25 @@
             "county": "花蓮縣",
             "district": "",
             "location": "織羅部落"
+          }
+        ],
+        "overseas_countries": [
+          "馬來西亞"
+        ],
+        "overseas_fields": [
+          {
+            "country": "馬來西亞",
+            "region": "東南亞",
+            "city": "馬來西亞",
+            "location": "馬來西亞上德門生態村",
+            "site_type": "工程／環境實作",
+            "partner_type": "企業／產業機構",
+            "period": "上下半年",
+            "start_date": "2025-02-01",
+            "dates": [
+              "2025-02-01",
+              "2025-08-01"
+            ]
           }
         ]
       },
@@ -3684,6 +4368,35 @@
         ],
         "overseas_countries": [
           "日本"
+        ],
+        "overseas_fields": [
+          {
+            "country": "日本",
+            "region": "東北亞",
+            "city": "",
+            "location": "香川大學",
+            "site_type": "移地參訪／合作規劃",
+            "partner_type": "大專校院",
+            "period": "上半年",
+            "start_date": "2025-07-08",
+            "dates": [
+              "2025-07-08"
+            ]
+          },
+          {
+            "country": "日本",
+            "region": "東北亞",
+            "city": "",
+            "location": "龍谷大學",
+            "site_type": "社區／地方創生／服務學習",
+            "partner_type": "大專校院",
+            "period": "上下半年",
+            "start_date": "2025-03-03",
+            "dates": [
+              "2025/03/03；2025/07/04",
+              "2025-09-02"
+            ]
+          }
         ]
       },
       "國立臺北大學：「海山學」的文化永續與社會實踐": {
@@ -3892,11 +4605,22 @@
           }
         ],
         "overseas_countries": [
-          "菲律賓",
-          "越南",
-          "日本",
-          "馬來西亞",
-          "印度"
+          "菲律賓"
+        ],
+        "overseas_fields": [
+          {
+            "country": "菲律賓",
+            "region": "東南亞",
+            "city": "多處社區",
+            "location": "菲律賓空中大學(UPOU)",
+            "site_type": "社區／環境教育／跨文化學習",
+            "partner_type": "大專校院",
+            "period": "下半年",
+            "start_date": "2025-03-20",
+            "dates": [
+              "2025-03-20"
+            ]
+          }
         ]
       },
       "國立成功大學：城鄉相伴健康永續生活·東亞連攜": {
@@ -4036,8 +4760,79 @@
           }
         ],
         "overseas_countries": [
+          "帛琉",
           "越南",
-          "泰國"
+          "馬來西亞"
+        ],
+        "overseas_fields": [
+          {
+            "country": "帛琉",
+            "region": "大洋洲",
+            "city": "科羅州",
+            "location": "帛琉科羅州收容所",
+            "site_type": "跨國社會實踐",
+            "partner_type": "醫療／照護／社福",
+            "period": "上下半年",
+            "start_date": "2025-01-01",
+            "dates": [
+              "2025-05-01",
+              "2025-01-01"
+            ]
+          },
+          {
+            "country": "越南",
+            "region": "東南亞",
+            "city": "河內",
+            "location": "越南國家農業大學",
+            "site_type": "農業／漁業／產業實作",
+            "partner_type": "大專校院",
+            "period": "上下半年",
+            "start_date": "2025-01-01",
+            "dates": [
+              "2025-01-01",
+              "2025-01-01"
+            ]
+          },
+          {
+            "country": "越南",
+            "region": "東南亞",
+            "city": "順化",
+            "location": "順化農林大學",
+            "site_type": "跨國社會實踐",
+            "partner_type": "大專校院",
+            "period": "上半年",
+            "start_date": "2025-01-01",
+            "dates": [
+              "2025-01-01"
+            ]
+          },
+          {
+            "country": "越南",
+            "region": "東南亞",
+            "city": "河內",
+            "location": "河內動物救援站 (Hanoi Agriculture Animal Rescue Station)",
+            "site_type": "社區／地方創生／服務學習",
+            "partner_type": "醫療／照護／社福",
+            "period": "上下半年",
+            "start_date": "2025-01-01",
+            "dates": [
+              "2025-01-01",
+              "2025-01-01"
+            ]
+          },
+          {
+            "country": "馬來西亞",
+            "region": "東南亞",
+            "city": "",
+            "location": "雪蘭莪防止虐待 動物協會(SPCA Selangor)",
+            "site_type": "教育／課程實踐",
+            "partner_type": "NGO／協會／基金會",
+            "period": "下半年",
+            "start_date": "2025-04-09",
+            "dates": [
+              "2025-04-09"
+            ]
+          }
         ]
       },
       "南華大學：擴展國際慢城學習－營造永續宜居城鄉生活": {
@@ -4069,8 +4864,93 @@
           }
         ],
         "overseas_countries": [
-          "泰國",
-          "韓國"
+          "泰國"
+        ],
+        "overseas_fields": [
+          {
+            "country": "泰國",
+            "region": "東南亞",
+            "city": "清邁地區",
+            "location": "Baan Donluang",
+            "site_type": "社區／地方創生／服務學習",
+            "partner_type": "企業／產業機構",
+            "period": "上下半年",
+            "start_date": "2022-01-01",
+            "dates": [
+              "2022-01-01",
+              "2022-01-01"
+            ]
+          },
+          {
+            "country": "泰國",
+            "region": "東南亞",
+            "city": "清邁地區",
+            "location": "Baan Tonhannoi",
+            "site_type": "社區／地方創生／服務學習",
+            "partner_type": "企業／產業機構",
+            "period": "上下半年",
+            "start_date": "2022-01-01",
+            "dates": [
+              "2022-01-01",
+              "2022-01-01"
+            ]
+          },
+          {
+            "country": "泰國",
+            "region": "東南亞",
+            "city": "清邁地區",
+            "location": "Chiangmai Celadon Doisaket",
+            "site_type": "社區／地方創生／服務學習",
+            "partner_type": "企業／產業機構",
+            "period": "上下半年",
+            "start_date": "2022-01-01",
+            "dates": [
+              "2022-01-01",
+              "2022-01-01"
+            ]
+          },
+          {
+            "country": "泰國",
+            "region": "東南亞",
+            "city": "清邁地區",
+            "location": "HOUSE ROAST",
+            "site_type": "海外實習／見習",
+            "partner_type": "社區／地方組織",
+            "period": "上下半年",
+            "start_date": "2021-01-01",
+            "dates": [
+              "2021-01-01",
+              "2021-01-01"
+            ]
+          },
+          {
+            "country": "泰國",
+            "region": "東南亞",
+            "city": "清邁地區",
+            "location": "SUN SIGHT ORGANIC FARMSTAY",
+            "site_type": "海外實習／見習",
+            "partner_type": "企業／產業機構",
+            "period": "上下半年",
+            "start_date": "2021-01-01",
+            "dates": [
+              "2021-01-01",
+              "2021-01-01"
+            ]
+          },
+          {
+            "country": "泰國",
+            "region": "東南亞",
+            "city": "泰國",
+            "location": "Sangrrun Drug Rehabilitation Center",
+            "site_type": "社區／地方創生／服務學習",
+            "partner_type": "企業／產業機構",
+            "period": "上下半年",
+            "start_date": "2025-06-25",
+            "dates": [
+              "2025-06-25",
+              "2025-06-25"
+            ]
+          }
         ]
       },
       "國立臺灣海洋大學：蔚藍新世代：深耕三漁、共創國際藍色經濟人才培育平台": {
@@ -4167,10 +5047,76 @@
           }
         ],
         "overseas_countries": [
-          "新加坡",
           "日本",
-          "菲律賓",
           "越南"
+        ],
+        "overseas_fields": [
+          {
+            "country": "日本",
+            "region": "東北亞",
+            "city": "",
+            "location": "高知大學",
+            "site_type": "跨國交流／其他",
+            "partner_type": "大專校院",
+            "period": "下半年",
+            "start_date": "2025-01-01",
+            "dates": [
+              "2025-01-01"
+            ]
+          },
+          {
+            "country": "日本",
+            "region": "東北亞",
+            "city": "愛媛縣松山市",
+            "location": "愛媛大學、松山市觀光局",
+            "site_type": "地方創生／見習",
+            "partner_type": "大專校院／地方政府",
+            "period": "前次整理補充",
+            "start_date": null,
+            "dates": []
+          },
+          {
+            "country": "越南",
+            "region": "東南亞",
+            "city": "芽莊",
+            "location": "芽莊大學",
+            "site_type": "農業／漁業／產業實作",
+            "partner_type": "大專校院",
+            "period": "上下半年",
+            "start_date": "2025-01-01",
+            "dates": [
+              "2025-01-01",
+              "2025-01-01"
+            ]
+          },
+          {
+            "country": "越南",
+            "region": "東南亞",
+            "city": "",
+            "location": "Nam Mien Trung",
+            "site_type": "海外實習／見習",
+            "partner_type": "其他機構",
+            "period": "上下半年",
+            "start_date": "2025-01-01",
+            "dates": [
+              "2025-01-01",
+              "2025-01-01"
+            ]
+          },
+          {
+            "country": "越南",
+            "region": "東南亞",
+            "city": "",
+            "location": "越南第3水產養殖研究所",
+            "site_type": "海外實習／見習",
+            "partner_type": "其他機構",
+            "period": "上下半年",
+            "start_date": "2025-01-01",
+            "dates": [
+              "2025-01-01",
+              "2025-01-01"
+            ]
+          }
         ]
       },
       "長榮大學：綠色社區根與芽行動計畫-從在地到國際": {
@@ -4195,8 +5141,127 @@
           }
         ],
         "overseas_countries": [
+          "印尼",
           "坦尚尼亞",
-          "印尼"
+          "日本"
+        ],
+        "overseas_fields": [
+          {
+            "country": "日本",
+            "region": "東北亞",
+            "city": "德島縣上勝町",
+            "location": "INOW Kamikatsu 上勝町",
+            "site_type": "教育／課程實踐",
+            "partner_type": "其他機構",
+            "period": "上下半年",
+            "start_date": "2025-05-08",
+            "dates": [
+              "2025-05-08",
+              "2025-08-01"
+            ]
+          },
+          {
+            "country": "印尼",
+            "region": "東南亞",
+            "city": "巴布亞",
+            "location": "UNIPA 巴布亞國立大學生態旅遊系所",
+            "site_type": "社區／地方創生／服務學習",
+            "partner_type": "大專校院",
+            "period": "上半年",
+            "start_date": "2025-07-04",
+            "dates": [
+              "2025-07-04"
+            ]
+          },
+          {
+            "country": "印尼",
+            "region": "東南亞",
+            "city": "巴布亞／西南巴布亞",
+            "location": "NGO Econusa Ecodefender",
+            "site_type": "健康照護／社福",
+            "partner_type": "NGO／協會／基金會",
+            "period": "上半年",
+            "start_date": "2025-02-01",
+            "dates": [
+              "2025-02-01"
+            ]
+          },
+          {
+            "country": "坦尚尼亞",
+            "region": "非洲",
+            "city": "",
+            "location": "Arusha Girls Secondary School",
+            "site_type": "健康／醫療／照護",
+            "partner_type": "教育機構／學校",
+            "period": "下半年",
+            "start_date": "2025-08-19",
+            "dates": [
+              "2025-08-19"
+            ]
+          },
+          {
+            "country": "坦尚尼亞",
+            "region": "非洲",
+            "city": "",
+            "location": "Kigoma Bubango Secondary School",
+            "site_type": "健康／醫療／照護",
+            "partner_type": "教育機構／學校",
+            "period": "下半年",
+            "start_date": "2025-08-15",
+            "dates": [
+              "2025-08-15"
+            ]
+          },
+          {
+            "country": "坦尚尼亞",
+            "region": "非洲",
+            "city": "",
+            "location": "Moshi 社區 Cyril Chami Secondary School",
+            "site_type": "健康／醫療／照護",
+            "partner_type": "教育機構／學校",
+            "period": "下半年",
+            "start_date": "2025-08-18",
+            "dates": [
+              "2025-08-18"
+            ]
+          },
+          {
+            "country": "坦尚尼亞",
+            "region": "非洲",
+            "city": "Dar es Salaam",
+            "location": "Dar es Salaam Roots & Shoots／根與芽辦公室",
+            "site_type": "環境教育／國際NGO",
+            "partner_type": "NGO／環境教育",
+            "period": "前次整理補充",
+            "start_date": null,
+            "dates": []
+          },
+          {
+            "country": "坦尚尼亞",
+            "region": "非洲",
+            "city": "",
+            "location": "Tankids Orphanage Center",
+            "site_type": "農業／漁業／產業",
+            "partner_type": "醫療／照護／社福",
+            "period": "下半年",
+            "start_date": "2025-08-12",
+            "dates": [
+              "2025-08-12"
+            ]
+          },
+          {
+            "country": "印尼",
+            "region": "東南亞",
+            "city": "",
+            "location": "Duta Wacana Christian University",
+            "site_type": "社區／地方創生／服務學習",
+            "partner_type": "大專校院",
+            "period": "上半年",
+            "start_date": "2025-03-12",
+            "dates": [
+              "2025-03-12"
+            ]
+          }
         ]
       },
       "國立暨南國際大學：水沙連區域產業永續發展計畫：地方創生x借鏡日本x連結泰國": {
@@ -4247,9 +5312,115 @@
           }
         ],
         "overseas_countries": [
-          "英國",
           "日本",
+          "英國",
           "越南"
+        ],
+        "overseas_fields": [
+          {
+            "country": "日本",
+            "region": "東北亞",
+            "city": "富山縣氷見市",
+            "location": "\"富山縣冰見市役所  \"",
+            "site_type": "社區／地方創生／服務學習",
+            "partner_type": "其他機構",
+            "period": "上半年",
+            "start_date": "2025-02-01",
+            "dates": [
+              "2025-02-01"
+            ]
+          },
+          {
+            "country": "日本",
+            "region": "東北亞",
+            "city": "富山縣氷見市",
+            "location": "冰見市役所",
+            "site_type": "社區／地方創生／服務學習",
+            "partner_type": "其他機構",
+            "period": "下半年",
+            "start_date": "2025-08-01",
+            "dates": [
+              "2025-08-01"
+            ]
+          },
+          {
+            "country": "日本",
+            "region": "東北亞",
+            "city": "北海道名寄市",
+            "location": "北海道名寄市役所",
+            "site_type": "社區／地方創生／服務學習",
+            "partner_type": "其他機構",
+            "period": "上半年",
+            "start_date": "2025-02-01",
+            "dates": [
+              "2025-02-01"
+            ]
+          },
+          {
+            "country": "日本",
+            "region": "東北亞",
+            "city": "富山縣氷見市",
+            "location": "氷見市國際交流協會",
+            "site_type": "社區／地方創生／服務學習",
+            "partner_type": "NGO／協會／基金會",
+            "period": "上半年",
+            "start_date": "2025-02-01",
+            "dates": [
+              "2025-02-01"
+            ]
+          },
+          {
+            "country": "越南",
+            "region": "東南亞",
+            "city": "",
+            "location": "胡志明市國家大學下屬社會科學與人文大學",
+            "site_type": "跨國交流／其他",
+            "partner_type": "大專校院",
+            "period": "下半年",
+            "start_date": "2025-11-01",
+            "dates": [
+              "2025-11-01"
+            ]
+          },
+          {
+            "country": "英國",
+            "region": "歐洲",
+            "city": "Farnham",
+            "location": "創意藝術大學",
+            "site_type": "跨國社會實踐",
+            "partner_type": "大專校院",
+            "period": "上下半年",
+            "start_date": "2019-08-01",
+            "dates": [
+              "2019-08-01",
+              "2025-08-01"
+            ]
+          },
+          {
+            "country": "英國",
+            "region": "歐洲",
+            "city": "Farnham",
+            "location": "Farnham Repair Café",
+            "site_type": "社區／循環經濟／永續設計",
+            "partner_type": "社區／循環經濟",
+            "period": "前次整理補充",
+            "start_date": null,
+            "dates": []
+          },
+          {
+            "country": "英國",
+            "region": "歐洲",
+            "city": "",
+            "location": "英國永續創新實驗室",
+            "site_type": "環境／永續",
+            "partner_type": "NGO／協會／基金會",
+            "period": "上下半年",
+            "start_date": "2025-02-01",
+            "dates": [
+              "2025-02-01",
+              "2025-08-01"
+            ]
+          }
         ]
       },
       "中原大學：流動與鏈結的再發展：桃園埤圳水文化環境的共生發展與國際合作": {
@@ -4573,6 +5744,19 @@
         ],
         "overseas_countries": [
           "日本"
+        ],
+        "overseas_fields": [
+          {
+            "country": "日本",
+            "region": "東北亞",
+            "city": "德島",
+            "location": "日本德島USR移地研究場域",
+            "site_type": "移地研究／地方實踐",
+            "partner_type": "研究／地方實踐場域",
+            "period": "前次整理補充",
+            "start_date": null,
+            "dates": []
+          }
         ]
       },
       "國立臺灣大學：尋找雲林農村生命力–永續農村營造計畫": {
@@ -4637,11 +5821,23 @@
           }
         ],
         "overseas_countries": [
-          "印尼",
-          "日本",
-          "泰國",
-          "菲律賓",
           "越南"
+        ],
+        "overseas_fields": [
+          {
+            "country": "越南",
+            "region": "東南亞",
+            "city": "河內、胡志明市及其他城市",
+            "location": "胡志明市國家大學社會科學與人文大學",
+            "site_type": "田野調查／移地研究",
+            "partner_type": "大專校院",
+            "period": "上下半年",
+            "start_date": "2025-01-01",
+            "dates": [
+              "2025-01-01",
+              "2025-01-01"
+            ]
+          }
         ]
       },
       "國立東華大學：比鄰共好：柔韌永續實踐計畫": {
@@ -5152,6 +6348,25 @@
             "district": "北投區",
             "location": "臺北榮民總醫院"
           }
+        ],
+        "overseas_countries": [
+          "印尼"
+        ],
+        "overseas_fields": [
+          {
+            "country": "印尼",
+            "region": "東南亞",
+            "city": "雅加達",
+            "location": "雅加達臺灣學校",
+            "site_type": "教育／課程實踐",
+            "partner_type": "中小學",
+            "period": "上下半年",
+            "start_date": "2025-01-01",
+            "dates": [
+              "2025-02-01",
+              "2025-01-01"
+            ]
+          }
         ]
       },
       "弘光科技大學：海線創生-高美里海倡議社會實踐": {
@@ -5195,6 +6410,24 @@
             "county": "雲林縣",
             "district": "崙背鄉",
             "location": "陽明國小"
+          }
+        ],
+        "overseas_countries": [
+          "菲律賓"
+        ],
+        "overseas_fields": [
+          {
+            "country": "菲律賓",
+            "region": "東南亞",
+            "city": "宿霧",
+            "location": "宿霧合作水產養殖場(OVERSEAS CO., LTD)",
+            "site_type": "農業／漁業／產業實作",
+            "partner_type": "其他機構",
+            "period": "上半年",
+            "start_date": "2025-06-01",
+            "dates": [
+              "2025-06-01"
+            ]
           }
         ]
       },
@@ -5254,8 +6487,22 @@
           }
         ],
         "overseas_countries": [
-          "日本",
-          "越南"
+          "日本"
+        ],
+        "overseas_fields": [
+          {
+            "country": "日本",
+            "region": "東北亞",
+            "city": "",
+            "location": "株式会社八王子薬剤センター",
+            "site_type": "海外實習／見習",
+            "partner_type": "醫療／照護／社福",
+            "period": "下半年",
+            "start_date": "2026-01-19",
+            "dates": [
+              "2026-01-19"
+            ]
+          }
         ]
       },
       "台北海洋科技大學：銀照靚亮淡海~深化在地青銀樂活俱樂部-共創共學實踐推動計畫": {
@@ -5939,8 +7186,22 @@
           }
         ],
         "overseas_countries": [
-          "法國",
           "菲律賓"
+        ],
+        "overseas_fields": [
+          {
+            "country": "菲律賓",
+            "region": "東南亞",
+            "city": "",
+            "location": "Gawad Kalinga",
+            "site_type": "教育／課程實踐",
+            "partner_type": "社區／地方組織",
+            "period": "下半年",
+            "start_date": "2025-08-01",
+            "dates": [
+              "2025-08-01"
+            ]
+          }
         ]
       },
       "嘉南藥理大學：西港風‧敘事雲：智慧科技永續西港生活文化": {
@@ -5982,6 +7243,25 @@
             "county": "臺南市",
             "district": "",
             "location": "金砂里活動中心"
+          }
+        ],
+        "overseas_countries": [
+          "日本"
+        ],
+        "overseas_fields": [
+          {
+            "country": "日本",
+            "region": "東北亞",
+            "city": "北海道網走市",
+            "location": "東京農業大學",
+            "site_type": "社區／地方創生／服務學習",
+            "partner_type": "大專校院",
+            "period": "上下半年",
+            "start_date": "2025-08-28",
+            "dates": [
+              "2025-08-28",
+              "2025-08-28"
+            ]
           }
         ]
       },
@@ -6821,7 +8101,23 @@
           }
         ],
         "overseas_countries": [
-          "日本"
+          "韓國"
+        ],
+        "overseas_fields": [
+          {
+            "country": "韓國",
+            "region": "東北亞",
+            "city": "",
+            "location": "濟州國立大學",
+            "site_type": "工程／防災／環境實作",
+            "partner_type": "大專校院",
+            "period": "上下半年",
+            "start_date": "2025-06-20",
+            "dates": [
+              "2025-06-20",
+              "2025/12/25；2026/01/12"
+            ]
+          }
         ]
       },
       "樹德科技大學：智慧城市之淨零轉型與電動運具科普推廣實踐計畫": {
@@ -7019,6 +8315,21 @@
         ],
         "overseas_countries": [
           "馬來西亞"
+        ],
+        "overseas_fields": [
+          {
+            "country": "馬來西亞",
+            "region": "東南亞",
+            "city": "馬六甲、吉隆坡",
+            "location": "馬六甲河流協會（PPSPM）",
+            "site_type": "社區／地方創生／服務學習",
+            "partner_type": "NGO／協會／基金會",
+            "period": "上半年",
+            "start_date": "2025-07-01",
+            "dates": [
+              "2025-07-01"
+            ]
+          }
         ]
       },
       "東南科技大學：樂齡樂活：跨世代交流服務培力計畫": {
@@ -7357,6 +8668,39 @@
             "district": "",
             "location": "嘉泰社區寶貝學堂"
           }
+        ],
+        "overseas_countries": [
+          "日本"
+        ],
+        "overseas_fields": [
+          {
+            "country": "日本",
+            "region": "東北亞",
+            "city": "",
+            "location": "河原醫療福祉專門學校",
+            "site_type": "海外實習／見習",
+            "partner_type": "中小學",
+            "period": "上下半年",
+            "start_date": "2025-07-07",
+            "dates": [
+              "2025-07-07",
+              "2025-07-07"
+            ]
+          },
+          {
+            "country": "日本",
+            "region": "東北亞",
+            "city": "",
+            "location": "愛媛縣東溫市的「社會福祉法人喜久壽」照護機構總部「ウェルケア重信(wecare重信)」、松山市分部「ウェルケア畑寺」",
+            "site_type": "海外實習／見習",
+            "partner_type": "醫療／照護／社福",
+            "period": "上下半年",
+            "start_date": "2025-07-08",
+            "dates": [
+              "2025-07-08",
+              "2025-07-08"
+            ]
+          }
         ]
       },
       "致理科技大學：女王的呼召—萬金國際旅遊在地共生循環帶": {
@@ -7463,6 +8807,36 @@
         ],
         "overseas_countries": [
           "馬來西亞"
+        ],
+        "overseas_fields": [
+          {
+            "country": "馬來西亞",
+            "region": "東南亞",
+            "city": "檳城喬治市",
+            "location": "檳城赤道藝術學院",
+            "site_type": "文化遺產／氣候韌性",
+            "partner_type": "大專校院",
+            "period": "上下半年",
+            "start_date": "2025-02-01",
+            "dates": [
+              "2025-02-01",
+              "2025-09-01"
+            ]
+          },
+          {
+            "country": "馬來西亞",
+            "region": "東南亞",
+            "city": "檳城喬治市",
+            "location": "檳城古蹟信託會",
+            "site_type": "文化遺產／氣候韌性",
+            "partner_type": "文化／教育／宗教機構",
+            "period": "上下半年",
+            "start_date": "2025-02-01",
+            "dates": [
+              "2025-02-01",
+              "2025-09-01"
+            ]
+          }
         ]
       },
       "明志科技大學：北臺首學帶狀文物館深耕延續計畫": {
@@ -7511,6 +8885,138 @@
         ],
         "overseas_countries": [
           "馬來西亞"
+        ],
+        "overseas_fields": [
+          {
+            "country": "馬來西亞",
+            "region": "東南亞",
+            "city": "馬來西亞",
+            "location": "Keen's Kitchen",
+            "site_type": "跨國社會實踐",
+            "partner_type": "其他機構",
+            "period": "上半年",
+            "start_date": "2025-07-31",
+            "dates": [
+              "2025-07-31"
+            ]
+          },
+          {
+            "country": "馬來西亞",
+            "region": "東南亞",
+            "city": "馬來西亞",
+            "location": "P Lab 地方創生實驗室",
+            "site_type": "社區／地方創生／服務學習",
+            "partner_type": "其他機構",
+            "period": "上半年",
+            "start_date": "2025-02-01",
+            "dates": [
+              "2025-02-01"
+            ]
+          },
+          {
+            "country": "馬來西亞",
+            "region": "東南亞",
+            "city": "馬來西亞",
+            "location": "人人人鼓劇場",
+            "site_type": "社區／地方創生／服務學習",
+            "partner_type": "社區／地方組織",
+            "period": "上半年",
+            "start_date": "2025-07-31",
+            "dates": [
+              "2025-07-31"
+            ]
+          },
+          {
+            "country": "馬來西亞",
+            "region": "東南亞",
+            "city": "十八丁",
+            "location": "再見十八丁",
+            "site_type": "社區／地方創生／服務學習",
+            "partner_type": "社區／地方組織",
+            "period": "上半年",
+            "start_date": "2025-02-01",
+            "dates": [
+              "2025-02-01"
+            ]
+          },
+          {
+            "country": "馬來西亞",
+            "region": "東南亞",
+            "city": "馬來西亞",
+            "location": "山城六堡茶莊",
+            "site_type": "農業／漁業／產業實作",
+            "partner_type": "其他機構",
+            "period": "上半年",
+            "start_date": "2025-07-31",
+            "dates": [
+              "2025-07-31"
+            ]
+          },
+          {
+            "country": "馬來西亞",
+            "region": "東南亞",
+            "city": "馬來西亞",
+            "location": "擺渡人藝術空間",
+            "site_type": "教育／課程實踐",
+            "partner_type": "社區／地方組織",
+            "period": "上半年",
+            "start_date": "2025-02-01",
+            "dates": [
+              "2025-02-01"
+            ]
+          },
+          {
+            "country": "馬來西亞",
+            "region": "東南亞",
+            "city": "甲板新村",
+            "location": "甲板文史小組",
+            "site_type": "海外實習／見習",
+            "partner_type": "社區／地方組織",
+            "period": "上半年",
+            "start_date": "2025-07-31",
+            "dates": [
+              "2025-07-31"
+            ]
+          },
+          {
+            "country": "馬來西亞",
+            "region": "東南亞",
+            "city": "馬來西亞",
+            "location": "萬豐珠寶製造有限公司",
+            "site_type": "跨國社會實踐",
+            "partner_type": "企業／產業機構",
+            "period": "上半年",
+            "start_date": "2025-07-31",
+            "dates": [
+              "2025-07-31"
+            ]
+          },
+          {
+            "country": "馬來西亞",
+            "region": "東南亞",
+            "city": "馬來西亞",
+            "location": "陶捷坊陶艺工作室",
+            "site_type": "文化／藝術／環境教育",
+            "partner_type": "其他機構",
+            "period": "上半年",
+            "start_date": "2025-07-31",
+            "dates": [
+              "2025-07-31"
+            ]
+          },
+          {
+            "country": "馬來西亞",
+            "region": "東南亞",
+            "city": "馬來西亞",
+            "location": "黎明殘障者訓練中心",
+            "site_type": "海外實習／見習",
+            "partner_type": "企業／產業機構",
+            "period": "上半年",
+            "start_date": "2025-07-31",
+            "dates": [
+              "2025-07-31"
+            ]
+          }
         ]
       },
       "明新科技大學：賽夏族喇魯瑪(raromaeh)竹文化產業孵創計畫": {
@@ -7522,6 +9028,25 @@
             "county": "新竹縣",
             "district": "五峰鄉",
             "location": "上大隘部落(山莎蔓岸部落)"
+          }
+        ],
+        "overseas_countries": [
+          "日本"
+        ],
+        "overseas_fields": [
+          {
+            "country": "日本",
+            "region": "東北亞",
+            "city": "京都府龜岡市",
+            "location": "龜岡市市政府",
+            "site_type": "文化／藝術／環境教育",
+            "partner_type": "政府／公部門",
+            "period": "上下半年",
+            "start_date": "2025-02-12",
+            "dates": [
+              "2025-02-12",
+              "2025-02-12"
+            ]
           }
         ]
       },
@@ -7840,7 +9365,23 @@
           }
         ],
         "overseas_countries": [
-          "馬來西亞"
+          "日本"
+        ],
+        "overseas_fields": [
+          {
+            "country": "日本",
+            "region": "東北亞",
+            "city": "日本",
+            "location": "龍谷大學",
+            "site_type": "社區／地方創生／服務學習",
+            "partner_type": "大專校院",
+            "period": "上下半年",
+            "start_date": "2025-07-07",
+            "dates": [
+              "2025-07-07",
+              "2025-07-07"
+            ]
+          }
         ]
       },
       "致理科技大學：3R(USRΧCSRΧPSR)建構超高齡社會互助心價值": {
@@ -7910,8 +9451,105 @@
         "overseas_countries": [
           "尼泊爾",
           "日本",
-          "英國",
           "泰國"
+        ],
+        "overseas_fields": [
+          {
+            "country": "尼泊爾",
+            "region": "南亞",
+            "city": "",
+            "location": "社團法人珠珠媽媽兒童教育關懷協會",
+            "site_type": "工程／環境實作",
+            "partner_type": "NGO／協會／基金會",
+            "period": "上半年",
+            "start_date": "2025-02-01",
+            "dates": [
+              "2025-02-01"
+            ]
+          },
+          {
+            "country": "尼泊爾",
+            "region": "南亞",
+            "city": "",
+            "location": "社團法人臺北市珠珠媽媽兒童教育關懷協會",
+            "site_type": "工程／環境實作",
+            "partner_type": "NGO／協會／基金會",
+            "period": "下半年",
+            "start_date": "2025-08-01",
+            "dates": [
+              "2025-08-01"
+            ]
+          },
+          {
+            "country": "尼泊爾",
+            "region": "南亞",
+            "city": "",
+            "location": "加德滿都大學",
+            "site_type": "跨國社會實踐",
+            "partner_type": "大專校院",
+            "period": "上下半年",
+            "start_date": "2025-02-01",
+            "dates": [
+              "2025-02-01",
+              "2025-08-01"
+            ]
+          },
+          {
+            "country": "尼泊爾",
+            "region": "南亞",
+            "city": "",
+            "location": "特里布萬大學",
+            "site_type": "跨國社會實踐",
+            "partner_type": "大專校院",
+            "period": "上下半年",
+            "start_date": "2025-02-01",
+            "dates": [
+              "2025-02-01",
+              "2025-08-01"
+            ]
+          },
+          {
+            "country": "日本",
+            "region": "東北亞",
+            "city": "",
+            "location": "九州大學",
+            "site_type": "跨國社會實踐",
+            "partner_type": "大專校院",
+            "period": "上下半年",
+            "start_date": "2025-02-01",
+            "dates": [
+              "2025-02-01",
+              "2025-08-01"
+            ]
+          },
+          {
+            "country": "日本",
+            "region": "東北亞",
+            "city": "",
+            "location": "大阪工業大學",
+            "site_type": "跨國社會實踐",
+            "partner_type": "大專校院",
+            "period": "上下半年",
+            "start_date": "2025-02-01",
+            "dates": [
+              "2025-02-01",
+              "2025-08-01"
+            ]
+          },
+          {
+            "country": "泰國",
+            "region": "東南亞",
+            "city": "",
+            "location": "旺庫特國王科技大學",
+            "site_type": "跨國社會實踐",
+            "partner_type": "大專校院",
+            "period": "上下半年",
+            "start_date": "2025-02-01",
+            "dates": [
+              "2025-02-01",
+              "2025-08-01"
+            ]
+          }
         ]
       },
       "長庚科技大學：在地扎根.社會共生-優質教育、代間共融、AI智慧療育計畫": {
@@ -8176,6 +9814,21 @@
         ],
         "overseas_countries": [
           "日本"
+        ],
+        "overseas_fields": [
+          {
+            "country": "日本",
+            "region": "東北亞",
+            "city": "",
+            "location": "鞄いたがき（itagaki）",
+            "site_type": "文化／藝術／環境教育",
+            "partner_type": "文化／教育／宗教機構",
+            "period": "上半年",
+            "start_date": "2025-02-01",
+            "dates": [
+              "2025-02-01"
+            ]
+          }
         ]
       },
       "朝陽科技大學：\"農安紮根豐味深釀\"崙元廊道共學增韌擴散計畫": {
@@ -8269,6 +9922,24 @@
             "county": "臺南市",
             "district": "官田區",
             "location": "臺南市官田區隆田國民小學"
+          }
+        ],
+        "overseas_countries": [
+          "印尼"
+        ],
+        "overseas_fields": [
+          {
+            "country": "印尼",
+            "region": "東南亞",
+            "city": "",
+            "location": "塔魯瑪迦大學(UNTAR)",
+            "site_type": "海外實習／見習",
+            "partner_type": "大專校院",
+            "period": "上半年",
+            "start_date": "2016-11-17",
+            "dates": [
+              "2016-11-17"
+            ]
           }
         ]
       },
@@ -8561,6 +10232,125 @@
         ],
         "overseas_countries": [
           "印尼"
+        ],
+        "overseas_fields": [
+          {
+            "country": "印尼",
+            "region": "東南亞",
+            "city": "印尼",
+            "location": "壇庫壇布沙英雄大學(Universitas Pahlawan Tuanku Tambusai,UP)",
+            "site_type": "健康照護／社福",
+            "partner_type": "大專校院",
+            "period": "下半年",
+            "start_date": "2025-12-04",
+            "dates": [
+              "2025-12-04"
+            ]
+          },
+          {
+            "country": "印尼",
+            "region": "東南亞",
+            "city": "印尼",
+            "location": "布拉維賈亞大學(Universitas Brawijaya)",
+            "site_type": "健康照護／社福",
+            "partner_type": "大專校院",
+            "period": "上半年",
+            "start_date": "2025-07-09",
+            "dates": [
+              "2025-07-09"
+            ]
+          },
+          {
+            "country": "印尼",
+            "region": "東南亞",
+            "city": "印尼",
+            "location": "芭拉旺大學（Universitas Pahlawan Tuanku Tambusai, UP）",
+            "site_type": "健康照護／社福",
+            "partner_type": "大專校院",
+            "period": "上半年",
+            "start_date": "2025-07-09",
+            "dates": [
+              "2025-07-09"
+            ]
+          },
+          {
+            "country": "印尼",
+            "region": "東南亞",
+            "city": "XIII Koto Kampar",
+            "location": "初級衛生保健中心 （Puskesmas Pulau Gadang, XIII Koto Kampar）",
+            "site_type": "社區／地方創生／服務學習",
+            "partner_type": "政府／公部門",
+            "period": "上半年",
+            "start_date": "2025-07-09",
+            "dates": [
+              "2025-07-09"
+            ]
+          },
+          {
+            "country": "印尼",
+            "region": "東南亞",
+            "city": "印尼",
+            "location": "印尼國家護理師協會（Indonesian National Nurses Association, INNA）",
+            "site_type": "健康照護／社福",
+            "partner_type": "NGO／協會／基金會",
+            "period": "上半年",
+            "start_date": "2025-07-09",
+            "dates": [
+              "2025-07-09"
+            ]
+          },
+          {
+            "country": "印尼",
+            "region": "東南亞",
+            "city": "北干巴魯市",
+            "location": "廖內省私人居家護理機構(Che Homecare)",
+            "site_type": "健康照護／社福",
+            "partner_type": "醫療／照護／社福",
+            "period": "上半年",
+            "start_date": "2025-07-09",
+            "dates": [
+              "2025-07-09"
+            ]
+          },
+          {
+            "country": "印尼",
+            "region": "東南亞",
+            "city": "北干巴魯市",
+            "location": "廖內省老人照護中心 (Elderly Care Facility, Pekanbaru city)",
+            "site_type": "社區／地方創生／服務學習",
+            "partner_type": "醫療／照護／社福",
+            "period": "上半年",
+            "start_date": "2025-07-09",
+            "dates": [
+              "2025-07-09"
+            ]
+          },
+          {
+            "country": "印尼",
+            "region": "東南亞",
+            "city": "Kampar",
+            "location": "甘榜縣衛生局及PPNI Kampar",
+            "site_type": "社區／地方創生／服務學習",
+            "partner_type": "NGO／協會／基金會",
+            "period": "上半年",
+            "start_date": "2025-07-09",
+            "dates": [
+              "2025-07-09"
+            ]
+          },
+          {
+            "country": "印尼",
+            "region": "東南亞",
+            "city": "印尼",
+            "location": "移工訓練與派遣機構（Citra Nusa Karya Semesta, CNKS）",
+            "site_type": "健康照護／社福",
+            "partner_type": "醫療／照護／社福",
+            "period": "上半年",
+            "start_date": "2025-07-09",
+            "dates": [
+              "2025-07-09"
+            ]
+          }
         ]
       },
       "明志科技大學：Co-opDesign：走出三角湧之社區文化智慧與國際培力": {
@@ -8628,7 +10418,101 @@
         ],
         "overseas_countries": [
           "印尼",
+          "日本",
           "越南"
+        ],
+        "overseas_fields": [
+          {
+            "country": "日本",
+            "region": "東北亞",
+            "city": "奈良縣川上村",
+            "location": "Osaka Institute of Technology (大阪工業大學)",
+            "site_type": "工程／環境實作",
+            "partner_type": "大專校院",
+            "period": "下半年",
+            "start_date": "2024-01-01",
+            "dates": [
+              "2024-01-01"
+            ]
+          },
+          {
+            "country": "日本",
+            "region": "東北亞",
+            "city": "奈良縣川上村",
+            "location": "大阪工業大學",
+            "site_type": "工程／環境實作",
+            "partner_type": "大專校院",
+            "period": "上半年",
+            "start_date": "2025-01-01",
+            "dates": [
+              "2025-01-01"
+            ]
+          },
+          {
+            "country": "印尼",
+            "region": "東南亞",
+            "city": "泗水周邊",
+            "location": "Widya Mandala Catholic University (威第曼德拉天主教大學)",
+            "site_type": "工程／環境實作",
+            "partner_type": "大專校院",
+            "period": "下半年",
+            "start_date": "2019-01-01",
+            "dates": [
+              "2019-01-01"
+            ]
+          },
+          {
+            "country": "印尼",
+            "region": "東南亞",
+            "city": "Mojokerto／泗水周邊",
+            "location": "印尼泗水理工學院",
+            "site_type": "工程／環境實作",
+            "partner_type": "大專校院",
+            "period": "上半年",
+            "start_date": "2025-01-01",
+            "dates": [
+              "2025-01-01"
+            ]
+          },
+          {
+            "country": "印尼",
+            "region": "東南亞",
+            "city": "泗水周邊",
+            "location": "威第曼德拉天主教大學",
+            "site_type": "工程／環境實作",
+            "partner_type": "大專校院",
+            "period": "上半年",
+            "start_date": "2025-01-01",
+            "dates": [
+              "2025-01-01"
+            ]
+          },
+          {
+            "country": "越南",
+            "region": "東南亞",
+            "city": "芹苴市",
+            "location": "Can Tho University (芹苴大學)",
+            "site_type": "工程／環境實作",
+            "partner_type": "大專校院",
+            "period": "下半年",
+            "start_date": "2019-01-01",
+            "dates": [
+              "2019-01-01"
+            ]
+          },
+          {
+            "country": "越南",
+            "region": "東南亞",
+            "city": "芹苴市",
+            "location": "芹苴大學",
+            "site_type": "工程／環境實作",
+            "partner_type": "大專校院",
+            "period": "上半年",
+            "start_date": "2025-01-01",
+            "dates": [
+              "2025-01-01"
+            ]
+          }
         ]
       },
       "朝陽科技大學：「幼老共園」示範基地的建立與實踐的擴散": {
@@ -8970,6 +10854,334 @@
             "county": "雲林縣",
             "district": "",
             "location": ""
+          }
+        ]
+      },
+      "中華大學：驛動新埔 – 代間共學 以樹養老 USR x CSR的綠色承諾": {
+        "overseas_countries": [
+          "澳洲"
+        ],
+        "overseas_fields": [
+          {
+            "country": "澳洲",
+            "region": "大洋洲",
+            "city": "坎培拉",
+            "location": "創意設計工程工作室(IDC studio)",
+            "site_type": "海外實習／見習",
+            "partner_type": "企業／產業機構",
+            "period": "上下半年",
+            "start_date": "2025-02-01",
+            "dates": [
+              "2025-02-01",
+              "2025-08-01"
+            ]
+          }
+        ]
+      },
+      "國立暨南國際大學：水沙連區域產業永續發展計畫：地方創生 x 借鏡日本 x 連結泰國": {
+        "overseas_countries": [
+          "日本",
+          "泰國",
+          "緬甸",
+          "馬來西亞"
+        ],
+        "overseas_fields": [
+          {
+            "country": "日本",
+            "region": "東北亞",
+            "city": "千葉",
+            "location": "千葉大學",
+            "site_type": "教育／課程實踐",
+            "partner_type": "大專校院",
+            "period": "上半年",
+            "start_date": "2025-03-15",
+            "dates": [
+              "2025-03-15"
+            ]
+          },
+          {
+            "country": "日本",
+            "region": "東北亞",
+            "city": "京都",
+            "location": "龍谷大學",
+            "site_type": "教育／課程實踐",
+            "partner_type": "大專校院",
+            "period": "上半年",
+            "start_date": "2025-04-20",
+            "dates": [
+              "2025-04-20"
+            ]
+          },
+          {
+            "country": "泰國",
+            "region": "東南亞",
+            "city": "",
+            "location": "清邁大學",
+            "site_type": "海外實習／見習",
+            "partner_type": "大專校院",
+            "period": "上下半年",
+            "start_date": "2025-05-28",
+            "dates": [
+              "2025-05-28",
+              "2025/09/15；2025/11/30"
+            ]
+          },
+          {
+            "country": "泰國",
+            "region": "東南亞",
+            "city": "清萊",
+            "location": "清萊方舟咖啡農場",
+            "site_type": "農業／漁業／產業實作",
+            "partner_type": "企業／產業機構",
+            "period": "上半年",
+            "start_date": "2025-05-31",
+            "dates": [
+              "2025-05-31"
+            ]
+          },
+          {
+            "country": "緬甸",
+            "region": "東南亞",
+            "city": "",
+            "location": "國際咖啡婦女協會緬甸分會",
+            "site_type": "農業／漁業／產業實作",
+            "partner_type": "NGO／協會／基金會",
+            "period": "上半年",
+            "start_date": "2025-02-10",
+            "dates": [
+              "2025-02-10"
+            ]
+          },
+          {
+            "country": "馬來西亞",
+            "region": "東南亞",
+            "city": "",
+            "location": "拉曼理工大學沙巴分校",
+            "site_type": "教育／課程實踐",
+            "partner_type": "大專校院",
+            "period": "上半年",
+            "start_date": "2025-01-08",
+            "dates": [
+              "2025-01-08"
+            ]
+          },
+          {
+            "country": "馬來西亞",
+            "region": "東南亞",
+            "city": "",
+            "location": "沙巴大學",
+            "site_type": "工程／環境實作",
+            "partner_type": "大專校院",
+            "period": "上半年",
+            "start_date": "2025-01-08",
+            "dates": [
+              "2025-01-08"
+            ]
+          },
+          {
+            "country": "馬來西亞",
+            "region": "東南亞",
+            "city": "沙巴丹南",
+            "location": "丹南農業局",
+            "site_type": "農業／漁業／產業實作",
+            "partner_type": "其他機構",
+            "period": "上半年",
+            "start_date": "2025-01-07",
+            "dates": [
+              "2025-01-07"
+            ]
+          },
+          {
+            "country": "馬來西亞",
+            "region": "東南亞",
+            "city": "沙巴",
+            "location": "沙巴旅遊局",
+            "site_type": "跨國社會實踐",
+            "partner_type": "其他機構",
+            "period": "上半年",
+            "start_date": "2025-01-08",
+            "dates": [
+              "2025-01-08"
+            ]
+          },
+          {
+            "country": "馬來西亞",
+            "region": "東南亞",
+            "city": "沙巴",
+            "location": "馬來西亞人才培育暨產學合作協會",
+            "site_type": "農業／漁業／產業實作",
+            "partner_type": "NGO／協會／基金會",
+            "period": "上半年",
+            "start_date": "2025-01-05",
+            "dates": [
+              "2025-01-05"
+            ]
+          },
+          {
+            "country": "馬來西亞",
+            "region": "東南亞",
+            "city": "",
+            "location": "馬來西亞沙巴旅遊局",
+            "site_type": "農業／漁業／產業實作",
+            "partner_type": "NGO／協會／基金會",
+            "period": "上半年",
+            "start_date": "2025-04-29",
+            "dates": [
+              "2025-04-29"
+            ]
+          }
+        ]
+      },
+      "國立屏東科技大學：里山根經濟2.0- 林下經濟、生態旅遊的聯盟發展 與農林地碳匯人才育成": {
+        "overseas_countries": [
+          "印尼"
+        ],
+        "overseas_fields": [
+          {
+            "country": "印尼",
+            "region": "東南亞",
+            "city": "印尼",
+            "location": "印尼生態旅遊網絡（INDECON）",
+            "site_type": "社區／地方創生／服務學習",
+            "partner_type": "文化／教育／宗教機構",
+            "period": "上下半年",
+            "start_date": "2025-01-01",
+            "dates": [
+              "2025-01-01",
+              "2025-08-01"
+            ]
+          }
+        ]
+      },
+      "國立成功大學：城鄉相伴健康永續生活 · 東亞連攜": {
+        "overseas_countries": [
+          "印尼",
+          "新加坡"
+        ],
+        "overseas_fields": [
+          {
+            "country": "印尼",
+            "region": "東南亞",
+            "city": "",
+            "location": "印尼大學",
+            "site_type": "社區／地方創生／服務學習",
+            "partner_type": "大專校院",
+            "period": "上下半年",
+            "start_date": "2025-06-18",
+            "dates": [
+              "2025-06-18",
+              "2025-08-07"
+            ]
+          },
+          {
+            "country": "新加坡",
+            "region": "東南亞",
+            "city": "",
+            "location": "新加坡社科大學",
+            "site_type": "健康照護／社福",
+            "partner_type": "大專校院",
+            "period": "上半年",
+            "start_date": "2025-01-01",
+            "dates": [
+              "2025-01-01"
+            ]
+          }
+        ]
+      },
+      "文藻外語大學：「SDGs」看見需要·千手扶學 - 與AI藝起開創的幸福實課": {
+        "overseas_countries": [
+          "馬來西亞"
+        ],
+        "overseas_fields": [
+          {
+            "country": "馬來西亞",
+            "region": "東南亞",
+            "city": "",
+            "location": "博特拉大學",
+            "site_type": "教育／課程實踐",
+            "partner_type": "大專校院",
+            "period": "下半年",
+            "start_date": "2025-01-01",
+            "dates": [
+              "2025-01-01"
+            ]
+          }
+        ]
+      },
+      "樹德科技大學：青銀共創 活躍老化-高齡友善社區之實踐": {
+        "overseas_countries": [
+          "馬來西亞"
+        ],
+        "overseas_fields": [
+          {
+            "country": "馬來西亞",
+            "region": "東南亞",
+            "city": "",
+            "location": "不惑生命學苑",
+            "site_type": "海外實習／見習",
+            "partner_type": "NGO／協會／基金會",
+            "period": "上下半年",
+            "start_date": "2025-02-01",
+            "dates": [
+              "2025-02-01",
+              "2025-08-01"
+            ]
+          }
+        ]
+      },
+      "國立屏東大學：讓生命不同凡「想」-身心障礙成人服務的韌力 (Resilience) 與再創 (Regeneration)": {
+        "overseas_countries": [
+          "馬來西亞"
+        ],
+        "overseas_fields": [
+          {
+            "country": "馬來西亞",
+            "region": "東南亞",
+            "city": "馬來西亞",
+            "location": "Universiti Tunku Abdul Rahman",
+            "site_type": "跨國社會實踐",
+            "partner_type": "教育機構／學校",
+            "period": "上下半年",
+            "start_date": "2025-01-01",
+            "dates": [
+              "2025-02-01",
+              "2025-01-01"
+            ]
+          },
+          {
+            "country": "馬來西亞",
+            "region": "東南亞",
+            "city": "馬來西亞",
+            "location": "雙福升維發展協會",
+            "site_type": "跨國社會實踐",
+            "partner_type": "NGO／協會／基金會",
+            "period": "上下半年",
+            "start_date": "2025-01-01",
+            "dates": [
+              "2025-02-01",
+              "2025-01-01"
+            ]
+          }
+        ]
+      },
+      "朝陽科技大學：\"農安紮根 豐味深釀\"崙元廊道共學增韌擴散計畫": {
+        "overseas_countries": [
+          "馬來西亞"
+        ],
+        "overseas_fields": [
+          {
+            "country": "馬來西亞",
+            "region": "東南亞",
+            "city": "砂拉越",
+            "location": "阿洲農場",
+            "site_type": "農業／漁業／產業實作",
+            "partner_type": "企業／產業機構",
+            "period": "上下半年",
+            "start_date": "2025-02-01",
+            "dates": [
+              "2025-02-01",
+              "2025-08-01"
+            ]
           }
         ]
       }

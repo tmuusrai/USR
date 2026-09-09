@@ -2209,6 +2209,21 @@ def ask():
                     print(f"[KW-PRE] label 直接命中：{_lk} → {len(_lk_plans)} 件")
                     _label_hit = True
 
+            # 0a. 海外場域模糊比對：問題含「海外/國外/跨國」且含「場域/實踐/合作/計畫」即命中
+            _OVERSEAS_FUZZY_RE = re.compile(r'海外|國外|跨國|出國|境外')
+            _OVERSEAS_CONTEXT_RE = re.compile(r'場域|實踐|合作|計畫|大學|學校|機構|哪些|哪個|有沒有')
+            if ("海外場域" not in _matched_kws
+                    and _OVERSEAS_FUZZY_RE.search(question)
+                    and _OVERSEAS_CONTEXT_RE.search(question)):
+                _ov_entries = _label_direct.get("海外場域", [])
+                if _ov_entries:
+                    _matched_kws.append("海外場域")
+                    _lk_plans = _ov_entries if isinstance(_ov_entries[0], str) else [_kw_entry_plan(e) for e in _ov_entries]
+                    _matched_kw_plans["海外場域"] = _lk_plans
+                    _plan_set_pre.update(_lk_plans)
+                    print(f"[KW-PRE] 海外模糊命中：海外場域 → {len(_lk_plans)} 件")
+                    _label_hit = True
+
             # 0b. 六大議題偵測
             if not _label_hit and _usr_topic and _usr_topic in _PRIMARY_TOPICS:
                 _entries = _label_direct.get(_usr_topic, [])
