@@ -2546,8 +2546,8 @@ def ask():
                 docs = docs_all
                 _school = None
                 t_faiss = time.perf_counter()
-            elif not _list:
-                # 一般模式：所有已知 query 同時 embed
+            else:
+                # 一般模式（含列舉型）：所有已知 query 同時 embed
                 embed_tasks: dict[str, str] = {'main': search_question}
                 if _kw:
                     embed_tasks['kw'] = _kw
@@ -3044,6 +3044,37 @@ def ask():
                         _plan_to_snippet[_sp] = _st[:800]
                     if _sum_fb:
                         print(f"[CHUNK-SUM] summary fallback 補 {len(_sum_fb)} 件，共 {len(_plan_to_snippet)} 件")
+
+                # RAG fallback：summary 也沒有的計畫，從已取到的 FAISS docs 補充原文段落
+                # docs 已在 fan-out 階段取得；若為空則重新搜尋（chunk>45→LIVESCAN）
+                _rag_no_snip = [p for p in _plan_list_lines if p not in _plan_to_snippet]
+                if _rag_no_snip:
+                    if docs:
+                        _rag_docs_raw = docs
+                        _use_livescan = False
+                    else:
+                        _rag_docs_raw = vs.similarity_search(search_question, k=min(TOP_K * 5, 60))
+                        _use_livescan = len(_rag_docs_raw) > 45
+                        if _use_livescan:
+                            _rag_docs_raw = _livescan_fallback(search_question, _rag_no_snip)
+                    _rag_by_school: dict[str, list[str]] = {}
+                    for _rd in _rag_docs_raw:
+                        _rd_src = _rd.metadata.get("plan_name") or _rd.metadata.get("source", "")
+                        if "：" in _rd_src:
+                            _rschool = _rd_src.split("：", 1)[0]
+                        else:
+                            _rsrc = _PATH_SEP_RE.split(_rd_src)[-1].rsplit('.', 1)[0]
+                            _rschool = _clean_plan_code(_rsrc).split('_', 1)[0]
+                        _rag_by_school.setdefault(_rschool, []).append(_rd.page_content[:400])
+                    _rag_filled = 0
+                    for _np in _rag_no_snip:
+                        _np_school = _np.split('：', 1)[0]
+                        if _np_school in _rag_by_school:
+                            _plan_to_snippet[_np] = "\n\n".join(_rag_by_school[_np_school][:3])
+                            _rag_filled += 1
+                    if _rag_filled:
+                        _rag_mode = "LIVESCAN" if _use_livescan else "FAISS"
+                        print(f"[CHUNK-RAG] {_rag_mode} fallback 補 {_rag_filled} 件，共 {len(_plan_to_snippet)} 件")
 
                 # Location fanout：場域相關問題，補充 location_index 到 snippet
                 if _LOCATION_QUERY_RE.search(question):
