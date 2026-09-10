@@ -1733,6 +1733,132 @@ def _try_location_answer(question: str, year: str) -> str | None:
     return "\n".join(lines)
 
 
+# ── Fan-out 查詢函式 ───────────────────────────────────
+
+_LOCATION_QUERY_RE = re.compile(
+    r'場域|在哪|哪裡|哪個地方|哪個縣|哪個市|縣市|地點|位置|海外|國外|境外|實踐地'
+)
+
+def _fanout_summary(plan_keys: list[str], year: str) -> dict[str, str]:
+    """讀取候選計畫的 summary 文字，回傳 {plan_key: summary_text}。"""
+    if year != "114" or not _SUMMARY_DIR.exists():
+        return {}
+    results = {}
+    for key in plan_keys:
+        school, _, title = key.partition("：")
+        if not school:
+            continue
+        # 以學校名為前綴搜尋 summary 檔
+        for f in sorted(_SUMMARY_DIR.glob(f"{school}_*.txt")):
+            stem = f.stem
+            # 去除計畫代號括號，取計畫名
+            plan_in_file = re.sub(r'\(114USR[^)]*\)', '', stem.split("_", 1)[-1]).strip()
+            if title and (title in plan_in_file or plan_in_file in title):
+                results[key] = _strip_summary_header(f.read_text(encoding="utf-8"))
+                break
+    return results
+
+
+def _fanout_kw_chunks(keywords: list[str], plan_keys: list[str], year: str) -> dict[str, str]:
+    """從 kw_chunks 索引取候選計畫的關鍵字片段，回傳 {plan_key: snippet}。"""
+    kw_idx = _keyword_index.get(year, {})
+    if not kw_idx or not keywords:
+        return {}
+    plan_set = set(plan_keys) if plan_keys else None
+    snippets: dict[str, list[str]] = {}
+    for kw in keywords:
+        entries = kw_idx.get(kw, [])
+        for e in entries:
+            p = _kw_entry_plan(e) if isinstance(e, dict) else e
+            if plan_set and p not in plan_set:
+                continue
+            text = e.get("text", "") if isinstance(e, dict) else ""
+            if text:
+                snippets.setdefault(p, []).append(text[:300])
+    return {k: "\n".join(v[:3]) for k, v in snippets.items()}
+
+
+def _fanout_faiss(question: str, vecs: dict, plan_keys: list[str] | None,
+                  fetch_k: int = 60) -> list:
+    """FAISS 語意搜尋。若 chunk 數 > 45 改走 LIVESCAN，回傳 docs 列表。"""
+    try:
+        docs = vs.similarity_search_by_vector(vecs.get("main", []), k=fetch_k)
+    except Exception:
+        return []
+
+    # 用候選計畫過濾
+    if plan_keys:
+        plan_set = set(plan_keys)
+        docs = [d for d in docs
+                if any(p in (d.metadata.get("plan_name", "") or d.metadata.get("source", ""))
+                       for p in plan_set)]
+
+    if len(docs) > 45:
+        print(f"[FANOUT-FAISS] chunk={len(docs)}>45，改走 LIVESCAN")
+        return _livescan_fallback(question, plan_keys)
+
+    print(f"[FANOUT-FAISS] chunk={len(docs)}")
+    return docs
+
+
+def _livescan_fallback(question: str, plan_keys: list[str] | None) -> list:
+    """LIVESCAN：對 kw_chunks 逐計畫掃描，回傳類 doc 物件列表。"""
+    from langchain_core.documents import Document as _Doc
+    results = []
+    kw_idx = _keyword_index.get("114", {})
+    scan_plans = set(plan_keys) if plan_keys else None
+    seen: set[str] = set()
+    for kw, entries in kw_idx.items():
+        for e in entries:
+            if not isinstance(e, dict):
+                continue
+            p = _kw_entry_plan(e)
+            if scan_plans and p not in scan_plans:
+                continue
+            text = e.get("text", "")
+            if not text or text in seen:
+                continue
+            if question[:10] in text or any(k in text for k in question.split()[:4]):
+                seen.add(text)
+                results.append(_Doc(page_content=text, metadata={"plan_name": p, "source": p}))
+                if len(results) >= 45:
+                    break
+        if len(results) >= 45:
+            break
+    print(f"[LIVESCAN] 回傳 {len(results)} 筆")
+    return results
+
+
+def _fanout_location(question: str, plan_keys: list[str], year: str) -> str:
+    """有場域關鍵字時，從 location_index 取結構化場域資訊，格式化為文字。"""
+    if not _LOCATION_QUERY_RE.search(question):
+        return ""
+    loc_yr = _location_index.get(year, {})
+    loc_plans = loc_yr.get("plans", {})
+    if not loc_plans:
+        return ""
+    parts = []
+    for key in plan_keys:
+        info = loc_plans.get(key)
+        if not info:
+            continue
+        school, _, title = key.partition("：")
+        lines = [f"【{school}・{title[:25]}】"]
+        # 國內場域
+        for f in info.get("fields", [])[:5]:
+            loc_str = "　".join(x for x in [f.get("county"), f.get("district"), f.get("location")] if x)
+            if loc_str:
+                lines.append(f"  國內：{loc_str}")
+        # 海外場域
+        for f in info.get("overseas_fields", [])[:5]:
+            loc_str = f"{f.get('country','')} {f.get('city','')} {f.get('location','')}".strip()
+            if loc_str:
+                lines.append(f"  海外：{loc_str}（{f.get('period','')}）")
+        if len(lines) > 1:
+            parts.append("\n".join(lines))
+    return "\n\n".join(parts)
+
+
 # ── 路由 ──────────────────────────────────────────────
 def _load_plans(year: str = "114"):
     md_dir = MD_DIR if year == "114" else MD_DIR_113
@@ -2169,7 +2295,8 @@ def ask():
                 search_question = _prepare_search_query(question, history)
             else:
                 search_question = question
-            _llm_kws, _llm_extended_kws, _llm_is_listing = _llm_parse_query(search_question)
+            _llm_kws, _llm_extended_kws, _llm_intent = _llm_parse_query(search_question)
+            _llm_is_listing = (_llm_intent == "list")
             t_prepare_end = time.perf_counter()
 
             # ── KW-PRE：label 比對（早期執行，結果作為後續所有路徑的搜尋範圍）──
@@ -2909,6 +3036,29 @@ def ask():
                     if _ov_added:
                         print(f"[CHUNK-OV] 國外 location fallback 補 {_ov_added} 件，共 {len(_plan_to_snippet)} 件")
 
+                # Summary fallback：kw_chunks/live/location 都無 snippet 的計畫，從 summary 檔補充
+                _no_snip = [p for p in _plan_list_lines if p not in _plan_to_snippet]
+                if _no_snip:
+                    _sum_fb = _fanout_summary(_no_snip, year)
+                    for _sp, _st in _sum_fb.items():
+                        _plan_to_snippet[_sp] = _st[:800]
+                    if _sum_fb:
+                        print(f"[CHUNK-SUM] summary fallback 補 {len(_sum_fb)} 件，共 {len(_plan_to_snippet)} 件")
+
+                # Location fanout：場域相關問題，補充 location_index 到 snippet
+                if _LOCATION_QUERY_RE.search(question):
+                    _loc_fanout_text = _fanout_location(question, _plan_list_lines, year)
+                    if _loc_fanout_text:
+                        for _lseg in _loc_fanout_text.split("\n\n"):
+                            _lm = re.match(r'【(.+?)・(.+?)】', _lseg)
+                            if not _lm:
+                                continue
+                            _l_school = _lm.group(1)
+                            for _pl in _plan_list_lines:
+                                if _pl.startswith(_l_school + "："):
+                                    _plan_to_snippet[_pl] = (_plan_to_snippet.get(_pl, "") + "\n" + _lseg).strip()
+                        print(f"[CHUNK-LOC] location fanout 場域補充完成")
+
                 # 偵測子問題：多個問號（複合問題）才觸發
                 _q_segs = [p.strip() for p in re.split(r'[？?]', question) if p.strip()]
                 _extra_sub_qs = _q_segs[1:] if len(_q_segs) > 1 else []
@@ -3235,6 +3385,42 @@ def ask():
                 context = "\n\n".join(annotated)
             else:
                 context = "\n\n".join(faiss_texts)
+
+            # Fan-out 補充：非列舉型也查 kw_chunks / location index
+            if not _list:
+                _fo_plan_keys: list[str] = []
+                _stem_re_fo = re.compile(r'\s*\(\d{3}USR-[^)]*\)?|_formatted(?:\(\d+\))?|\(\d+\)$')
+                _seen_fo: set[str] = set()
+                for _fd in docs:
+                    _fsrc = _PATH_SEP_RE.split(_fd.metadata.get("source", ""))[-1].rsplit('.', 1)[0]
+                    _fsrc = _stem_re_fo.sub('', _clean_plan_code(_fsrc)).strip('_ ')
+                    _fp = _fsrc.split('_', 1)
+                    if len(_fp) == 2:
+                        _fkey = f"{_fp[0]}：{_fp[1]}"
+                        if _fkey not in _seen_fo:
+                            _seen_fo.add(_fkey)
+                            _fo_plan_keys.append(_fkey)
+                if not _fo_plan_keys and annotated:
+                    for _ar in annotated:
+                        _am = re.match(r'【(.+?)_(.+?)】', _ar.split('\n', 1)[0])
+                        if _am:
+                            _fkey = f"{_am.group(1)}：{_am.group(2)}"
+                            if _fkey not in _seen_fo:
+                                _seen_fo.add(_fkey)
+                                _fo_plan_keys.append(_fkey)
+                if _fo_plan_keys:
+                    _fo_kw = _fanout_kw_chunks(_llm_kws or [], _fo_plan_keys[:30], year)
+                    _fo_loc = _fanout_location(question, _fo_plan_keys[:30], year)
+                    _fo_add: list[str] = []
+                    if _fo_kw:
+                        _fo_add.append("【關鍵字索引】\n" + "\n\n".join(
+                            f"[{p}]\n{t}" for p, t in list(_fo_kw.items())[:15]))
+                    if _fo_loc:
+                        _fo_add.append(f"【實踐場域資料】\n{_fo_loc}")
+                    if _fo_add:
+                        context = "\n\n".join(_fo_add) + "\n\n" + context
+                        print(f"[FANOUT] 非列舉補充 kw={len(_fo_kw)} loc={bool(_fo_loc)}")
+
             if len(context) > _CTX_CHAR_LIMIT:
                 context = context[:_CTX_CHAR_LIMIT]
             # 列舉型：在 context 前注入預建清單，讓 LLM 直接按清單輸出，不自行過濾
@@ -3577,14 +3763,16 @@ def _extract_query_terms(q: str) -> list[str]:
     return list(dict.fromkeys(result))
 
 
-def _llm_parse_query(q: str) -> tuple[list[str], list[str], bool]:
-    """用 LLM 提取關鍵字、擴充相關詞、並判斷是否為列舉型問題。
-    回傳 (keywords, extended, is_listing)。失敗時退回 jieba + _LIST_INTENT_RE。
+def _llm_parse_query(q: str) -> tuple[list[str], list[str], str]:
+    """用 LLM 提取關鍵字、擴充相關詞、並理解使用者意圖。
+    回傳 (keywords, extended, intent)。
+    intent: list / explain / location / compare / detail
+    失敗時退回 jieba + _LIST_INTENT_RE。
     """
     from langchain_core.messages import HumanMessage as _HMParse
     prompt = (
         "分析以下 USR 計畫查詢，只輸出 JSON，不要任何其他文字：\n"
-        '{"keywords": ["詞1","詞2",...], "extended": ["擴充詞1",...], "is_listing": true或false}\n\n'
+        '{"keywords": ["詞1","詞2",...], "extended": ["擴充詞1",...], "intent": "list"}\n\n'
         "keywords：2~6 個最重要的繁體中文關鍵詞，保留完整詞（例：「流浪動物」不要切成「流浪」+「動物」）\n"
         "  ✗ 不要抽取以下類型的詞：\n"
         "    - 問句語氣詞：相關計畫、有關計畫、相關的計畫、哪些計畫、計畫有哪些\n"
@@ -3593,9 +3781,12 @@ def _llm_parse_query(q: str) -> tuple[list[str], list[str], bool]:
         "    - 單獨出現的「計畫」「學校」「大學」「哪些」「相關」\n"
         "extended：針對 keywords 補充 3~8 個繁體中文同義詞或密切相關詞（供全文搜尋擴充，不可與 keywords 重複）\n"
         "  例：keywords=[\"農業\"] → extended=[\"食農教育\",\"農村\",\"農產品\",\"農業加值\",\"有機農業\"]\n"
-        "is_listing：\n"
-        "  true  → 問題在列舉計畫或學校（如「有哪些計畫」「哪些學校」「列出」「有關XXX的計畫」）\n"
-        "  false → 詢問策略/做法/方法/影響/成效，或單一計畫/學校的內容問題\n\n"
+        "intent（選一）：\n"
+        "  list     → 列出哪些計畫/學校（「有哪些」「哪些學校」「列出」「有關XXX的計畫」）\n"
+        "  explain  → 詢問策略/做法/方法/影響/成效（綜合說明）\n"
+        "  location → 詢問場域/地點/在哪裡/哪個縣市/海外場域\n"
+        "  compare  → 比較不同計畫或學校之間的差異\n"
+        "  detail   → 詢問某個特定計畫或學校的詳細內容\n\n"
         f"查詢：{q}"
     )
     try:
@@ -3610,12 +3801,15 @@ def _llm_parse_query(q: str) -> tuple[list[str], list[str], bool]:
             kws_set = set(kws)
             extended = [str(k).strip() for k in d.get("extended", [])
                         if k and str(k).strip() and str(k).strip() not in kws_set]
-            is_listing = bool(d.get("is_listing", False))
-            print(f"[LLM-PARSE] keywords={kws} extended={extended} is_listing={is_listing}")
-            return kws, extended, is_listing
+            intent = str(d.get("intent", "explain")).strip().lower()
+            if intent not in ("list", "explain", "location", "compare", "detail"):
+                intent = "explain"
+            print(f"[LLM-PARSE] keywords={kws} extended={extended} intent={intent}")
+            return kws, extended, intent
     except Exception as e:
         print(f"[LLM-PARSE] 失敗，退回 jieba：{e}")
-    return _extract_query_terms(q), [], bool(_LIST_INTENT_RE.search(q))
+    _fallback_intent = "list" if _LIST_INTENT_RE.search(q) else "explain"
+    return _extract_query_terms(q), [], _fallback_intent
 
 
 
