@@ -130,11 +130,6 @@ labels_114  = label_data.setdefault("114", {})
 
 def _sl(s): return sorted(s)
 
-# 海外場域主 label + 別名（同義詞全部指向同一批計畫）
-_overseas_all = _sl(all_plans)
-for _alias in ("海外場域", "海外實踐場域", "海外實踐", "國外場域", "國外實踐", "跨國場域", "出國實踐"):
-    labels_114[_alias] = _overseas_all
-
 for country, plans in country_to_plans.items():
     labels_114[country] = _sl(plans)
 for region, plans in region_to_plans.items():
