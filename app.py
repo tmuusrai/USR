@@ -2585,7 +2585,9 @@ def ask():
             if _label_hit and _kw_plan_list and docs:
                 _lbl_school_set = {p.split('：', 1)[0] for p in _kw_plan_list}
                 _orig_doc_count = len(docs)
-                docs = [d for d in docs if any(s in d.metadata.get('source', '') for s in _lbl_school_set)]
+                def _doc_school(d) -> str:
+                    return Path(d.metadata.get('source', '')).stem.split('_', 1)[0]
+                docs = [d for d in docs if _doc_school(d) in _lbl_school_set]
                 if _orig_doc_count != len(docs):
                     print(f"[LABEL-FILTER] FAISS {_orig_doc_count} → {len(docs)} 筆（label 學校過濾）")
 
@@ -2804,7 +2806,8 @@ def ask():
                     _ls_results = _faiss_scan_kws(_ls_kws, vs, condense=False)
                     if _label_hit and _kw_plan_list and _ls_results:
                         _lbl_school_set = {p.split('：', 1)[0] for p in _kw_plan_list}
-                        _ls_results = [r for r in _ls_results if any(s in r for s in _lbl_school_set)]
+                        _ls_results = [r for r in _ls_results
+                                       if (_lm := re.match(r'【(.+?)_', r)) and _lm.group(1) in _lbl_school_set]
                     if _ls_results:
                         _orig_faiss_count = len(docs)
                         annotated = _ls_results
