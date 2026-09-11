@@ -2244,7 +2244,8 @@ def ask():
             if not skip_eval and _is_evaluation_question(question):
                 _clarify_msg = _generate_clarify_msg(question)
                 yield f"data: {json.dumps({'type': 'sources', 'sources': []}, ensure_ascii=False)}\n\n"
-                yield f"data: {json.dumps({'type': 'chunk', 'text': '【評量型】— 需補充評估標準\n' + _clarify_msg}, ensure_ascii=False)}\n\n"
+                _eval_label = "【評量型】— 需補充評估標準" + chr(10) + _clarify_msg
+                yield f"data: {json.dumps({'type': 'chunk', 'text': _eval_label}, ensure_ascii=False)}\n\n"
                 total_ms = round((time.perf_counter() - t0) * 1000)
                 if conv_id:
                     try:
