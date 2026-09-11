@@ -2581,15 +2581,19 @@ def ask():
                 _faiss_srcs = [Path(d.metadata.get("source","")).stem for d in docs]
                 print(f"[FAISS-DOCS] {len(docs)} 筆：{_faiss_srcs}")
 
-            # label 命中：過濾 FAISS docs 到 label 學校範圍
+            # label 命中：過濾 FAISS docs 到 label 計畫範圍（學校+計畫名精確比對）
             if _label_hit and _kw_plan_list and docs:
-                _lbl_school_set = {p.split('：', 1)[0] for p in _kw_plan_list}
+                _lbl_plan_set = set(_kw_plan_list)
+                _lbl_code_re = re.compile(r'\s*\(\d{3}USR-[^)]*\)?|_formatted(?:\(\d+\))?|\(\d+\)$')
+                def _doc_plan_key(d) -> str:
+                    stem = Path(d.metadata.get('source', '')).stem
+                    stem = _lbl_code_re.sub('', stem).strip('_ ')
+                    parts = stem.split('_', 1)
+                    return f"{parts[0]}：{parts[1]}" if len(parts) == 2 else stem
                 _orig_doc_count = len(docs)
-                def _doc_school(d) -> str:
-                    return Path(d.metadata.get('source', '')).stem.split('_', 1)[0]
-                docs = [d for d in docs if _doc_school(d) in _lbl_school_set]
+                docs = [d for d in docs if _doc_plan_key(d) in _lbl_plan_set]
                 if _orig_doc_count != len(docs):
-                    print(f"[LABEL-FILTER] FAISS {_orig_doc_count} → {len(docs)} 筆（label 學校過濾）")
+                    print(f"[LABEL-FILTER] FAISS {_orig_doc_count} → {len(docs)} 筆（label 計畫精確過濾）")
 
             # ── 議題關鍵字索引查詢（keyword_index）+ live scan ──────────────
             _q_priority_kws: list[str] = []
@@ -2805,9 +2809,16 @@ def ask():
                 if _ls_kws:
                     _ls_results = _faiss_scan_kws(_ls_kws, vs, condense=False)
                     if _label_hit and _kw_plan_list and _ls_results:
-                        _lbl_school_set = {p.split('：', 1)[0] for p in _kw_plan_list}
-                        _ls_results = [r for r in _ls_results
-                                       if (_lm := re.match(r'【(.+?)_', r)) and _lm.group(1) in _lbl_school_set]
+                        _lbl_plan_set2 = set(_kw_plan_list)
+                        _lbl_code_re2 = re.compile(r'\s*\(\d{3}USR-[^)]*\)?|_formatted(?:\(\d+\))?|\(\d+\)$')
+                        def _ls_plan_key(r: str) -> str:
+                            m = re.match(r'【(.+?)】', r.split('\n', 1)[0])
+                            if not m:
+                                return ''
+                            stem = _lbl_code_re2.sub('', m.group(1)).strip('_ ')
+                            parts = stem.split('_', 1)
+                            return f"{parts[0]}：{parts[1]}" if len(parts) == 2 else stem
+                        _ls_results = [r for r in _ls_results if _ls_plan_key(r) in _lbl_plan_set2]
                     if _ls_results:
                         _orig_faiss_count = len(docs)
                         annotated = _ls_results
