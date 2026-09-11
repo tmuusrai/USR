@@ -2244,7 +2244,7 @@ def ask():
             if not skip_eval and _is_evaluation_question(question):
                 _clarify_msg = _generate_clarify_msg(question)
                 yield f"data: {json.dumps({'type': 'sources', 'sources': []}, ensure_ascii=False)}\n\n"
-                yield f"data: {json.dumps({'type': 'chunk', 'text': _clarify_msg}, ensure_ascii=False)}\n\n"
+                yield f"data: {json.dumps({'type': 'chunk', 'text': '【評量型】— 需補充評估標準\n' + _clarify_msg}, ensure_ascii=False)}\n\n"
                 total_ms = round((time.perf_counter() - t0) * 1000)
                 if conv_id:
                     try:
@@ -2278,6 +2278,7 @@ def ask():
                 search_question = question
             _llm_kws, _llm_extended_kws, _llm_intent = _llm_parse_query(search_question)
             _llm_is_listing = (_llm_intent == "list")
+            _intent_label = "【列舉型】" if _llm_is_listing else "【概念型】"
             t_prepare_end = time.perf_counter()
 
             # ── KW-PRE：label 比對（早期執行，結果作為後續所有路徑的搜尋範圍）──
@@ -2393,7 +2394,7 @@ def ask():
 
             # ── ① Label 短路：label 命中 + 列舉問題 → 直接輸出純名單 ──
             if _label_hit and _llm_is_listing and _kw_plan_list and not _kw_pre_extra:
-                _lbl_header = f"找到 {len(_kw_plan_list)} 件相關計畫（{'/'.join(_matched_kws[:2])}）：\n\n"
+                _lbl_header = f"【列舉型】\n找到 {len(_kw_plan_list)} 件相關計畫（{'/'.join(_matched_kws[:2])}）：\n\n"
                 _lbl_body = "\n".join(f"{i+1}. {p}" for i, p in enumerate(_kw_plan_list))
                 _lbl_ans = _lbl_header + _lbl_body
                 _save_shortcut_history(_lbl_ans, _kw_plan_list)
@@ -2620,19 +2621,30 @@ def ask():
                     {p.split('：', 1)[0] for p in _kw_plan_list} if _kw_plan_list
                     else _kw_pre_schools
                 )
+                _all_kw_keys = set(_kw_idx.keys())
+                _direct_plan_chunks_seen: dict[str, set[str]] = {}
                 for _dkw in _q_priority_kws:
-                    for _de in _kw_idx.get(_dkw, []):
-                        if not isinstance(_de, dict) or "text" not in _de:
-                            continue
-                        _dpk = _stem_strip_re_direct.sub('', _de.get("plan", "")).strip('_ ')
-                        # label region 時：精確比對計畫集；否則：學校集過濾
-                        if _direct_label_set is not None:
-                            if _dpk not in _direct_label_set:
+                    _related_keys = {k for k in _all_kw_keys
+                                     if _dkw == k
+                                     or (len(_dkw) >= 2 and _dkw in k)
+                                     or (len(k) >= 2 and k in _dkw)}
+                    for _rk in _related_keys:
+                        for _de in _kw_idx.get(_rk, []):
+                            if not isinstance(_de, dict) or "text" not in _de:
                                 continue
-                        elif _direct_scope_schools and _dpk.split('：', 1)[0] not in _direct_scope_schools:
-                            continue
-                        _direct_plan_chunks.setdefault(_dpk, []).append(_de["text"])
-                        _direct_plan_kw_hits.setdefault(_dpk, set()).add(_dkw)
+                            _dpk = _stem_strip_re_direct.sub('', _de.get("plan", "")).strip('_ ')
+                            # label region 時：精確比對計畫集；否則：學校集過濾
+                            if _direct_label_set is not None:
+                                if _dpk not in _direct_label_set:
+                                    continue
+                            elif _direct_scope_schools and _dpk.split('：', 1)[0] not in _direct_scope_schools:
+                                continue
+                            _txt = _de["text"]
+                            _seen = _direct_plan_chunks_seen.setdefault(_dpk, set())
+                            if _txt not in _seen:
+                                _seen.add(_txt)
+                                _direct_plan_chunks.setdefault(_dpk, []).append(_txt)
+                            _direct_plan_kw_hits.setdefault(_dpk, set()).add(_rk)
                 if _direct_plan_chunks:
                     _direct_kw_hit = True
                     # AND 過濾：有 2+ 個「內容詞」時，計畫必須同時命中所有內容詞
@@ -3266,37 +3278,32 @@ def ask():
                 _para_t_first = time.perf_counter()
                 _use_two_sections = bool(_ext_para_collected and _para_collected)
 
+                # 合併最相關 + 擴展相關，統一依學校分組輸出
                 if _use_two_sections:
-                    # 兩段輸出：最相關 + 擴展相關
-                    _total_count = len(_para_collected) + len(_ext_para_collected)
-                    _header_txt = f"找到 {_total_count} 件相關計畫{_list_display_note}\n\n### 最相關（{len(_para_collected)} 件）\n\n"
-                    _para_ans_parts.append(_header_txt)
-                    yield f"data: {json.dumps({'type': 'chunk', 'text': _header_txt}, ensure_ascii=False)}\n\n"
-                    for _i, (_pl, _ps2) in enumerate(_para_collected, 1):
-                        _pchunk = (f"{_i}. {_clean_plan_code(_pl)}\n{_ps2}\n" if _ps2
-                                   else f"{_i}. {_clean_plan_code(_pl)}\n")
-                        _para_ans_parts.append(_pchunk)
-                        yield f"data: {json.dumps({'type': 'chunk', 'text': _pchunk}, ensure_ascii=False)}\n\n"
-                    _ext_hdr = f"\n### 擴展相關（{len(_ext_para_collected)} 件）\n\n"
-                    _para_ans_parts.append(_ext_hdr)
-                    yield f"data: {json.dumps({'type': 'chunk', 'text': _ext_hdr}, ensure_ascii=False)}\n\n"
-                    for _i, (_pl, _ps2) in enumerate(_ext_para_collected, 1):
-                        _pchunk = (f"{_i}. {_clean_plan_code(_pl)}\n{_ps2}\n" if _ps2
-                                   else f"{_i}. {_clean_plan_code(_pl)}\n")
-                        _para_ans_parts.append(_pchunk)
-                        yield f"data: {json.dumps({'type': 'chunk', 'text': _pchunk}, ensure_ascii=False)}\n\n"
-                    # 合併供後續 OUT4/7 使用
                     _para_collected = _para_collected + _ext_para_collected
-                else:
-                    _out_idx = len(_para_collected)
-                    _header_txt = f"找到 {_out_idx} 件相關計畫{_list_display_note}{_t1_label}\n\n"
-                    _para_ans_parts.append(_header_txt)
-                    yield f"data: {json.dumps({'type': 'chunk', 'text': _header_txt}, ensure_ascii=False)}\n\n"
-                    for _i, (_pl, _ps2) in enumerate(_para_collected, 1):
-                        _pchunk = (f"{_i}. {_clean_plan_code(_pl)}\n{_ps2}\n" if _ps2
-                                   else f"{_i}. {_clean_plan_code(_pl)}\n")
+
+                # 依學校分組（保持原本排序）
+                _school_groups: dict[str, list[tuple[str, str]]] = {}
+                for _pl, _ps2 in _para_collected:
+                    _sg_school = _pl.split('：', 1)[0]
+                    if _sg_school not in _school_groups:
+                        _school_groups[_sg_school] = []
+                    _school_groups[_sg_school].append((_pl, _ps2))
+
+                _total_plan_cnt = len(_para_collected)
+                _total_school_cnt = len(_school_groups)
+                _header_txt = f"【列舉型】\n找到 {_total_plan_cnt} 件相關計畫（{_total_school_cnt} 間學校）{_list_display_note}\n\n"
+                _para_ans_parts.append(_header_txt)
+                yield f"data: {json.dumps({'type': 'chunk', 'text': _header_txt}, ensure_ascii=False)}\n\n"
+
+                _global_idx = 1
+                for _sg_school, _sg_plans in _school_groups.items():
+                    for _pl, _ps2 in _sg_plans:
+                        _pname = _clean_plan_code(_pl.split('：', 1)[1] if '：' in _pl else _pl)
+                        _pchunk = f"{_global_idx}. {_sg_school}：{_pname}\n{_ps2}\n" if _ps2 else f"{_global_idx}. {_sg_school}：{_pname}\n"
                         _para_ans_parts.append(_pchunk)
                         yield f"data: {json.dumps({'type': 'chunk', 'text': _pchunk}, ensure_ascii=False)}\n\n"
+                        _global_idx += 1
 
                 # OUT4（列舉 + Summary）& OUT7（列舉 + Summary + 概念子問題）
                 # _is_out7: 列舉15 + 前5摘要 + 概念回答
@@ -3552,6 +3559,7 @@ def ask():
                     sources.append({"source": src, "page": page})
 
             yield f"data: {json.dumps({'type': 'sources', 'sources': sources}, ensure_ascii=False)}\n\n"
+            yield f"data: {json.dumps({'type': 'chunk', 'text': _intent_label + chr(10)}, ensure_ascii=False)}\n\n"
 
             # OUT5：先輸出計畫摘要，再接一般型回答
             if _out5_summary:
