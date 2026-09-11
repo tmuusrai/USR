@@ -2391,14 +2391,16 @@ def ask():
                         print(f"[KW-PRE] 搜尋範圍學校 {len(_kw_pre_schools)} 間（SDG/縣市/類型 filter）")
 
 
-            # ── ① 計畫類型短路：問萌芽型/深耕型/國際合作型/特色永續型（優先於 qa_custom）──
-            plan_type_ctx = _try_plan_type_answer(question, year=year)
-            if plan_type_ctx:
-                _save_shortcut_history(plan_type_ctx)
+            # ── ① Label 短路：label 命中 + 列舉問題 → 直接輸出純名單 ──
+            if _label_hit and _llm_is_listing and _kw_plan_list and not _kw_pre_extra:
+                _lbl_header = f"找到 {len(_kw_plan_list)} 件相關計畫（{'/'.join(_matched_kws[:2])}）：\n\n"
+                _lbl_body = "\n".join(f"{i+1}. {p}" for i, p in enumerate(_kw_plan_list))
+                _lbl_ans = _lbl_header + _lbl_body
+                _save_shortcut_history(_lbl_ans, _kw_plan_list)
                 yield f"data: {json.dumps({'type': 'sources', 'sources': []}, ensure_ascii=False)}\n\n"
-                yield f"data: {json.dumps({'type': 'chunk', 'text': plan_type_ctx}, ensure_ascii=False)}\n\n"
+                yield f"data: {json.dumps({'type': 'chunk', 'text': _lbl_ans}, ensure_ascii=False)}\n\n"
                 total_ms = round((time.perf_counter() - t0) * 1000)
-                yield f"data: {json.dumps({'type': 'done', 'timing': {'total_ms': total_ms}, 'mode': 'plan_type_direct'}, ensure_ascii=False)}\n\n"
+                yield f"data: {json.dumps({'type': 'done', 'timing': {'total_ms': total_ms}, 'mode': 'label_direct'}, ensure_ascii=False)}\n\n"
                 return
 
             # ── ①-b qa_custom 短路攔截 ──
@@ -2578,6 +2580,14 @@ def ask():
                 t_faiss = time.perf_counter()
                 _faiss_srcs = [Path(d.metadata.get("source","")).stem for d in docs]
                 print(f"[FAISS-DOCS] {len(docs)} 筆：{_faiss_srcs}")
+
+            # label 命中：過濾 FAISS docs 到 label 學校範圍
+            if _label_hit and _kw_plan_list and docs:
+                _lbl_school_set = {p.split('：', 1)[0] for p in _kw_plan_list}
+                _orig_doc_count = len(docs)
+                docs = [d for d in docs if any(s in d.metadata.get('source', '') for s in _lbl_school_set)]
+                if _orig_doc_count != len(docs):
+                    print(f"[LABEL-FILTER] FAISS {_orig_doc_count} → {len(docs)} 筆（label 學校過濾）")
 
             # ── 議題關鍵字索引查詢（keyword_index）+ live scan ──────────────
             _q_priority_kws: list[str] = []
@@ -2792,11 +2802,15 @@ def ask():
                 _ls_kws = _extract_query_terms(search_question)
                 if _ls_kws:
                     _ls_results = _faiss_scan_kws(_ls_kws, vs, condense=False)
+                    if _label_hit and _kw_plan_list and _ls_results:
+                        _lbl_school_set = {p.split('：', 1)[0] for p in _kw_plan_list}
+                        _ls_results = [r for r in _ls_results if any(s in r for s in _lbl_school_set)]
                     if _ls_results:
                         _orig_faiss_count = len(docs)
                         annotated = _ls_results
                         docs = []
-                        print(f"[LIVESCAN-FALLBACK] FAISS {_orig_faiss_count} 筆 > 45，改用 live scan {len(annotated)} 筆")
+                        _livescan_note = "label過濾後 " if _label_hit else ""
+                        print(f"[LIVESCAN-FALLBACK] FAISS {_orig_faiss_count} 筆 > 45，{_livescan_note}改用 live scan {len(annotated)} 筆")
 
             # 列舉型用 Flash 處理大 context 很快，給更多空間；其他問題截短避免拖慢 Pro
             _CTX_CHAR_LIMIT = 60000 if _list else 30000
