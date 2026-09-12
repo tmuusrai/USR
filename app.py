@@ -2765,8 +2765,8 @@ def ask():
                             if not isinstance(_ee, dict) or "text" not in _ee:
                                 continue
                             _epk = _stem_strip_re_direct.sub('', _ee.get("plan", "")).strip('_ ')
-                            if _epk not in _core_plan_set:
-                                _ext_chunks_tmp.setdefault(_epk, []).append(_ee["text"])
+                            # 配對詞不排除重疊計畫：同一計畫在兩個 kw 下的內容不同
+                            _ext_chunks_tmp.setdefault(_epk, []).append(_ee["text"])
                         if _ext_chunks_tmp:
                             _ext_plan_set = set(_ext_chunks_tmp.keys())
                             for _ep, _ecs in _ext_chunks_tmp.items():
