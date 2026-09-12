@@ -2393,11 +2393,48 @@ def ask():
                         print(f"[KW-PRE] 搜尋範圍學校 {len(_kw_pre_schools)} 間（SDG/縣市/類型 filter）")
 
 
-            # ── ① Label 短路：label 命中 + 列舉問題 → 直接輸出純名單 ──
+            # ── ① Label 短路：label 命中 + 列舉問題 → 輸出名單 + 結構化資料 ──
             if _label_hit and _llm_is_listing and _kw_plan_list and not _kw_pre_extra:
                 _lbl_header = f"【列舉型】\n找到 {len(_kw_plan_list)} 件相關計畫（{'/'.join(_matched_kws[:2])}）：\n\n"
-                _lbl_body = "\n".join(f"{i+1}. {p}" for i, p in enumerate(_kw_plan_list))
-                _lbl_ans = _lbl_header + _lbl_body
+                _lbl_loc_yr = _location_index.get(year) or _location_index.get("114", {})
+                _lbl_loc_plans = _lbl_loc_yr.get("plans", {})
+                _lbl_matched_set = set(_matched_kws)
+                _lbl_parts = [_lbl_header]
+                for _i, _p in enumerate(_kw_plan_list):
+                    _pdata = _lbl_loc_plans.get(_p, {})
+                    _pname = _clean_plan_code(_p.split('：', 1)[1] if '：' in _p else _p)
+                    _pschool = _p.split('：', 1)[0]
+                    _pline = f"{_i+1}. {_pschool}：{_pname}"
+                    _ov_fields = _pdata.get("overseas_fields", [])
+                    _dom_fields = _pdata.get("fields", [])
+                    _ov_lines = []
+                    if _ov_fields:
+                        for _f in _ov_fields:
+                            _fc = _f.get("country", "")
+                            _fr = _f.get("region", "")
+                            _fl = _f.get("location", "")
+                            _ft = _f.get("site_type", "")
+                            if _lbl_matched_set & {_fc, _fr, "國外"}:
+                                _ov_line = f"   {_fc}｜{_fl}" + (f"（{_ft}）" if _ft else "")
+                                if _ov_line not in _ov_lines:
+                                    _ov_lines.append(_ov_line)
+                    _dom_raw: list[str] = []
+                    _is_county_label = any("縣" in _mk or "市" in _mk for _mk in _lbl_matched_set)
+                    if _dom_fields and not _ov_lines and _is_county_label:
+                        for _f in _dom_fields:
+                            _fl = _f.get("location", "")
+                            _fc = _f.get("county", "")
+                            if not _fl:
+                                continue
+                            # 有 county 欄位 → 必須符合 label；沒有則跳過（無法驗證）
+                            if _fc and not any(_mk in _fc or _fc in _mk for _mk in _lbl_matched_set):
+                                continue
+                            if _fc and _fl not in _dom_raw:
+                                _dom_raw.append(_fl)
+                    _dom_lines = [f"   {_loc}" for _loc in _dom_raw]
+                    _extra = "\n".join((_ov_lines or _dom_lines)[:3])
+                    _lbl_parts.append(_pline + ("\n" + _extra if _extra else "") + "\n")
+                _lbl_ans = "\n".join(_lbl_parts)
                 _save_shortcut_history(_lbl_ans, _kw_plan_list)
                 yield f"data: {json.dumps({'type': 'sources', 'sources': []}, ensure_ascii=False)}\n\n"
                 yield f"data: {json.dumps({'type': 'chunk', 'text': _lbl_ans}, ensure_ascii=False)}\n\n"
