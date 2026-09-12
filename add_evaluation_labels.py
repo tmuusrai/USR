@@ -28,7 +28,7 @@ EVAL_KEYWORDS: dict[str, list[str]] = {
     "學習歷程":  ["學習歷程", "作品分析", "學習作品", "歷程檔案", "portfolio"],
     "rubric":    ["rubric", "Rubric", "評分規準", "評量規準", "評量準則"],
     "成本效益分析": ["成本效益分析", "CBA", "成本效益", "cost-benefit"],
-    "校務研究":  ["校務研究", "IR", "Institutional Research", "機構研究"],
+    "校務研究":  ["校務研究", r"(?<![a-zA-Z])IR(?![a-zA-Z])", "Institutional Research", "機構研究"],
     "OGSM":     ["OGSM"],
 }
 
@@ -58,9 +58,13 @@ for md in md_files:
 
     for label, kws in EVAL_KEYWORDS.items():
         for kw in kws:
-            if kw.lower() in text_lower:
+            if kw.startswith('(?'):  # regex 模式
+                if re.search(kw, text):
+                    label_to_plans[label].add(plan_key)
+                    break
+            elif kw.lower() in text_lower:
                 label_to_plans[label].add(plan_key)
-                break   # 同 label 命中一個詞就算
+                break
 
 # ── 輸出結果 ─────────────────────────────────────────────────────────────────────
 print("\n=== 掃描結果 ===")
