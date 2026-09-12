@@ -2410,6 +2410,7 @@ def ask():
             if structured_ctx:
                 _save_shortcut_history(structured_ctx)
                 yield f"data: {json.dumps({'type': 'sources', 'sources': []}, ensure_ascii=False)}\n\n"
+                yield f"data: {json.dumps({'type': 'chunk', 'text': _intent_label + chr(10)}, ensure_ascii=False)}\n\n"
                 yield f"data: {json.dumps({'type': 'chunk', 'text': structured_ctx}, ensure_ascii=False)}\n\n"
                 total_ms = round((time.perf_counter() - t0) * 1000)
                 yield f"data: {json.dumps({'type': 'done', 'timing': {'total_ms': total_ms}, 'mode': 'qa_custom'}, ensure_ascii=False)}\n\n"
@@ -2420,6 +2421,7 @@ def ask():
             if location_ctx:
                 _save_shortcut_history(location_ctx)
                 yield f"data: {json.dumps({'type': 'sources', 'sources': []}, ensure_ascii=False)}\n\n"
+                yield f"data: {json.dumps({'type': 'chunk', 'text': _intent_label + chr(10)}, ensure_ascii=False)}\n\n"
                 yield f"data: {json.dumps({'type': 'chunk', 'text': location_ctx}, ensure_ascii=False)}\n\n"
                 total_ms = round((time.perf_counter() - t0) * 1000)
                 yield f"data: {json.dumps({'type': 'done', 'timing': {'total_ms': total_ms}, 'mode': 'location_direct'}, ensure_ascii=False)}\n\n"
@@ -2436,6 +2438,7 @@ def ask():
                     # OUT1：純計畫內容型，直接短路輸出
                     _save_shortcut_history(summary_ctx)
                     yield f"data: {json.dumps({'type': 'sources', 'sources': []}, ensure_ascii=False)}\n\n"
+                    yield f"data: {json.dumps({'type': 'chunk', 'text': _intent_label + chr(10)}, ensure_ascii=False)}\n\n"
                     yield f"data: {json.dumps({'type': 'chunk', 'text': summary_ctx}, ensure_ascii=False)}\n\n"
                     total_ms = round((time.perf_counter() - t0) * 1000)
                     yield f"data: {json.dumps({'type': 'done', 'timing': {'total_ms': total_ms}, 'mode': 'summary_direct'}, ensure_ascii=False)}\n\n"
@@ -3279,11 +3282,7 @@ def ask():
                 _para_t_first = time.perf_counter()
                 _use_two_sections = bool(_ext_para_collected and _para_collected)
 
-                # 合併最相關 + 擴展相關，統一依學校分組輸出
-                if _use_two_sections:
-                    _para_collected = _para_collected + _ext_para_collected
-
-                # 依學校分組（保持原本排序）
+                # 核心計畫依學校分組
                 _school_groups: dict[str, list[tuple[str, str]]] = {}
                 for _pl, _ps2 in _para_collected:
                     _sg_school = _pl.split('：', 1)[0]
@@ -3305,6 +3304,25 @@ def ask():
                         _para_ans_parts.append(_pchunk)
                         yield f"data: {json.dumps({'type': 'chunk', 'text': _pchunk}, ensure_ascii=False)}\n\n"
                         _global_idx += 1
+
+                # 擴展相關計畫（LLM extension kws）獨立分區輸出
+                if _use_two_sections:
+                    _ext_school_groups: dict[str, list[tuple[str, str]]] = {}
+                    for _pl, _ps2 in _ext_para_collected:
+                        _sg_school = _pl.split('：', 1)[0]
+                        if _sg_school not in _ext_school_groups:
+                            _ext_school_groups[_sg_school] = []
+                        _ext_school_groups[_sg_school].append((_pl, _ps2))
+                    _ext_sep = f"\n\n---\n\n**相關內容**（{len(_ext_para_collected)} 件）\n\n"
+                    _para_ans_parts.append(_ext_sep)
+                    yield f"data: {json.dumps({'type': 'chunk', 'text': _ext_sep}, ensure_ascii=False)}\n\n"
+                    for _sg_school, _sg_plans in _ext_school_groups.items():
+                        for _pl, _ps2 in _sg_plans:
+                            _pname = _clean_plan_code(_pl.split('：', 1)[1] if '：' in _pl else _pl)
+                            _pchunk = f"{_global_idx}. {_sg_school}：{_pname}\n{_ps2}\n" if _ps2 else f"{_global_idx}. {_sg_school}：{_pname}\n"
+                            _para_ans_parts.append(_pchunk)
+                            yield f"data: {json.dumps({'type': 'chunk', 'text': _pchunk}, ensure_ascii=False)}\n\n"
+                            _global_idx += 1
 
                 # OUT4（列舉 + Summary）& OUT7（列舉 + Summary + 概念子問題）
                 # _is_out7: 列舉15 + 前5摘要 + 概念回答
