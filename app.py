@@ -2753,27 +2753,47 @@ def ask():
                         for p, chunks in _direct_plan_chunks.items()
                     }
                     print(f"[KW-DIRECT] 查詢詞 {_q_priority_kws[:3]} 直接命中 kw_chunks → {len(_plan_list_lines)} 件，跳過 topic label")
-                    # 擴展詞查找：LLM extended kws → 不在 core 的額外計畫
-                    _ext_only_kws = [k for k in _llm_extended_kws if k in _kw_idx and k not in set(_q_priority_kws)]
-                    _ext_chunks_tmp: dict[str, list[str]] = {}
-                    for _ek in _ext_only_kws:
-                        for _ee in _kw_idx.get(_ek, []):
+                    # 關鍵字配對：偵測到其中一個就直接用另一個的 chunks 當 extension（不跑 LLM extension）
+                    _KW_PAIRS: dict[str, str] = {
+                        "原鄉教育": "偏鄉教育",
+                        "偏鄉教育": "原鄉教育",
+                    }
+                    _paired_kw = next((v for k, v in _KW_PAIRS.items() if k in _q_priority_kws and v in _kw_idx), None)
+                    if _paired_kw:
+                        _ext_chunks_tmp: dict[str, list[str]] = {}
+                        for _ee in _kw_idx.get(_paired_kw, []):
                             if not isinstance(_ee, dict) or "text" not in _ee:
                                 continue
                             _epk = _stem_strip_re_direct.sub('', _ee.get("plan", "")).strip('_ ')
-                            if _epk in _core_plan_set:
-                                continue
-                            if _direct_label_set is not None:
-                                if _epk not in _direct_label_set:
+                            if _epk not in _core_plan_set:
+                                _ext_chunks_tmp.setdefault(_epk, []).append(_ee["text"])
+                        if _ext_chunks_tmp:
+                            _ext_plan_set = set(_ext_chunks_tmp.keys())
+                            for _ep, _ecs in _ext_chunks_tmp.items():
+                                _plan_to_snippet[_ep] = f"【{_ep}】\n" + "\n\n".join(_ecs[:3])
+                            print(f"[KW-PAIR] {_paired_kw} 配對擴展 → {len(_ext_plan_set)} 件")
+                    else:
+                        # 擴展詞查找：LLM extended kws → 不在 core 的額外計畫
+                        _ext_only_kws = [k for k in _llm_extended_kws if k in _kw_idx and k not in set(_q_priority_kws)]
+                        _ext_chunks_tmp: dict[str, list[str]] = {}
+                        for _ek in _ext_only_kws:
+                            for _ee in _kw_idx.get(_ek, []):
+                                if not isinstance(_ee, dict) or "text" not in _ee:
                                     continue
-                            elif _direct_scope_schools and _epk.split('：', 1)[0] not in _direct_scope_schools:
-                                continue
-                            _ext_chunks_tmp.setdefault(_epk, []).append(_ee["text"])
-                    if _ext_chunks_tmp:
-                        _ext_plan_set = set(_ext_chunks_tmp.keys())
-                        for _ep, _ecs in _ext_chunks_tmp.items():
-                            _plan_to_snippet[_ep] = f"【{_ep}】\n" + "\n\n".join(_ecs[:3])
-                        print(f"[KW-EXT] 擴充詞 {_ext_only_kws[:3]} → {len(_ext_plan_set)} 件擴展計畫")
+                                _epk = _stem_strip_re_direct.sub('', _ee.get("plan", "")).strip('_ ')
+                                if _epk in _core_plan_set:
+                                    continue
+                                if _direct_label_set is not None:
+                                    if _epk not in _direct_label_set:
+                                        continue
+                                elif _direct_scope_schools and _epk.split('：', 1)[0] not in _direct_scope_schools:
+                                    continue
+                                _ext_chunks_tmp.setdefault(_epk, []).append(_ee["text"])
+                        if _ext_chunks_tmp:
+                            _ext_plan_set = set(_ext_chunks_tmp.keys())
+                            for _ep, _ecs in _ext_chunks_tmp.items():
+                                _plan_to_snippet[_ep] = f"【{_ep}】\n" + "\n\n".join(_ecs[:3])
+                            print(f"[KW-EXT] 擴充詞 {_ext_only_kws[:3]} → {len(_ext_plan_set)} 件擴展計畫")
 
                 if not _direct_kw_hit:
                     # KW-SEED：label 有計畫清單就直接作為初始名單（六大議題問題走這條）
@@ -3361,7 +3381,7 @@ def ask():
                         if _sg_school not in _ext_school_groups:
                             _ext_school_groups[_sg_school] = []
                         _ext_school_groups[_sg_school].append((_pl, _ps2))
-                    _ext_sep = f"\n\n---\n\n**相關內容**（{len(_ext_para_collected)} 件）\n\n"
+                    _ext_sep = f"\n\n---\n\n**其他相關內容計畫**（{len(_ext_para_collected)} 件）\n\n"
                     _para_ans_parts.append(_ext_sep)
                     yield f"data: {json.dumps({'type': 'chunk', 'text': _ext_sep}, ensure_ascii=False)}\n\n"
                     for _sg_school, _sg_plans in _ext_school_groups.items():
