@@ -2419,17 +2419,28 @@ def ask():
                                 if _ov_line not in _ov_lines:
                                     _ov_lines.append(_ov_line)
                     _dom_raw: list[str] = []
+                    _REGION_LABELS = {
+                        "北北基金馬", "桃竹苗宜花", "中彰投", "雲嘉南", "高屏澎東",
+                        "北北基金馬區", "桃竹苗宜花區", "中彰投區", "雲嘉南區", "高屏澎東區",
+                    }
                     _is_county_label = any("縣" in _mk or "市" in _mk for _mk in _lbl_matched_set)
+                    _is_region_label = bool(_lbl_matched_set & _REGION_LABELS)
                     if _dom_fields and not _ov_lines and _is_county_label:
+                        # 縣市 label：只顯示 county 欄位吻合的場域
                         for _f in _dom_fields:
                             _fl = _f.get("location", "")
                             _fc = _f.get("county", "")
                             if not _fl:
                                 continue
-                            # 有 county 欄位 → 必須符合 label；沒有則跳過（無法驗證）
                             if _fc and not any(_mk in _fc or _fc in _mk for _mk in _lbl_matched_set):
                                 continue
                             if _fc and _fl not in _dom_raw:
+                                _dom_raw.append(_fl)
+                    elif _dom_fields and not _ov_lines and _is_region_label:
+                        # 大區 label（北北基金馬等）：學校做的所有場域，不限縣市
+                        for _f in _dom_fields:
+                            _fl = _f.get("location", "")
+                            if _fl and _fl not in _dom_raw:
                                 _dom_raw.append(_fl)
                     _dom_lines = [f"   {_loc}" for _loc in _dom_raw]
                     _extra = "\n".join((_ov_lines or _dom_lines)[:3])
