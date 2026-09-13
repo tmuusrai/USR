@@ -2320,17 +2320,6 @@ def ask():
                     print(f"[KW-PRE] label 直接命中：{_lk} → {len(_lk_plans)} 件")
                     _label_hit = True
 
-            # 0b. 六大議題偵測
-            if not _label_hit and _usr_topic and _usr_topic in _PRIMARY_TOPICS:
-                _entries = _label_direct.get(_usr_topic, [])
-                if _entries:
-                    _matched_kws.append(_usr_topic)
-                    _lk_plans = (_entries if isinstance(_entries[0], str)
-                                 else [_kw_entry_plan(e) for e in _entries])
-                    _matched_kw_plans[_usr_topic] = _lk_plans
-                    _plan_set_pre.update(_lk_plans)
-                    print(f"[KW-PRE] topic label 命中：{_usr_topic} → {len(_lk_plans)} 件")
-                    _label_hit = True
 
 
             if _matched_kws:
