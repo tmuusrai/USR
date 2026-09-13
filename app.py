@@ -2282,6 +2282,17 @@ def ask():
             _intent_label = "【列舉型】" if _llm_is_listing else "【概念型】"
             t_prepare_end = time.perf_counter()
 
+            # ── ①-b qa_custom 短路攔截（在 label 比對之前）──
+            structured_ctx = try_structured_answer(question, year=year)
+            if structured_ctx:
+                _save_shortcut_history(structured_ctx)
+                yield f"data: {json.dumps({'type': 'sources', 'sources': []}, ensure_ascii=False)}\n\n"
+                yield f"data: {json.dumps({'type': 'chunk', 'text': _intent_label + chr(10)}, ensure_ascii=False)}\n\n"
+                yield f"data: {json.dumps({'type': 'chunk', 'text': structured_ctx}, ensure_ascii=False)}\n\n"
+                total_ms = round((time.perf_counter() - t0) * 1000)
+                yield f"data: {json.dumps({'type': 'done', 'timing': {'total_ms': total_ms}, 'mode': 'qa_custom'}, ensure_ascii=False)}\n\n"
+                return
+
             # ── KW-PRE：label 比對（早期執行，結果作為後續所有路徑的搜尋範圍）──
             _query_is_or = '或' in question
             _usr_topic, _usr_topic_kws = _detect_usr_topic(question)
@@ -2474,17 +2485,6 @@ def ask():
                 yield f"data: {json.dumps({'type': 'chunk', 'text': _cnt_ans}, ensure_ascii=False)}\n\n"
                 total_ms = round((time.perf_counter() - t0) * 1000)
                 yield f"data: {json.dumps({'type': 'done', 'timing': {'total_ms': total_ms}, 'mode': 'label_count'}, ensure_ascii=False)}\n\n"
-                return
-
-            # ── ①-b qa_custom 短路攔截 ──
-            structured_ctx = try_structured_answer(question, year=year)
-            if structured_ctx:
-                _save_shortcut_history(structured_ctx)
-                yield f"data: {json.dumps({'type': 'sources', 'sources': []}, ensure_ascii=False)}\n\n"
-                yield f"data: {json.dumps({'type': 'chunk', 'text': _intent_label + chr(10)}, ensure_ascii=False)}\n\n"
-                yield f"data: {json.dumps({'type': 'chunk', 'text': structured_ctx}, ensure_ascii=False)}\n\n"
-                total_ms = round((time.perf_counter() - t0) * 1000)
-                yield f"data: {json.dumps({'type': 'done', 'timing': {'total_ms': total_ms}, 'mode': 'qa_custom'}, ensure_ascii=False)}\n\n"
                 return
 
             # ── ①-c 國內實踐場域短路：直接從 location_index 回傳 ──
