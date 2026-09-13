@@ -3383,7 +3383,7 @@ def ask():
 
                 _total_plan_cnt = len(_para_collected)
                 _total_school_cnt = len(_school_groups)
-                _header_txt = f"【列舉型】\n找到 {_total_plan_cnt} 件相關計畫（{_total_school_cnt} 間學校）{_list_display_note}\n\n"
+                _header_txt = f"【列舉型】\n\n**核心相關計畫**（{_total_plan_cnt} 件，{_total_school_cnt} 間學校）{_list_display_note}\n\n"
                 _para_ans_parts.append(_header_txt)
                 yield f"data: {json.dumps({'type': 'chunk', 'text': _header_txt}, ensure_ascii=False)}\n\n"
 
@@ -3404,7 +3404,7 @@ def ask():
                         if _sg_school not in _ext_school_groups:
                             _ext_school_groups[_sg_school] = []
                         _ext_school_groups[_sg_school].append((_pl, _ps2))
-                    _ext_sep = f"\n\n---\n\n**其他相關內容計畫**（{len(_ext_para_collected)} 件）\n\n"
+                    _ext_sep = f"\n\n---\n\n**其他相關計畫**（{len(_ext_para_collected)} 件）\n\n"
                     _para_ans_parts.append(_ext_sep)
                     yield f"data: {json.dumps({'type': 'chunk', 'text': _ext_sep}, ensure_ascii=False)}\n\n"
                     for _sg_school, _sg_plans in _ext_school_groups.items():
