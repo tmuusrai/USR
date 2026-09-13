@@ -2299,7 +2299,9 @@ def ask():
                             '透過', '結合', '整合', '運用', '方式', '計畫書', '成果',
                             '屬於', '屬', '歸屬', '分類', '類別', '屬什麼', '計畫屬',
                             '議題', '領域', '方向', '面向', '主題', '類型', '類別',
-                            '場域', '實踐場域', '計畫場域', '執行場域', '合作場域', '國內場域', '海外場域'}
+                            '場域', '實踐場域', '計畫場域', '執行場域', '合作場域', '國內場域', '海外場域',
+                            '總數量', '數量', '件數', '幾件', '幾個', '多少', '共幾', '共有幾', '總計', '合計',
+                            '成效評估', '評估', '完成', '已完成', '通過', '數量就好', '只要提供'}
             _plan_set_pre: set[str] = set()
             _matched_kws: list[str] = []
             _matched_kw_plans: dict[str, list[str]] = {}   # 每個命中 LABEL 各自的計畫清單
@@ -2459,6 +2461,19 @@ def ask():
                 yield f"data: {json.dumps({'type': 'chunk', 'text': _lbl_ans}, ensure_ascii=False)}\n\n"
                 total_ms = round((time.perf_counter() - t0) * 1000)
                 yield f"data: {json.dumps({'type': 'done', 'timing': {'total_ms': total_ms}, 'mode': 'label_direct'}, ensure_ascii=False)}\n\n"
+                return
+
+            # ── ①-a Label 短路：label 命中 + 計數問題 → 直接回傳數量 ──
+            _COUNT_Q_RE = re.compile(r'有多少|幾件|幾個|幾間|幾所|幾[所所]|總數量|共幾|計畫數量|件數|數量')
+            if (_label_hit and _kw_plan_list and not _kw_pre_extra
+                    and _COUNT_Q_RE.search(question) and not _llm_is_listing):
+                _cnt_tag  = '/'.join(_matched_kws[:2])
+                _cnt_ans  = f"共 **{len(_kw_plan_list)} 件**相關計畫（{_cnt_tag}）。"
+                _save_shortcut_history(_cnt_ans, _kw_plan_list)
+                yield f"data: {json.dumps({'type': 'sources', 'sources': []}, ensure_ascii=False)}\n\n"
+                yield f"data: {json.dumps({'type': 'chunk', 'text': _cnt_ans}, ensure_ascii=False)}\n\n"
+                total_ms = round((time.perf_counter() - t0) * 1000)
+                yield f"data: {json.dumps({'type': 'done', 'timing': {'total_ms': total_ms}, 'mode': 'label_count'}, ensure_ascii=False)}\n\n"
                 return
 
             # ── ①-b qa_custom 短路攔截 ──
