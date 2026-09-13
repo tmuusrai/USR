@@ -2298,7 +2298,8 @@ def ask():
                             '發展', '促進', '改善', '提升', '強化', '增加', '協助', '支持',
                             '透過', '結合', '整合', '運用', '方式', '計畫書', '成果',
                             '屬於', '屬', '歸屬', '分類', '類別', '屬什麼', '計畫屬',
-                            '議題', '領域', '方向', '面向', '主題', '類型', '類別'}
+                            '議題', '領域', '方向', '面向', '主題', '類型', '類別',
+                            '場域', '實踐場域', '計畫場域', '執行場域', '合作場域', '國內場域', '海外場域'}
             _plan_set_pre: set[str] = set()
             _matched_kws: list[str] = []
             _matched_kw_plans: dict[str, list[str]] = {}   # 每個命中 LABEL 各自的計畫清單
@@ -2334,10 +2335,13 @@ def ask():
 
             if _matched_kws:
                 _kw_list_hit = _matched_kws[0]
-                # 縣市 label AND 過濾：縣市 label（高雄/屏東…）與議題 label 同時命中時取交集
-                _county_label_keys = set(_COUNTY_KEYWORDS.values())
-                _matched_county_lks = [k for k in _matched_kws if k in _county_label_keys]
-                _matched_topic_lks  = [k for k in _matched_kws if k not in _county_label_keys]
+                # 縣市/大區 label AND 過濾：地區 label 與議題 label 同時命中時取交集
+                _LOCATION_LABEL_KEYS = set(_COUNTY_KEYWORDS.values()) | {
+                    "北北基金馬", "桃竹苗宜花", "中彰投", "雲嘉南", "高屏澎東",
+                    "北北基金馬區", "桃竹苗宜花區", "中彰投區", "雲嘉南區", "高屏澎東區",
+                }
+                _matched_county_lks = [k for k in _matched_kws if k in _LOCATION_LABEL_KEYS or "縣" in k or "市" in k]
+                _matched_topic_lks  = [k for k in _matched_kws if k not in _LOCATION_LABEL_KEYS and "縣" not in k and "市" not in k]
                 if _matched_county_lks and _matched_topic_lks:
                     _county_set_pre = set.union(*[set(_matched_kw_plans.get(k, [])) for k in _matched_county_lks])
                     _topic_set_pre  = set.union(*[set(_matched_kw_plans.get(k, [])) for k in _matched_topic_lks])
@@ -2423,10 +2427,12 @@ def ask():
                         "北北基金馬", "桃竹苗宜花", "中彰投", "雲嘉南", "高屏澎東",
                         "北北基金馬區", "桃竹苗宜花區", "中彰投區", "雲嘉南區", "高屏澎東區",
                     }
+                    _SHORT_COUNTY_SET = set(_COUNTY_KEYWORDS.values()) - {"國外"}
                     _is_county_label = any("縣" in _mk or "市" in _mk for _mk in _lbl_matched_set)
+                    _is_short_county_label = bool(_lbl_matched_set & _SHORT_COUNTY_SET) and not _is_county_label
                     _is_region_label = bool(_lbl_matched_set & _REGION_LABELS)
                     if _dom_fields and not _ov_lines and _is_county_label:
-                        # 縣市 label：只顯示 county 欄位吻合的場域
+                        # 正式縣市 label（含縣/市）：過濾 county 欄位吻合的場域
                         for _f in _dom_fields:
                             _fl = _f.get("location", "")
                             _fc = _f.get("county", "")
@@ -2435,6 +2441,19 @@ def ask():
                             if _fc and not any(_mk in _fc or _fc in _mk for _mk in _lbl_matched_set):
                                 continue
                             if _fc and _fl not in _dom_raw:
+                                _dom_raw.append(_fl)
+                    elif _dom_fields and not _ov_lines and _is_short_county_label:
+                        # 簡稱縣市 label（台北/台南等）：寬鬆比對 county 欄位
+                        for _f in _dom_fields:
+                            _fl = _f.get("location", "")
+                            _fc = _f.get("county", "")
+                            if not _fl:
+                                continue
+                            if _fc:
+                                _fc_short = _FULL_TO_SHORT_COUNTY.get(_fc, _fc)
+                                if not any(_fc_short == _mk or _fc == _mk for _mk in _lbl_matched_set):
+                                    continue
+                            if _fl not in _dom_raw:
                                 _dom_raw.append(_fl)
                     elif _dom_fields and not _ov_lines and _is_region_label:
                         # 大區 label（北北基金馬等）：學校做的所有場域，不限縣市
