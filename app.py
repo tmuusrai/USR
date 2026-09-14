@@ -2519,9 +2519,11 @@ def ask():
                 return
 
             # ── ①-d 計畫總覽/內容短路：直接回傳 summary TXT ──
-            summary_ctx = _try_summary_answer(question, year=year,
-                                              kw_plan_list=_kw_plan_list or None,
-                                              school=_school or None)
+            # 偵測到特定計畫時不短路：使用者問的是計畫某一層面，應走 LLM 概念路徑
+            summary_ctx = (None if _detected_plan_key else
+                           _try_summary_answer(question, year=year,
+                                               kw_plan_list=_kw_plan_list or None,
+                                               school=_school or None))
             _out5_summary: str | None = None  # OUT5 暫存摘要（計畫內容型 + 一般型）
             if summary_ctx:
                 _sum_q_segs = [p.strip() for p in re.split(r'[？?]', question) if p.strip()]
