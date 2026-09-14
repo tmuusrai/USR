@@ -2321,6 +2321,8 @@ def ask():
 
             # 0. 直接比對 label_index key（topic/SDG/縣市/類型）
             for _lk in sorted(_label_direct, key=len, reverse=True):
+                if _lk in _kw_stop_pre:
+                    continue
                 if len(_lk) >= 2 and (_lk in question or _lk in _llm_kws_set) and _lk not in _matched_kws:
                     _entries = _label_direct[_lk]
                     if not _entries:
