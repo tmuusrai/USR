@@ -1043,16 +1043,18 @@ def _strip_summary_header(text: str) -> str:
     return '\n'.join(lines).strip()
 
 def _try_summary_answer(question: str, year: str,
-                        kw_plan_list: list[str] | None = None) -> str | None:
+                        kw_plan_list: list[str] | None = None,
+                        school: str | None = None) -> str | None:
     """若問到特定學校或議題/SDG 計畫內容，直接回傳 summary TXT 內容。
     kw_plan_list：KW-PRE 已過濾的計畫清單（優先使用，避免重複偵測 label）。
+    school：外部傳入的學校（計畫偵測 / 學校偵測優先於內部 _extract_school）。
     """
     if year != "114":
         return None
     if not _SUMMARY_INTENT_RE.search(question):
         return None
 
-    school = _extract_school(question)
+    school = school or _extract_school(question)
 
     def _fmt(s, plan, content):
         body = _strip_summary_header(_strip_hr(content))
@@ -2518,7 +2520,8 @@ def ask():
 
             # ── ①-d 計畫總覽/內容短路：直接回傳 summary TXT ──
             summary_ctx = _try_summary_answer(question, year=year,
-                                              kw_plan_list=_kw_plan_list or None)
+                                              kw_plan_list=_kw_plan_list or None,
+                                              school=_school or None)
             _out5_summary: str | None = None  # OUT5 暫存摘要（計畫內容型 + 一般型）
             if summary_ctx:
                 _sum_q_segs = [p.strip() for p in re.split(r'[？?]', question) if p.strip()]
