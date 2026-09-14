@@ -2334,31 +2334,21 @@ def ask():
             _label_direct = _label_only_index.get(year, {})
             _label_hit = False
 
-            # 0. 若已鎖定特定計畫，直接設定 plan list，跳過 label 展開
-            if _early_plan_key:
-                _kw_plan_list = [_early_plan_key]
-                _plan_set_pre = {_early_plan_key}
-                _matched_kws = [_early_plan_key.split('：', 1)[-1][:8]]
-                _kw_list_hit = _matched_kws[0]
-                _label_hit = True
-                print(f"[KW-PRE] 計畫鎖定 → {_early_plan_key}")
-
-            # 0. 直接比對 label_index key（topic/SDG/縣市/類型）（計畫已鎖定時跳過）
-            if not _early_plan_key:
-                for _lk in sorted(_label_direct, key=len, reverse=True):
-                    if _lk in _kw_stop_pre:
+            # 0. 直接比對 label_index key（topic/SDG/縣市/類型）
+            for _lk in sorted(_label_direct, key=len, reverse=True):
+                if _lk in _kw_stop_pre:
+                    continue
+                if len(_lk) >= 2 and (_lk in question or _lk in _llm_kws_set) and _lk not in _matched_kws:
+                    _entries = _label_direct[_lk]
+                    if not _entries:
                         continue
-                    if len(_lk) >= 2 and (_lk in question or _lk in _llm_kws_set) and _lk not in _matched_kws:
-                        _entries = _label_direct[_lk]
-                        if not _entries:
-                            continue
-                        _matched_kws.append(_lk)
-                        _lk_plans = (_entries if isinstance(_entries[0], str)
-                                     else [_kw_entry_plan(e) for e in _entries])
-                        _matched_kw_plans[_lk] = _lk_plans
-                        _plan_set_pre.update(_lk_plans)
-                        print(f"[KW-PRE] label 直接命中：{_lk} → {len(_lk_plans)} 件")
-                        _label_hit = True
+                    _matched_kws.append(_lk)
+                    _lk_plans = (_entries if isinstance(_entries[0], str)
+                                 else [_kw_entry_plan(e) for e in _entries])
+                    _matched_kw_plans[_lk] = _lk_plans
+                    _plan_set_pre.update(_lk_plans)
+                    print(f"[KW-PRE] label 直接命中：{_lk} → {len(_lk_plans)} 件")
+                    _label_hit = True
 
 
 
