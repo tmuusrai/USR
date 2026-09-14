@@ -2988,6 +2988,7 @@ def ask():
             _MAX_PLAN_LIST = 150  # LLM 輸出上限（超過會被截斷）
 
             _plan_to_snippet: dict[str, str] = {}
+            _kw_plan_set: set[str] = set(_plan_list_lines)  # kw_chunks 核心計畫（FAISS 補充前）
             if _list:
                 # faiss_texts + annotated 用於建計畫清單（tier1/tier2），內容則優先用 keyword_index chunks
                 _combined_src = list(faiss_texts) + (annotated or [])
@@ -3095,6 +3096,10 @@ def ask():
                             print(f"[LIST-REGION] 實踐場域過濾={_question_counties}，無匹配，不過濾")
                     else:
                         print(f"[LIST-REGION] 縣市={_question_counties}，location_index 無資料，不過濾")
+
+                # 分離 kw_chunks 核心計畫 vs FAISS 補充計畫（地區過濾後再分）
+                _kw_core_lines = [p for p in _plan_list_lines if p in _kw_plan_set]
+                _faiss_supp_lines = [p for p in _plan_list_lines if p not in _kw_plan_set]
 
                 # ── 列舉型：直接從 kw_chunks (_keyword_index) 取各計畫內文 ──
                 if _plan_list_lines:
@@ -3220,10 +3225,21 @@ def ask():
                 _is_out7 = bool(_extra_sub_qs and _SUMMARY_INTENT_RE.search(question))
                 _SUB_CAP = 15 if _is_out7 else 25  # OUT7：列舉限 15 間
                 # 多取緩衝以補足跳過件，收集後再截至 _SUB_CAP
-                _display_lines = _plan_list_lines[:_SUB_CAP * 2] if _extra_sub_qs else _plan_list_lines
-                _ext_display_lines = sorted(_ext_plan_set)  # 擴展計畫（獨立處理）
-                _list_display_note = f"（另有更多計畫，以下列出前{_SUB_CAP}件）" if _extra_sub_qs and len(_plan_list_lines) > _SUB_CAP else ""
-                print(f"[LIST-SUB] extra_sub_qs={_extra_sub_qs} display={len(_display_lines)} ext={len(_ext_display_lines)} cap={_SUB_CAP if _extra_sub_qs else '∞'} total={len(_plan_list_lines)}")
+                # 核心 = kw_chunks 找到；其他 = FAISS 補充 + LLM 擴充詞
+                if _kw_core_lines and _faiss_supp_lines:
+                    _main_lines = _kw_core_lines
+                    _ext_supp = list(dict.fromkeys(_faiss_supp_lines + sorted(_ext_plan_set)))
+                elif _faiss_supp_lines:
+                    # 純 FAISS 結果：全部當核心顯示，LLM 擴充詞當其他
+                    _main_lines = _faiss_supp_lines
+                    _ext_supp = sorted(_ext_plan_set)
+                else:
+                    _main_lines = _kw_core_lines
+                    _ext_supp = sorted(_ext_plan_set)
+                _display_lines = _main_lines[:_SUB_CAP * 2] if _extra_sub_qs else _main_lines
+                _ext_display_lines = _ext_supp[:_SUB_CAP * 2] if _extra_sub_qs else _ext_supp
+                _list_display_note = f"（另有更多計畫，以下列出前{_SUB_CAP}件）" if _extra_sub_qs and len(_main_lines) > _SUB_CAP else ""
+                print(f"[LIST-SUB] extra_sub_qs={_extra_sub_qs} kw={len(_kw_core_lines)} faiss={len(_faiss_supp_lines)} ext={len(_ext_supp)} display={len(_display_lines)} cap={_SUB_CAP if _extra_sub_qs else '∞'} total={len(_plan_list_lines)}")
 
                 # ── 列舉型並行路徑：每個計畫單獨送 LLM，擷取原文關鍵句 ──
                 from langchain_core.messages import HumanMessage as _HMList
