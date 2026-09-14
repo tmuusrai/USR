@@ -2543,13 +2543,21 @@ def ask():
                 _school = _extract_school(history[-1]['q'])
                 if _school:
                     print(f"[ASK] 從歷史補充學校：{_school}")
+            # 計畫名稱偵測：問題含計畫名稱時，補充學校並記錄精確計畫 key
+            _detected_plan_key: str | None = None
+            if not _school:
+                _det_school, _detected_plan_key = _extract_plan(search_question)
+                if _det_school:
+                    _school = _det_school
+                    print(f"[ASK] 計畫名稱偵測：{_detected_plan_key}")
             _list      = _llm_is_listing and not _school and not _LIST_CONCEPT_RE.search(search_question) and not _eval_criterion
             _personnel = bool(_PERSONNEL_RE.search(search_question))
             _kw        = _extract_keywords(search_question)
             _role      = _extract_role_term(question) if _personnel else None
             _topic     = None
             if _school:
-                _topic = question.replace(_school, "").strip()
+                _ref = _detected_plan_key or _school
+                _topic = question.replace(_ref.split('：', 1)[-1] if '：' in _ref else _ref, "").strip()
                 _topic = re.sub(r'[的跟與和相關有關請問]+', ' ', _topic).strip() or None
             _fetch = TOP_K * 5 if _school else (TOP_K * 4 if _personnel else (TOP_K * 3 if _list else TOP_K))
 
@@ -2635,8 +2643,9 @@ def ask():
                     docs_school = vs.similarity_search_by_vector(vecs['school'], k=9999 if _list else TOP_K * 10)
                     docs_all = _merge_docs(docs_all, docs_school)
                     print(f"[ASK] 學校名稱輪「{_school}」→ 合併後 {len(docs_all)} 筆")
-                    docs = _school_filter_docs(docs_all, _school, k=9999)
-                    print(f"[ASK] 學校過濾「{_school}」→ {len(docs)} 筆")
+                    _filter_entry = _detected_plan_key or _school
+                    docs = _school_filter_docs(docs_all, _filter_entry, k=9999)
+                    print(f"[ASK] {'計畫' if _detected_plan_key else '學校'}過濾「{_filter_entry}」→ {len(docs)} 筆")
                 else:
                     if _list:
                         docs = docs_all[:_fetch]
@@ -4247,6 +4256,49 @@ def _build_known_schools() -> list[str]:
     return sorted(schools, key=len, reverse=True)
 
 _KNOWN_SCHOOLS: list[str] = _build_known_schools()
+
+
+def _build_plan_name_index() -> dict[str, str]:
+    """從 location_index 建立計畫名稱 → plan_key（學校：計畫名）的查找表。"""
+    try:
+        loc = _location_index.get("114", {}).get("plans", {})
+        result = {}
+        for plan_key in loc:
+            if '：' in plan_key:
+                _, plan_name = plan_key.split('：', 1)
+                if len(plan_name) >= 6:
+                    result[plan_name] = plan_key
+        return result
+    except Exception:
+        return {}
+
+_PLAN_NAME_INDEX: dict[str, str] = {}  # 延遲初始化（location_index 啟動後才建）
+
+
+def _extract_plan(question: str) -> tuple[str | None, str | None]:
+    """從問題偵測計畫名稱，回傳 (school, plan_key)。
+    先完整比對，再用 8 字元子串部分比對。
+    """
+    global _PLAN_NAME_INDEX
+    if not _PLAN_NAME_INDEX:
+        _PLAN_NAME_INDEX = _build_plan_name_index()
+    # 完整計畫名稱出現在問題中
+    for plan_name, plan_key in _PLAN_NAME_INDEX.items():
+        if plan_name in question:
+            school = plan_key.split('：', 1)[0]
+            print(f"[PLAN-DETECT] 完整命中：{plan_key}")
+            return school, plan_key
+    # 部分比對：問題含計畫名稱的 8 字元子串
+    for plan_name, plan_key in _PLAN_NAME_INDEX.items():
+        if len(plan_name) < 8:
+            continue
+        for i in range(len(plan_name) - 7):
+            chunk = plan_name[i:i+8]
+            if chunk in question:
+                school = plan_key.split('：', 1)[0]
+                print(f"[PLAN-DETECT] 部分命中（{chunk}）：{plan_key}")
+                return school, plan_key
+    return None, None
 
 
 _SCHOOL_PREFIX_RE = re.compile(r'^(國立|私立|財團法人)')
