@@ -2277,7 +2277,22 @@ def ask():
                 search_question = _prepare_search_query(question, history)
             else:
                 search_question = question
-            _llm_kws, _llm_extended_kws, _llm_intent = _llm_parse_query(search_question)
+
+            # ── 最早偵測：學校名稱 / 計畫名稱（在 LLM 分詞前鎖定，讓分詞聚焦在「想問什麼」）──
+            _early_school = _extract_school(search_question)
+            _early_plan_key: str | None = None
+            if not _early_school:
+                _early_school, _early_plan_key = _extract_plan(search_question)
+            # 若偵測到計畫/學校，把計畫名稱/學校名從問題中移除，讓 LLM 只解析「議題」部分
+            _llm_parse_q = search_question
+            if _early_plan_key and _early_plan_key.split('：', 1)[-1] in _llm_parse_q:
+                _llm_parse_q = _llm_parse_q.replace(_early_plan_key.split('：', 1)[-1], '').strip()
+            elif _early_school and _early_school in _llm_parse_q:
+                _llm_parse_q = _llm_parse_q.replace(_early_school, '').strip()
+            if _early_school:
+                print(f"[EARLY-DETECT] {'計畫' if _early_plan_key else '學校'}：{_early_plan_key or _early_school}，LLM解析：{_llm_parse_q[:40]}")
+
+            _llm_kws, _llm_extended_kws, _llm_intent = _llm_parse_query(_llm_parse_q if _llm_parse_q else search_question)
             _llm_is_listing = (_llm_intent == "list")
             _intent_label = "【列舉型】" if _llm_is_listing else "【概念型】"
             t_prepare_end = time.perf_counter()
@@ -2319,21 +2334,31 @@ def ask():
             _label_direct = _label_only_index.get(year, {})
             _label_hit = False
 
-            # 0. 直接比對 label_index key（topic/SDG/縣市/類型）
-            for _lk in sorted(_label_direct, key=len, reverse=True):
-                if _lk in _kw_stop_pre:
-                    continue
-                if len(_lk) >= 2 and (_lk in question or _lk in _llm_kws_set) and _lk not in _matched_kws:
-                    _entries = _label_direct[_lk]
-                    if not _entries:
+            # 0. 若已鎖定特定計畫，直接設定 plan list，跳過 label 展開
+            if _early_plan_key:
+                _kw_plan_list = [_early_plan_key]
+                _plan_set_pre = {_early_plan_key}
+                _matched_kws = [_early_plan_key.split('：', 1)[-1][:8]]
+                _kw_list_hit = _matched_kws[0]
+                _label_hit = True
+                print(f"[KW-PRE] 計畫鎖定 → {_early_plan_key}")
+
+            # 0. 直接比對 label_index key（topic/SDG/縣市/類型）（計畫已鎖定時跳過）
+            if not _early_plan_key:
+                for _lk in sorted(_label_direct, key=len, reverse=True):
+                    if _lk in _kw_stop_pre:
                         continue
-                    _matched_kws.append(_lk)
-                    _lk_plans = (_entries if isinstance(_entries[0], str)
-                                 else [_kw_entry_plan(e) for e in _entries])
-                    _matched_kw_plans[_lk] = _lk_plans
-                    _plan_set_pre.update(_lk_plans)
-                    print(f"[KW-PRE] label 直接命中：{_lk} → {len(_lk_plans)} 件")
-                    _label_hit = True
+                    if len(_lk) >= 2 and (_lk in question or _lk in _llm_kws_set) and _lk not in _matched_kws:
+                        _entries = _label_direct[_lk]
+                        if not _entries:
+                            continue
+                        _matched_kws.append(_lk)
+                        _lk_plans = (_entries if isinstance(_entries[0], str)
+                                     else [_kw_entry_plan(e) for e in _entries])
+                        _matched_kw_plans[_lk] = _lk_plans
+                        _plan_set_pre.update(_lk_plans)
+                        print(f"[KW-PRE] label 直接命中：{_lk} → {len(_lk_plans)} 件")
+                        _label_hit = True
 
 
 
@@ -2538,18 +2563,13 @@ def ask():
             _is_followup: bool = _explicit_followup or (use_context and bool(history))
 
             # ② 本地預計算（不需 API call）
-            _school = _extract_school(search_question)
+            # 學校/計畫已在分詞前偵測完成，直接沿用
+            _school = _early_school
+            _detected_plan_key = _early_plan_key
             if not _school and history:
                 _school = _extract_school(history[-1]['q'])
                 if _school:
                     print(f"[ASK] 從歷史補充學校：{_school}")
-            # 計畫名稱偵測：問題含計畫名稱時，補充學校並記錄精確計畫 key
-            _detected_plan_key: str | None = None
-            if not _school:
-                _det_school, _detected_plan_key = _extract_plan(search_question)
-                if _det_school:
-                    _school = _det_school
-                    print(f"[ASK] 計畫名稱偵測：{_detected_plan_key}")
             _list      = _llm_is_listing and not _school and not _LIST_CONCEPT_RE.search(search_question) and not _eval_criterion
             _personnel = bool(_PERSONNEL_RE.search(search_question))
             _kw        = _extract_keywords(search_question)
