@@ -2281,8 +2281,9 @@ def ask():
             # ── 統一解析階段：學校/計畫偵測 + LLM 拆詞（一次完成）──
             _school = _extract_school(search_question)
             _detected_plan_key: str | None = None
-            if not _school:
-                _school, _detected_plan_key = _extract_plan(search_question)
+            _plan_school, _detected_plan_key = _extract_plan(search_question)
+            if _plan_school:
+                _school = _plan_school  # 計畫比學校更精確，優先用計畫的學校
             # 移除學校/計畫名，讓 LLM 只解析「想問什麼」
             _llm_parse_q = search_question
             if _detected_plan_key and _detected_plan_key.split('：', 1)[-1] in _llm_parse_q:
