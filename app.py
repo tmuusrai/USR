@@ -2278,19 +2278,19 @@ def ask():
             else:
                 search_question = question
 
-            # ── 最早偵測：學校名稱 / 計畫名稱（在 LLM 分詞前鎖定，讓分詞聚焦在「想問什麼」）──
-            _early_school = _extract_school(search_question)
-            _early_plan_key: str | None = None
-            if not _early_school:
-                _early_school, _early_plan_key = _extract_plan(search_question)
-            # 若偵測到計畫/學校，把計畫名稱/學校名從問題中移除，讓 LLM 只解析「議題」部分
+            # ── 統一解析階段：學校/計畫偵測 + LLM 拆詞（一次完成）──
+            _school = _extract_school(search_question)
+            _detected_plan_key: str | None = None
+            if not _school:
+                _school, _detected_plan_key = _extract_plan(search_question)
+            # 移除學校/計畫名，讓 LLM 只解析「想問什麼」
             _llm_parse_q = search_question
-            if _early_plan_key and _early_plan_key.split('：', 1)[-1] in _llm_parse_q:
-                _llm_parse_q = _llm_parse_q.replace(_early_plan_key.split('：', 1)[-1], '').strip()
-            elif _early_school and _early_school in _llm_parse_q:
-                _llm_parse_q = _llm_parse_q.replace(_early_school, '').strip()
-            if _early_school:
-                print(f"[EARLY-DETECT] {'計畫' if _early_plan_key else '學校'}：{_early_plan_key or _early_school}，LLM解析：{_llm_parse_q[:40]}")
+            if _detected_plan_key and _detected_plan_key.split('：', 1)[-1] in _llm_parse_q:
+                _llm_parse_q = _llm_parse_q.replace(_detected_plan_key.split('：', 1)[-1], '').strip()
+            elif _school and _school in _llm_parse_q:
+                _llm_parse_q = _llm_parse_q.replace(_school, '').strip()
+            if _school:
+                print(f"[PARSE] {'計畫' if _detected_plan_key else '學校'}偵測：{_detected_plan_key or _school}，LLM解析：{_llm_parse_q[:40]}")
 
             _llm_kws, _llm_extended_kws, _llm_intent = _llm_parse_query(_llm_parse_q if _llm_parse_q else search_question)
             _llm_is_listing = (_llm_intent == "list")
@@ -2553,9 +2553,7 @@ def ask():
             _is_followup: bool = _explicit_followup or (use_context and bool(history))
 
             # ② 本地預計算（不需 API call）
-            # 學校/計畫已在分詞前偵測完成，直接沿用
-            _school = _early_school
-            _detected_plan_key = _early_plan_key
+            # 歷史追問補學校（統一解析未偵測到時）
             if not _school and history:
                 _school = _extract_school(history[-1]['q'])
                 if _school:
