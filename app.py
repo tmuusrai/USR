@@ -1010,7 +1010,6 @@ _SUMMARY_INTENT_RE = re.compile(
     r'|簡介'
     r'|經費(執行|核定|狀況|使用)?|補助(款|金額|額度)|核定(金額|補助|款)|執行率'
     r'|外部資源|資源鏈結|合作(夥伴|單位|機構|網絡)'
-    r'|成效評估|評估機制|量化成效'
     r'|技術創新|創新特色|特色亮點'
 )
 
@@ -2519,11 +2518,9 @@ def ask():
                 return
 
             # ── ①-d 計畫總覽/內容短路：直接回傳 summary TXT ──
-            # 偵測到特定計畫時不短路：使用者問的是計畫某一層面，應走 LLM 概念路徑
-            summary_ctx = (None if _detected_plan_key else
-                           _try_summary_answer(question, year=year,
-                                               kw_plan_list=_kw_plan_list or None,
-                                               school=_school or None))
+            summary_ctx = _try_summary_answer(question, year=year,
+                                              kw_plan_list=_kw_plan_list or None,
+                                              school=_school or None)
             _out5_summary: str | None = None  # OUT5 暫存摘要（計畫內容型 + 一般型）
             if summary_ctx:
                 _sum_q_segs = [p.strip() for p in re.split(r'[？?]', question) if p.strip()]
