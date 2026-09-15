@@ -1692,7 +1692,7 @@ for _yr_loc in _location_index.values():
             _short_c = _FULL_TO_SHORT_COUNTY.get(_full_c)
             if _short_c:
                 _location_county_plans.setdefault(_short_c, set()).add(_loc_plan)
-        if _loc_info.get("overseas_countries"):
+        if _loc_info.get("overseas_fields"):
             _location_county_plans.setdefault("國外", set()).add(_loc_plan)
 
 
@@ -3105,23 +3105,31 @@ def ask():
                                 _plan_to_snippet[_s] = _live_txt
                     print(f"[CHUNK-LIVE] live 合併後 _plan_to_snippet {len(_plan_to_snippet)} 件")
 
-                # 國外場域計畫：無 snippet 時用 location_index overseas_countries 補齊
-                # 不論 _question_counties 是否含「國外」，只要 plan 有 overseas_countries 就補
+                # 國外場域計畫：用 location_index overseas_fields 補充 snippet
                 _overseas_plan_set = _location_county_plans.get("國外", set())
                 if _overseas_plan_set & set(_plan_list_lines):
                     _loc_yr_plans = _location_index.get(year, {}).get("plans", {})
                     _ov_added = 0
                     for _s in _plan_list_lines:
-                        if _s not in _plan_to_snippet and _s in _overseas_plan_set:
-                            _ov_cs = _loc_yr_plans.get(_s, {}).get("overseas_countries", [])
-                            if _ov_cs:
+                        if _s in _overseas_plan_set:
+                            _ov_fields = _loc_yr_plans.get(_s, {}).get("overseas_fields", [])
+                            if _ov_fields:
                                 _sch_n, _, _pln_n = _s.partition("：")
-                                _plan_to_snippet[_s] = (
+                                _countries = list(dict.fromkeys(f.get("country", "") for f in _ov_fields if f.get("country")))
+                                _ov_locs = "；".join(
+                                    f"{f.get('country','')} {f.get('location','')}".strip()
+                                    for f in _ov_fields[:5] if f.get("location")
+                                )
+                                _ov_txt = (
                                     f"【{_s}】\n"
                                     f"{_sch_n.strip()}執行「{_pln_n.strip()}」計畫，"
-                                    f"設有國外實踐場域，合作國家涵蓋{'、'.join(_ov_cs)}，"
-                                    f"屬跨國場域合作計畫。"
+                                    f"設有國外實踐場域，合作國家涵蓋{'、'.join(_countries)}。"
+                                    + (f"場域包含：{_ov_locs}" if _ov_locs else "")
                                 )
+                                if _s in _plan_to_snippet:
+                                    _plan_to_snippet[_s] = _plan_to_snippet[_s] + "\n\n" + _ov_txt
+                                else:
+                                    _plan_to_snippet[_s] = _ov_txt
                                 _ov_added += 1
                     if _ov_added:
                         print(f"[CHUNK-OV] 國外 location fallback 補 {_ov_added} 件，共 {len(_plan_to_snippet)} 件")
