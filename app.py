@@ -1779,7 +1779,7 @@ def _fanout_kw_chunks(keywords: list[str], plan_keys: list[str], year: str) -> d
 
 def _fanout_faiss(question: str, vecs: dict, plan_keys: list[str] | None,
                   fetch_k: int = 60) -> list:
-    """FAISS 語意搜尋。若 chunk 數 > 45 改走 LIVESCAN，回傳 docs 列表。"""
+    """FAISS 語意搜尋，回傳 docs 列表。"""
     try:
         docs = vs.similarity_search_by_vector(vecs.get("main", []), k=fetch_k)
     except Exception:
@@ -1791,10 +1791,6 @@ def _fanout_faiss(question: str, vecs: dict, plan_keys: list[str] | None,
         docs = [d for d in docs
                 if any(p in (d.metadata.get("plan_name", "") or d.metadata.get("source", ""))
                        for p in plan_set)]
-
-    if len(docs) > 45:
-        print(f"[FANOUT-FAISS] chunk={len(docs)}>45，改走 LIVESCAN")
-        return _livescan_fallback(question, plan_keys)
 
     print(f"[FANOUT-FAISS] chunk={len(docs)}")
     return docs
@@ -2519,22 +2515,9 @@ def ask():
             summary_ctx = _try_summary_answer(question, year=year,
                                               kw_plan_list=_kw_plan_list or None,
                                               school=_school or None)
-            _out5_summary: str | None = None  # OUT5 暫存摘要（計畫內容型 + 一般型）
+            _out5_summary: str | None = summary_ctx  # summary 作為 LLM context 的一部分
             if summary_ctx:
-                _sum_q_segs = [p.strip() for p in re.split(r'[？?]', question) if p.strip()]
-                _sum_has_sub = len(_sum_q_segs) > 1
-                if not _sum_has_sub:
-                    # OUT1：純計畫內容型，直接短路輸出
-                    _save_shortcut_history(summary_ctx)
-                    yield f"data: {json.dumps({'type': 'sources', 'sources': []}, ensure_ascii=False)}\n\n"
-                    yield f"data: {json.dumps({'type': 'chunk', 'text': _intent_label + chr(10)}, ensure_ascii=False)}\n\n"
-                    yield f"data: {json.dumps({'type': 'chunk', 'text': summary_ctx}, ensure_ascii=False)}\n\n"
-                    total_ms = round((time.perf_counter() - t0) * 1000)
-                    yield f"data: {json.dumps({'type': 'done', 'timing': {'total_ms': total_ms}, 'mode': 'summary_direct'}, ensure_ascii=False)}\n\n"
-                    return
-                # OUT5：計畫內容型 + 一般型，先暫存摘要，繼續跑一般型流程
-                _out5_summary = summary_ctx
-                print(f"[OUT5] 偵測到子問題，摘要暫存，繼續一般型")
+                print(f"[SUMMARY-CTX] 取得摘要，注入 context")
 
             # ── USR 議題關鍵字偵測（僅供 keyword_index 比對，不做 FAISS 擴充）──
             _list_check = _llm_is_listing and not _LIST_CONCEPT_RE.search(search_question)
@@ -2868,11 +2851,8 @@ def ask():
                             _plan_list_lines = _plan_list_lines + _extra
                             print(f"[KW-IDX] 補充 {len(_extra)} 件計畫，共 {len(_plan_list_lines)} 件")
 
-                # ── live scan：KW-IDX 已有結果則跳過；無結果才掃 keyword_index 未收錄的詞 ──
-                _live_scan_kws = (
-                    [] if _plan_list_lines
-                    else [k for k in _q_terms if k not in _kw_idx]
-                )
+                # ── live scan：固定跑，補充 KEYWORD_INDEX 以外的計畫 ──
+                _live_scan_kws = list(_q_terms)
                 annotated = []
                 if _live_scan_kws:
                     _cached_kws = set(_kw_pre_extra)
@@ -2918,28 +2898,6 @@ def ask():
                     annotated = [a for a in annotated if any(s.split('：')[0] in a for s in _listed_schools)]
                     print(f"[LIVE] 追問學校過濾後 {len(annotated)} 筆")
 
-            # ── 一般查詢：FAISS 結果過多時改用 live scan 精取 ──
-            if not _list and not _school and len(docs) > 45:
-                _ls_kws = _extract_query_terms(search_question)
-                if _ls_kws:
-                    _ls_results = _faiss_scan_kws(_ls_kws, vs, condense=False)
-                    if _label_hit and _kw_plan_list and _ls_results:
-                        _lbl_plan_set2 = set(_kw_plan_list)
-                        _lbl_code_re2 = re.compile(r'\s*\(\d{3}USR-[^)]*\)?|_formatted(?:\(\d+\))?|\(\d+\)$')
-                        def _ls_plan_key(r: str) -> str:
-                            m = re.match(r'【(.+?)】', r.split('\n', 1)[0])
-                            if not m:
-                                return ''
-                            stem = _lbl_code_re2.sub('', m.group(1)).strip('_ ')
-                            parts = stem.split('_', 1)
-                            return f"{parts[0]}：{parts[1]}" if len(parts) == 2 else stem
-                        _ls_results = [r for r in _ls_results if _ls_plan_key(r) in _lbl_plan_set2]
-                    if _ls_results:
-                        _orig_faiss_count = len(docs)
-                        annotated = _ls_results
-                        docs = []
-                        _livescan_note = "label過濾後 " if _label_hit else ""
-                        print(f"[LIVESCAN-FALLBACK] FAISS {_orig_faiss_count} 筆 > 45，{_livescan_note}改用 live scan {len(annotated)} 筆")
 
             # 列舉型用 Flash 處理大 context 很快，給更多空間；其他問題截短避免拖慢 Pro
             _CTX_CHAR_LIMIT = 60000 if _list else 30000
@@ -3138,11 +3096,14 @@ def ask():
                         if _lv_m:
                             _school_to_live.setdefault(_lv_m.group(1), []).append(_lv_txt)
                     for _s in _plan_list_lines:
-                        if _s not in _plan_to_snippet:
-                            _s_school = _s.split('：', 1)[0]
-                            if _s_school in _school_to_live:
-                                _plan_to_snippet[_s] = '\n'.join(_school_to_live[_s_school][:3])
-                    print(f"[CHUNK-LIVE] live 補充後 _plan_to_snippet {len(_plan_to_snippet)} 件")
+                        _s_school = _s.split('：', 1)[0]
+                        if _s_school in _school_to_live:
+                            _live_txt = '\n'.join(_school_to_live[_s_school][:3])
+                            if _s in _plan_to_snippet:
+                                _plan_to_snippet[_s] = _plan_to_snippet[_s] + "\n\n" + _live_txt
+                            else:
+                                _plan_to_snippet[_s] = _live_txt
+                    print(f"[CHUNK-LIVE] live 合併後 _plan_to_snippet {len(_plan_to_snippet)} 件")
 
                 # 國外場域計畫：無 snippet 時用 location_index overseas_countries 補齊
                 # 不論 _question_counties 是否含「國外」，只要 plan 有 overseas_countries 就補
@@ -3165,50 +3126,47 @@ def ask():
                     if _ov_added:
                         print(f"[CHUNK-OV] 國外 location fallback 補 {_ov_added} 件，共 {len(_plan_to_snippet)} 件")
 
-                # Summary fallback：kw_chunks/live/location 都無 snippet 的計畫，從 summary 檔補充
-                _no_snip = [p for p in _plan_list_lines if p not in _plan_to_snippet]
-                if _no_snip:
-                    _sum_fb = _fanout_summary(_no_snip, year)
-                    for _sp, _st in _sum_fb.items():
-                        _plan_to_snippet[_sp] = _st[:800]
-                    if _sum_fb:
-                        print(f"[CHUNK-SUM] summary fallback 補 {len(_sum_fb)} 件，共 {len(_plan_to_snippet)} 件")
-
-                # RAG fallback：summary 也沒有的計畫，從已取到的 FAISS docs 補充原文段落
-                # docs 已在 fan-out 階段取得；若為空則重新搜尋（chunk>45→LIVESCAN）
-                _rag_no_snip = [p for p in _plan_list_lines if p not in _plan_to_snippet]
-                if _rag_no_snip:
-                    if docs:
-                        _rag_docs_raw = docs
-                        _use_livescan = False
+                # Summary：所有計畫都查，結果合併進 snippet
+                _sum_fb = _fanout_summary(_plan_list_lines, year)
+                for _sp, _st in _sum_fb.items():
+                    _sum_txt = _st[:800]
+                    if _sp in _plan_to_snippet:
+                        _plan_to_snippet[_sp] = _plan_to_snippet[_sp] + "\n\n" + _sum_txt
                     else:
-                        _rag_docs_raw = vs.similarity_search(search_question, k=min(TOP_K * 5, 60))
-                        _use_livescan = len(_rag_docs_raw) > 45
-                        if _use_livescan:
-                            _rag_docs_raw = _livescan_fallback(search_question, _rag_no_snip)
-                    _rag_by_school: dict[str, list[str]] = {}
-                    for _rd in _rag_docs_raw:
-                        _rd_src = _rd.metadata.get("plan_name") or _rd.metadata.get("source", "")
-                        if "：" in _rd_src:
-                            _rschool = _rd_src.split("：", 1)[0]
-                        else:
-                            _rsrc = _PATH_SEP_RE.split(_rd_src)[-1].rsplit('.', 1)[0]
-                            _rschool = _clean_plan_code(_rsrc).split('_', 1)[0]
-                        _rag_by_school.setdefault(_rschool, []).append(_rd.page_content[:400])
-                    _rag_filled = 0
-                    for _np in _rag_no_snip:
-                        _np_school = _np.split('：', 1)[0]
-                        if _np_school in _rag_by_school:
-                            _plan_to_snippet[_np] = "\n\n".join(_rag_by_school[_np_school][:3])
-                            _rag_filled += 1
-                    if _rag_filled:
-                        _rag_mode = "LIVESCAN" if _use_livescan else "FAISS"
-                        print(f"[CHUNK-RAG] {_rag_mode} fallback 補 {_rag_filled} 件，共 {len(_plan_to_snippet)} 件")
+                        _plan_to_snippet[_sp] = _sum_txt
+                if _sum_fb:
+                    print(f"[CHUNK-SUM] summary 合併 {len(_sum_fb)} 件，共 {len(_plan_to_snippet)} 件")
 
-                # Location fanout：場域相關問題，補充 location_index 到 snippet
-                if _LOCATION_QUERY_RE.search(question):
-                    _loc_fanout_text = _fanout_location(question, _plan_list_lines, year)
-                    if _loc_fanout_text:
+                # RAG：所有計畫都查，結果合併進 snippet
+                if docs:
+                    _rag_docs_raw = docs
+                else:
+                    _rag_docs_raw = vs.similarity_search(search_question, k=min(TOP_K * 5, 60))
+                _rag_by_school: dict[str, list[str]] = {}
+                for _rd in _rag_docs_raw:
+                    _rd_src = _rd.metadata.get("plan_name") or _rd.metadata.get("source", "")
+                    if "：" in _rd_src:
+                        _rschool = _rd_src.split("：", 1)[0]
+                    else:
+                        _rsrc = _PATH_SEP_RE.split(_rd_src)[-1].rsplit('.', 1)[0]
+                        _rschool = _clean_plan_code(_rsrc).split('_', 1)[0]
+                    _rag_by_school.setdefault(_rschool, []).append(_rd.page_content[:400])
+                _rag_filled = 0
+                for _np in _plan_list_lines:
+                    _np_school = _np.split('：', 1)[0]
+                    if _np_school in _rag_by_school:
+                        _rag_txt = "\n\n".join(_rag_by_school[_np_school][:3])
+                        if _np in _plan_to_snippet:
+                            _plan_to_snippet[_np] = _plan_to_snippet[_np] + "\n\n" + _rag_txt
+                        else:
+                            _plan_to_snippet[_np] = _rag_txt
+                        _rag_filled += 1
+                if _rag_filled:
+                    print(f"[CHUNK-RAG] FAISS 合併 {_rag_filled} 件，共 {len(_plan_to_snippet)} 件")
+
+                # Location fanout：固定跑，有找到才補充 location_index 到 snippet
+                _loc_fanout_text = _fanout_location(question, _plan_list_lines, year)
+                if _loc_fanout_text:
                         for _lseg in _loc_fanout_text.split("\n\n"):
                             _lm = re.match(r'【(.+?)・(.+?)】', _lseg)
                             if not _lm:
@@ -3279,9 +3237,10 @@ def ask():
                         f"- 說明重點：做了什麼活動、服務對象是誰、在哪裡執行、達成什麼效果\n"
                         f"- 本計畫主導學校是【{_lead_school}】；若內文提及其他合作機構或協同主持人，可保留機構名，但說明主詞必須是【{_lead_school}】或其計畫，不得以合作機構為主詞\n"
                         f"- 若有具體合作對象（企業、社區、機構名稱）或數字（場次、人次、件數），必須保留\n"
-                        f"- 用流暢白話整理，不要照抄原文，不要條列，不要輸出「此計畫致力於…」「本計畫旨在…」等開頭\n"
+                        f"- 用流暢白話整理，不要條列，不要輸出「此計畫致力於…」「本計畫旨在…」等開頭\n"
+                        f"- 描述時只能使用原文中實際出現的詞語，不得用原文未出現的同義詞或概括詞替換（例如原文寫「農業體驗」就用「農業體驗」，不要換成「食農教育」）\n"
                         f"- 提及地名（縣市、鄉鎮、村里、社區、場域、山川等）時，一律用〔〕標記，例：〔三芝區〕、〔萬年溪〕\n"
-                        f"- 將與查詢議題語意相關的詞語（含同義詞、相關概念）用**標記**\n"
+                        f"- 將與查詢議題語意相關的詞語（含同義詞、相關概念）用**標記**加粗\n"
                         f"- 若內容僅含章節標題（如「一、」「（一）」「叁、」「## 標題」等）或單位名稱清單、聯絡表格等無具體描述，直接輸出「#RAW」\n"
                         f"- 若內容含有表格欄位標題（如「學校名稱：」「計畫名稱：」「計畫/活動名稱：」「執行單位：」「聯絡人：」等），直接輸出「#RAW」\n"
                         f"只輸出說明句，不要其他文字。\n\n{_snip}"
@@ -3469,29 +3428,16 @@ def ask():
                 if _extra_sub_qs:
                     _sub_q_text = "\n".join(f"- {q}" for q in _extra_sub_qs)
 
-                    # chunk > 45 → live scan；否 → RAG
-                    _sub_chunk_count = len(_plan_list_lines)
-                    if _sub_chunk_count > 45:
-                        # live scan：用子問題關鍵字掃原文
-                        _sub_kws = _extract_query_terms(_sub_q_text)
-                        _sub_raw = _faiss_scan_kws(_sub_kws, vs, condense=False) if _sub_kws else []
-                        # 有 label 時只保留 label 名單內的計畫
-                        if _kw_plan_list and _sub_raw:
-                            _allowed = {e.split('：', 1)[0] for e in _kw_plan_list}
-                            _sub_raw = [r for r in _sub_raw if any(s in r for s in _allowed)]
-                        _sub_context = "\n\n".join(_sub_raw[:30])
-                        print(f"[SUB-Q] live scan {len(_sub_raw)} 筆（chunk={_sub_chunk_count}>45）")
-                    else:
-                        # RAG：向量搜尋子問題
-                        _sub_vec = embeddings.embed_query(_sub_q_text)
-                        _sub_docs = vs.similarity_search_by_vector(_sub_vec, k=TOP_K * 2)
-                        # 有 label 時只保留 label 名單內的計畫
-                        if _kw_plan_list:
-                            _allowed = {e.split('：', 1)[0] for e in _kw_plan_list}
-                            _sub_docs = [d for d in _sub_docs
-                                         if any(s in d.metadata.get('source', '') for s in _allowed)]
-                        _sub_context = "\n\n".join(_sanitize_chunk(d.page_content) for d in _sub_docs[:30])
-                        print(f"[SUB-Q] RAG {len(_sub_docs)} 筆（chunk={_sub_chunk_count}≤45）")
+                    # RAG：向量搜尋子問題
+                    _sub_vec = embeddings.embed_query(_sub_q_text)
+                    _sub_docs = vs.similarity_search_by_vector(_sub_vec, k=TOP_K * 2)
+                    # 有 label 時只保留 label 名單內的計畫
+                    if _kw_plan_list:
+                        _allowed = {e.split('：', 1)[0] for e in _kw_plan_list}
+                        _sub_docs = [d for d in _sub_docs
+                                     if any(s in d.metadata.get('source', '') for s in _allowed)]
+                    _sub_context = "\n\n".join(_sanitize_chunk(d.page_content) for d in _sub_docs[:30])
+                    print(f"[SUB-Q] RAG {len(_sub_docs)} 筆")
 
                     _sub_prompt = (
                         f"根據以下 USR 計畫資料，回答問題。需引用2~3個具體計畫，"
@@ -3592,15 +3538,19 @@ def ask():
                 if _fo_plan_keys:
                     _fo_kw = _fanout_kw_chunks(_llm_kws or [], _fo_plan_keys[:30], year)
                     _fo_loc = _fanout_location(question, _fo_plan_keys[:30], year)
+                    _fo_sum = _fanout_summary(_fo_plan_keys[:30], year)
                     _fo_add: list[str] = []
                     if _fo_kw:
                         _fo_add.append("【關鍵字索引】\n" + "\n\n".join(
                             f"[{p}]\n{t}" for p, t in list(_fo_kw.items())[:15]))
+                    if _fo_sum:
+                        _fo_add.append("【計畫摘要】\n" + "\n\n".join(
+                            f"[{p}]\n{t[:500]}" for p, t in list(_fo_sum.items())[:15]))
                     if _fo_loc:
                         _fo_add.append(f"【實踐場域資料】\n{_fo_loc}")
                     if _fo_add:
                         context = "\n\n".join(_fo_add) + "\n\n" + context
-                        print(f"[FANOUT] 非列舉補充 kw={len(_fo_kw)} loc={bool(_fo_loc)}")
+                        print(f"[FANOUT] 非列舉補充 kw={len(_fo_kw)} sum={len(_fo_sum)} loc={bool(_fo_loc)}")
 
             if len(context) > _CTX_CHAR_LIMIT:
                 context = context[:_CTX_CHAR_LIMIT]
@@ -3676,6 +3626,9 @@ def ask():
                         peer_ctx = "\n\n".join(_sanitize_chunk(_clean_plan_code(d.page_content)) for d in peer_docs)
                         context = f"{context}\n\n【同類型計畫參考（{plan_type}）】\n{peer_ctx}"
 
+            if _out5_summary:
+                context = f"【計畫摘要參考】\n{_out5_summary}\n\n" + context
+
             _user_profile = "" if user_type == "reviewer" else _get_user_profile(user_id)
             prompt_value = (REVIEWER_PROMPT if user_type == "reviewer" else RAG_PROMPT).invoke(
                 {"context": context, "question": question, "user_profile": _user_profile}
@@ -3695,13 +3648,7 @@ def ask():
             yield f"data: {json.dumps({'type': 'sources', 'sources': sources}, ensure_ascii=False)}\n\n"
             yield f"data: {json.dumps({'type': 'chunk', 'text': _intent_label + chr(10)}, ensure_ascii=False)}\n\n"
 
-            # OUT5：先輸出計畫摘要，再接一般型回答
-            if _out5_summary:
-                _out5_sep = _out5_summary + "\n\n---\n\n"
-                yield f"data: {json.dumps({'type': 'chunk', 'text': _out5_sep}, ensure_ascii=False)}\n\n"
-                answer_parts = [_out5_sep]
-            else:
-                answer_parts = []
+            answer_parts = []
 
             # ③ LLM：串流生成
             if _list:
@@ -3711,8 +3658,6 @@ def ask():
             else:
                 _active_llm = llm  # 分析／推理：Pro
             answer_chars = 0
-            if not _out5_summary:
-                answer_parts = []
             t_first_chunk = None
             _stream_usage_meta = None
             t_gemini_start = time.perf_counter()
