@@ -2783,7 +2783,7 @@ def ask():
                         "原鄉教育": "偏鄉教育",
                         "偏鄉教育": "原鄉教育",
                     }
-                    _paired_kw = next((v for k, v in _KW_PAIRS.items() if k in _q_priority_kws and v in _kw_idx), None)
+                    _paired_kw = next((v for k, v in _KW_PAIRS.items() if k in question and v in _kw_idx), None)
                     if _paired_kw:
                         _ext_chunks_tmp: dict[str, list[str]] = {}
                         for _ee in _kw_idx.get(_paired_kw, []):
