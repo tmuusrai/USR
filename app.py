@@ -2413,7 +2413,9 @@ def ask():
 
 
             # ── ① Label 短路：label 命中 + 列舉問題 → 輸出名單 + 結構化資料 ──
-            if _label_hit and _llm_is_listing and _kw_plan_list and not _kw_pre_extra:
+            # 含「完成/已完成」限定詞時不短路，讓 _completion_filter 讀內容判斷
+            _completion_qual = bool(re.search(r'完成|已完成', question))
+            if _label_hit and _llm_is_listing and _kw_plan_list and not _kw_pre_extra and not _completion_qual:
                 _lbl_header = f"【列舉型】\n找到 {len(_kw_plan_list)} 件相關計畫（{'/'.join(_matched_kws[:2])}）：\n\n"
                 _lbl_loc_yr = _location_index.get(year) or _location_index.get("114", {})
                 _lbl_loc_plans = _lbl_loc_yr.get("plans", {})
@@ -3313,6 +3315,7 @@ def ask():
                     r'數字就好|只要數字|給數字就好'
                     r'|只(?:要|給)(?:數字|件數|數量)'
                     r'|請(?:直接)?給(?:我)?(?:數字|件數|數量)'
+                    r'|數量就好|只要提供數量|提供數量就好'
                 )
                 _count_only_mode = _COUNT_ONLY_RE.search(question) is not None
 
@@ -3360,6 +3363,15 @@ def ask():
                 # 有子問題時截至上限
                 if _extra_sub_qs:
                     _para_collected = _para_collected[:_SUB_CAP]
+
+                # 完成限定詞查詢：全部過濾後為空 → 直接回覆 0 件
+                if _completion_filter and not _para_collected and not _ext_para_collected and _skipped > 0:
+                    _zero_ans = f"【列舉型】\n\n目前資料中**未見有計畫明確記載已完成**相關評估，共 **0 件**。\n（{_skipped} 件計畫提及相關主題，但均屬進行中或規劃階段。）"
+                    yield f"data: {json.dumps({'type': 'sources', 'sources': []}, ensure_ascii=False)}\n\n"
+                    yield f"data: {json.dumps({'type': 'chunk', 'text': _zero_ans}, ensure_ascii=False)}\n\n"
+                    total_ms = round((time.perf_counter() - t0) * 1000)
+                    yield f"data: {json.dumps({'type': 'done', 'timing': {'total_ms': total_ms}, 'mode': 'completion_zero'}, ensure_ascii=False)}\n\n"
+                    return
 
                 _para_t_first = time.perf_counter()
                 _use_two_sections = bool(_ext_para_collected and _para_collected)
