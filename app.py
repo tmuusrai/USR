@@ -3188,8 +3188,10 @@ def ask():
                         print(f"[CHUNK-LOC] location fanout 場域補充完成")
 
                 # 偵測子問題：多個問號（複合問題）才觸發
+                # 「只要提供數量」「數量就好」等為使用者指示，不算子問題
+                _META_INST_RE = re.compile(r'^只要|^只需|^請直接|數量就好|數字就好|就好$')
                 _q_segs = [p.strip() for p in re.split(r'[？?]', question) if p.strip()]
-                _extra_sub_qs = _q_segs[1:] if len(_q_segs) > 1 else []
+                _extra_sub_qs = [q for q in _q_segs[1:] if not _META_INST_RE.search(q)] if len(_q_segs) > 1 else []
                 _is_out7 = bool(_extra_sub_qs and _SUMMARY_INTENT_RE.search(question))
                 _SUB_CAP = 15 if _is_out7 else 25  # OUT7：列舉限 15 間
                 # 多取緩衝以補足跳過件，收集後再截至 _SUB_CAP
@@ -3317,7 +3319,8 @@ def ask():
                     r'|請(?:直接)?給(?:我)?(?:數字|件數|數量)'
                     r'|數量就好|只要提供數量|提供數量就好'
                 )
-                _count_only_mode = _COUNT_ONLY_RE.search(question) is not None
+                # 完成限定詞查詢必須跑 per-plan LLM 讀內容，不能跳過摘要
+                _count_only_mode = _COUNT_ONLY_RE.search(question) is not None and not _completion_filter
 
                 # 先收集所有結果，才能在標頭寫正確件數
                 _para_collected: list[tuple[str, str]] = []
