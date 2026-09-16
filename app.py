@@ -2337,6 +2337,9 @@ def ask():
                 if len(_lk) >= 2 and (_lk in question or _lk in _llm_kws_set) and _lk not in _matched_kws:
                     _entries = _label_direct[_lk]
                     if not _entries:
+                        _matched_kws.append(_lk)
+                        _label_hit = True
+                        print(f"[KW-PRE] label 直接命中（空）：{_lk} → 0 件")
                         continue
                     _matched_kws.append(_lk)
                     _lk_plans = (_entries if isinstance(_entries[0], str)
@@ -2368,6 +2371,12 @@ def ask():
                         print(f"[KW-PRE] 場域縣市 AND 結果為空，維持 OR → {len(_plan_set_pre)} 件")
                 _kw_plan_list = sorted(_plan_set_pre)
                 print(f"[KW-PRE] 命中 {_matched_kws[:3]} → {len(_kw_plan_list)} 件")
+                # 空 label key（如已完成SROI=[]）：直接回傳 0 件
+                if _label_hit and not _kw_plan_list:
+                    _zero_label_ans = f"【列舉型】\n\n目前資料中**{_matched_kws[0]}** 共 **0 件**。"
+                    yield f"data: {json.dumps({'token': _zero_label_ans}, ensure_ascii=False)}\n\n"
+                    yield "data: [DONE]\n\n"
+                    return
                 # 額外詞：先查 kw_chunks，有就直接用；沒有才 live scan
                 _extra_pre = [k for k in _q_terms_pre
                               if k not in _matched_kws and k not in _kw_stop_pre
