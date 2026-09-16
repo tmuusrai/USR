@@ -2692,6 +2692,7 @@ def ask():
                 _direct_plan_chunks: dict[str, list[str]] = {}
                 _direct_plan_kw_hits: dict[str, set[str]] = {}  # plan → 命中的 keyword 集合
                 _ext_plan_set: set[str] = set()  # LLM 擴充詞帶出的計畫（不在 core 內）
+                _kw_pair_ext_snippets: dict[str, str] = {}  # KW-PAIR ext 計畫 snippets（重初始化前保留用）
                 # 有 label region（如雲嘉南）時，用 label 計畫集合當 scope；否則用 FAISS extra schools
                 _direct_label_set = set(_kw_plan_list) if _kw_plan_list else None
                 _direct_scope_schools = (
@@ -2794,8 +2795,11 @@ def ask():
                             _ext_chunks_tmp.setdefault(_epk, []).append(_ee["text"])
                         if _ext_chunks_tmp:
                             _ext_plan_set = set(_ext_chunks_tmp.keys())
+                            _kw_pair_ext_snippets: dict[str, str] = {}
                             for _ep, _ecs in _ext_chunks_tmp.items():
-                                _plan_to_snippet[_ep] = f"【{_ep}】\n" + "\n\n".join(_ecs[:3])
+                                _snip_val = f"【{_ep}】\n" + "\n\n".join(_ecs[:3])
+                                _plan_to_snippet[_ep] = _snip_val
+                                _kw_pair_ext_snippets[_ep] = _snip_val
                             print(f"[KW-PAIR] {_paired_kw} 配對擴展 → {len(_ext_plan_set)} 件")
                     else:
                         # 擴展詞查找：LLM extended kws → 不在 core 的額外計畫
@@ -2957,6 +2961,9 @@ def ask():
             _MAX_PLAN_LIST = 150  # LLM 輸出上限（超過會被截斷）
 
             _plan_to_snippet: dict[str, str] = {}
+            # KW-PAIR ext 計畫的 snippets 在上方已另存，merge 回來避免被重初始化覆蓋
+            if _kw_pair_ext_snippets:
+                _plan_to_snippet.update(_kw_pair_ext_snippets)
             _kw_plan_set: set[str] = set(_plan_list_lines)  # kw_chunks 核心計畫（FAISS 補充前）
             if _list:
                 # faiss_texts + annotated 用於建計畫清單（tier1/tier2），內容則優先用 keyword_index chunks
