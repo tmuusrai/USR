@@ -121,6 +121,11 @@ def _build_chunks(year: str, vs, kw_allowed: dict[str, set[str]]) -> dict[str, l
             if allowed is not None and _norm_plan(plan) not in allowed:
                 continue
 
+            # 文字確認：chunk 原文必須包含關鍵字前2字（≥4字中文關鍵字）或全字（其餘）
+            _kw_anchor = kw[:2] if (len(kw) >= 4 and not kw[:1].isascii()) else kw
+            if _kw_anchor not in text:
+                continue
+
             # 每個計畫最多存 3 個不同 chunk（相似度由高到低）
             chunks = plan_chunks.setdefault(plan, [])
             if len(chunks) < 3 and text[:400] not in chunks:
