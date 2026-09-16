@@ -10,29 +10,55 @@
 """
 import re
 import unicodedata
-from difflib import SequenceMatcher
 from pathlib import Path
-
-
-def _half(s: str) -> str:
-    """全形英數 → 半形（NFKC normalization）"""
-    return unicodedata.normalize('NFKC', s)
 
 # ── 內部儲存 ──────────────────────────────────────────────
 _CUSTOM_QA_BY_YEAR: dict[str, list[dict]] = {"114": [], "113": []}
+
+# embedding 相關
+_EMBEDDINGS = None   # 傳入的 embeddings 物件（有 embed_query / embed_documents）
+_QA_EMB_BY_YEAR: dict[str, tuple] = {}   # year → (phrase_list, np.ndarray)
 
 _READY = False
 
 # qa_data/ 資料夾預設與 structured_qa.py 同層
 _QA_DIR = Path(__file__).parent / "qa_data"
 
-def init_qa() -> None:
-    """啟動時呼叫一次，載入各年度 qa_custom.txt。"""
-    global _READY
+def init_qa(embeddings=None) -> None:
+    """啟動時呼叫一次，載入各年度 qa_custom.txt。
+    embeddings: 傳入具有 embed_query / embed_documents 方法的物件，啟用向量比對。
+    """
+    global _READY, _EMBEDDINGS
+    _EMBEDDINGS = embeddings
     for year, qa_fname in [("114", "qa_custom_114.txt"), ("113", "qa_custom_113.txt")]:
         _load_custom_qa(_QA_DIR / qa_fname, year)
         print(f"[QA] {year} 年自訂 QA：{len(_CUSTOM_QA_BY_YEAR[year])} 組。")
+    if _EMBEDDINGS:
+        _build_qa_embeddings()
     _READY = True
+
+
+def _build_qa_embeddings() -> None:
+    """預先 embed 所有 QA phrase，存為 numpy 矩陣供 cosine similarity 比對。"""
+    import numpy as np
+    for year, qa_list in _CUSTOM_QA_BY_YEAR.items():
+        phrases: list[str] = []
+        phrase_indices: list[int] = []   # 每個 phrase 對應 qa_list 的 index
+        for i, entry in enumerate(qa_list):
+            for kw in entry["keywords"]:
+                phrases.append(kw)
+                phrase_indices.append(i)
+        if not phrases:
+            continue
+        try:
+            vecs = _EMBEDDINGS.embed_documents(phrases)
+            mat = np.array(vecs, dtype=np.float32)
+            norms = np.linalg.norm(mat, axis=1, keepdims=True)
+            mat = mat / np.maximum(norms, 1e-9)
+            _QA_EMB_BY_YEAR[year] = (phrases, phrase_indices, mat)
+            print(f"[QA-EMBED] {year} 年：{len(phrases)} 個 phrase 已 embed")
+        except Exception as e:
+            print(f"[QA-EMBED] {year} 年 embed 失敗：{e}")
 
 
 def try_structured_answer(question: str, year: str = "114") -> str | None:
@@ -43,7 +69,7 @@ def try_structured_answer(question: str, year: str = "114") -> str | None:
     if not _READY:
         return None
     qa_list = _CUSTOM_QA_BY_YEAR.get(year, _CUSTOM_QA_BY_YEAR["114"])
-    return _match_custom_qa(question.strip(), qa_list)
+    return _match_custom_qa(question.strip(), qa_list, year)
 
 
 # ── 計劃基本資料載入與比對 ────────────────────────────────
@@ -67,7 +93,6 @@ def _load_custom_qa(path: Path, year: str = "114") -> None:
 
     def _flush():
         if current_keywords and current_answer_lines:
-            # 去掉尾端空行，但保留中間空行（格式用）
             lines = current_answer_lines[:]
             while lines and not lines[-1].strip():
                 lines.pop()
@@ -107,42 +132,62 @@ def _load_custom_qa(path: Path, year: str = "114") -> None:
     _flush()
 
 
-def _bigram_score(a: str, b: str) -> float:
-    """字元 bigram Dice 係數：容忍同義詞、不同語序的模糊比對。"""
-    a_c = re.sub(r'\s+', '', a)
-    b_c = re.sub(r'\s+', '', b)
-    bg_a = {a_c[i:i+2] for i in range(len(a_c) - 1)}
-    bg_b = {b_c[i:i+2] for i in range(len(b_c) - 1)}
-    if not bg_a or not bg_b:
-        return 0.0
-    return 2 * len(bg_a & bg_b) / (len(bg_a) + len(bg_b))
-
-
-def _seq_score(a: str, b: str) -> float:
-    """difflib 字元序列相似度。"""
-    a_c = re.sub(r'\s+', '', a)
-    b_c = re.sub(r'\s+', '', b)
-    return SequenceMatcher(None, a_c, b_c).ratio()
-
-
-def _match_custom_qa(question: str, qa_list: list[dict]) -> str | None:
+def _match_custom_qa(question: str, qa_list: list[dict], year: str = "114") -> str | None:
     """
-    模糊比對邏輯（三層）：
-    1. Token 命中率：phrase 的關鍵詞有幾個出現在問題中
-    2. Bigram Dice：字元 bigram 重疊（容忍「幾件」vs「幾個」等近義詞）
-    3. SequenceMatcher：整句字元序列相似度
-    取三者最高分，門檻 0.75。收集所有候選後，依分數高→低找第一個
-    _has_extra_content 通過的 phrase，避免高分但被擋的 phrase 遮蔽正確 phrase。
+    向量比對（優先）：embed question → cosine similarity vs 所有 QA phrase，
+    門檻 0.82；通過 _has_extra_content 篩選後回傳答案。
+    無 embedding 時退回 token/bigram/seq 三層比對。
     """
+    if _EMBEDDINGS and year in _QA_EMB_BY_YEAR:
+        return _match_by_embedding(question, qa_list, year)
+    return _match_by_string(question, qa_list)
+
+
+def _match_by_embedding(question: str, qa_list: list[dict], year: str) -> str | None:
+    """Cosine similarity 比對，門檻 0.82。"""
+    import numpy as np
+    phrases, phrase_indices, mat = _QA_EMB_BY_YEAR[year]
+    try:
+        q_vec = np.array(_EMBEDDINGS.embed_query(question), dtype=np.float32)
+    except Exception as e:
+        print(f"[QA-EMBED] embed_query 失敗：{e}，退回字串比對")
+        return _match_by_string(question, qa_list)
+    q_norm = q_vec / max(float(np.linalg.norm(q_vec)), 1e-9)
+    scores = mat @ q_norm
+
+    THRESHOLD = 0.82
+    ranked = sorted(
+        ((float(scores[i]), i) for i in range(len(scores))),
+        reverse=True,
+    )
+    if ranked:
+        print(f"[QA-EMBED] top3: {[(phrases[i], round(s,3)) for s,i in ranked[:3]]}")
+
+    for score, idx in ranked:
+        if score < THRESHOLD:
+            break
+        phrase = phrases[idx]
+        entry = qa_list[phrase_indices[idx]]
+        if not _has_extra_content(question, phrase):
+            print(f"[QA-EMBED] 命中 phrase='{phrase}' score={score:.3f}")
+            return entry["answer"]
+    return None
+
+
+def _match_by_string(question: str, qa_list: list[dict]) -> str | None:
+    """Token/bigram/seq 三層比對（fallback）。"""
+    from difflib import SequenceMatcher
     q_lower = _half(question).lower()
-    candidates: list[tuple[float, str, str]] = []  # (score, answer, phrase)
+    candidates: list[tuple[float, str, str]] = []
 
     for entry in qa_list:
         for kw_phrase in entry["keywords"]:
             phrase_norm = _half(kw_phrase).lower()
             token_s  = _phrase_score(q_lower, phrase_norm)
             bigram_s = _bigram_score(q_lower, phrase_norm)
-            seq_s    = _seq_score(q_lower, phrase_norm)
+            seq_s    = SequenceMatcher(None,
+                           re.sub(r'\s+', '', q_lower),
+                           re.sub(r'\s+', '', phrase_norm)).ratio()
             score = max(token_s, bigram_s * 0.9, seq_s * 0.85)
             if score >= 0.75:
                 candidates.append((score, entry["answer"], kw_phrase))
@@ -152,6 +197,20 @@ def _match_custom_qa(question: str, qa_list: list[dict]) -> str | None:
         if not _has_extra_content(question, phrase):
             return answer
     return None
+
+
+def _half(s: str) -> str:
+    return unicodedata.normalize('NFKC', s)
+
+
+def _bigram_score(a: str, b: str) -> float:
+    a_c = re.sub(r'\s+', '', a)
+    b_c = re.sub(r'\s+', '', b)
+    bg_a = {a_c[i:i+2] for i in range(len(a_c) - 1)}
+    bg_b = {b_c[i:i+2] for i in range(len(b_c) - 1)}
+    if not bg_a or not bg_b:
+        return 0.0
+    return 2 * len(bg_a & bg_b) / (len(bg_a) + len(bg_b))
 
 
 # 列舉/疑問停用詞（不算額外內容詞）
@@ -164,33 +223,27 @@ _QUERY_STOPS = {
 }
 
 def _has_extra_content(question: str, phrase: str) -> bool:
-    """若問題有實質內容詞完全不在 phrase 覆蓋範圍內，回傳 True（讓 RAG 處理）。
-    使用子字串包含判斷：q_token 是某個 phrase_token 的子字串（或反向），視為已覆蓋。
-    """
+    """若問題有實質內容詞完全不在 phrase 覆蓋範圍內，回傳 True（讓 RAG 處理）。"""
     phrase_tokens = set(_tokenize(_half(phrase).lower()))
     q_tokens = _tokenize(_half(question).lower())
 
     def _covered(tok: str) -> bool:
         if tok in _QUERY_STOPS:
             return True
-        # 正向：tok 是某 phrase_token 的子字串，或某 phrase_token 是 tok 的子字串
         return any(tok in pt or pt in tok for pt in phrase_tokens)
 
     extra = [t for t in q_tokens if not _covered(t) and len(t) >= 2]
     return len(extra) > 0
 
 
-# 比對時過濾掉的短助詞
 _STOP = {"是", "的", "了", "嗎", "呢", "啊", "有", "在", "和", "或", "與", "及",
          "請問", "請", "問", "可以", "告訴我", "什麼", "怎麼", "如何", "哪些",
          "一下", "介紹", "說明"}
 
-# 單字停用詞：中文段落的切分點（例如「的」會把「對應的大學」分成「對應」+「大學」）
 _STOP_CHARS = frozenset(s for s in _STOP if len(s) == 1)
 
 
 def _tokenize(text: str) -> list[str]:
-    """切分 text 為有意義的詞：英數詞 + 中文內容詞（單字停用詞作切分點）。"""
     tokens: list[str] = []
     for seg in re.findall(r'[A-Za-z0-9]+|[一-鿿]+', text):
         if seg[0].isascii():
@@ -213,17 +266,14 @@ def _tokenize(text: str) -> list[str]:
 _SDG_RE = re.compile(r'^SDG\d+$', re.IGNORECASE)
 
 def _token_in_q(token: str, q_norm: str) -> bool:
-    """檢查 token 是否在 q_norm 中，SDG 數字需要 word boundary（SDG1 不能匹配 SDG11）。"""
     if _SDG_RE.match(token):
         return bool(re.search(re.escape(token) + r'(?!\d)', q_norm, re.IGNORECASE))
     return token in q_norm
 
 def _phrase_score(question: str, phrase: str) -> float:
-    """計算 phrase 的關鍵詞在 question 中的命中率（0.0 ~ 1.0）。"""
     tokens = _tokenize(phrase)
     if not tokens:
         return 0.0
-    # 去除空格，容忍「SDG2 對應的大學」vs「SDG2對應的大學」
     q_norm = question.replace(" ", "").replace("　", "")
     hits = sum(1 for t in tokens if _token_in_q(t, q_norm))
     return hits / len(tokens)

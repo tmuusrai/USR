@@ -1593,7 +1593,7 @@ def _ensure_year_loaded(year: str) -> None:
             vectorstores[year] = None
             print(f"[APP] 警告 {year}：{e}")
 
-init_qa()
+init_qa(embeddings=embeddings)
 
 # ── 關鍵字索引 ────────────────────────────────────────
 _keyword_index: dict[str, dict] = {}
@@ -1656,50 +1656,6 @@ def _load_kw_index() -> None:
             print(f"[{tag}] 載入失敗：{_e}")
 
 _load_kw_index()
-
-# ── Label key embedding 向量比對 ──────────────────────────
-_LABEL_KEY_EMB_PATH = Path("114_output/label_key_embeddings.json")
-_label_key_matrix: dict = {}   # year → np.ndarray (N, D)
-_label_key_list: dict = {}     # year → list[str]
-
-def _load_label_key_embeddings() -> None:
-    import numpy as np
-    if not _LABEL_KEY_EMB_PATH.exists():
-        print(f"[LABEL-EMBED] 找不到 {_LABEL_KEY_EMB_PATH.name}，略過（將退回字串比對）。")
-        return
-    try:
-        data = json.loads(_LABEL_KEY_EMB_PATH.read_text(encoding="utf-8"))
-        for yr, kv in data.items():
-            if not isinstance(kv, dict):
-                continue
-            ks = list(kv.keys())
-            mat = np.array([kv[k] for k in ks], dtype=np.float32)
-            norms = np.linalg.norm(mat, axis=1, keepdims=True)
-            _label_key_list[yr] = ks
-            _label_key_matrix[yr] = mat / np.maximum(norms, 1e-9)
-        total = sum(len(v) for v in _label_key_list.values())
-        print(f"[LABEL-EMBED] 載入 {_LABEL_KEY_EMB_PATH.name}，{total} 個 key")
-    except Exception as _e:
-        print(f"[LABEL-EMBED] 載入失敗：{_e}")
-
-_load_label_key_embeddings()
-
-def _find_similar_label_keys(question: str, year: str, threshold: float = 0.72) -> set:
-    """用 embedding cosine similarity 找語意相近的 label key。"""
-    import numpy as np
-    mat = _label_key_matrix.get(year)
-    if mat is None or mat.size == 0:
-        return set()
-    q_vec = np.array(embeddings.embed_query(question), dtype=np.float32)
-    q_norm = q_vec / max(float(np.linalg.norm(q_vec)), 1e-9)
-    scores = mat @ q_norm
-    keys = _label_key_list[year]
-    matched = {keys[i] for i, s in enumerate(scores) if float(s) >= threshold}
-    if matched:
-        top = sorted(((float(scores[i]), keys[i]) for i in range(len(keys))), reverse=True)[:5]
-        print(f"[LABEL-EMBED] top5 similarity: {[(k, round(s,3)) for s,k in top]}")
-        print(f"[LABEL-EMBED] threshold={threshold} 命中：{matched}")
-    return matched
 
 
 def _load_location_index() -> None:
@@ -2375,12 +2331,10 @@ def ask():
             _label_hit = False
 
             # 0. 直接比對 label_index key（topic/SDG/縣市/類型）
-            # 先用 embedding 向量比對計算語意相近的 key 集合
-            _sim_label_keys = _find_similar_label_keys(question, year)
             for _lk in sorted(_label_direct, key=len, reverse=True):
                 if _lk in _kw_stop_pre:
                     continue
-                if len(_lk) >= 2 and (_lk in question or _lk in _sim_label_keys) and _lk not in _matched_kws:
+                if len(_lk) >= 2 and (_lk in question or _lk in _llm_kws_set) and _lk not in _matched_kws:
                     _entries = _label_direct[_lk]
                     if not _entries:
                         _matched_kws.append(_lk)
