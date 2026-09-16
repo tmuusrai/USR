@@ -3376,6 +3376,16 @@ def ask():
                     yield f"data: {json.dumps({'type': 'done', 'timing': {'total_ms': total_ms}, 'mode': 'completion_zero'}, ensure_ascii=False)}\n\n"
                     return
 
+                # 計數模式：只輸出件數，不列清單
+                if _count_only_mode:
+                    _cnt_total = len(_para_collected) + len(_ext_para_collected)
+                    _cnt_txt = f"【列舉型】\n\n共 **{_cnt_total} 件**相關計畫。"
+                    yield f"data: {json.dumps({'type': 'sources', 'sources': []}, ensure_ascii=False)}\n\n"
+                    yield f"data: {json.dumps({'type': 'chunk', 'text': _cnt_txt}, ensure_ascii=False)}\n\n"
+                    total_ms = round((time.perf_counter() - t0) * 1000)
+                    yield f"data: {json.dumps({'type': 'done', 'timing': {'total_ms': total_ms}, 'mode': 'count_only'}, ensure_ascii=False)}\n\n"
+                    return
+
                 _para_t_first = time.perf_counter()
                 _use_two_sections = bool(_ext_para_collected and _para_collected)
 
