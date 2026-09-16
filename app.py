@@ -3701,7 +3701,6 @@ def ask():
                     sources.append({"source": src, "page": page})
 
             yield f"data: {json.dumps({'type': 'sources', 'sources': sources}, ensure_ascii=False)}\n\n"
-            yield f"data: {json.dumps({'type': 'chunk', 'text': _intent_label + chr(10)}, ensure_ascii=False)}\n\n"
 
             answer_parts = []
 
@@ -3715,6 +3714,9 @@ def ask():
             answer_chars = 0
             t_first_chunk = None
             _stream_usage_meta = None
+            _label_sent = False
+            _NO_DATA_PREFIX = "本系統僅收錄"
+            _buf = ""  # 緩衝前幾個 token 以判斷是否為無資料回覆
             t_gemini_start = time.perf_counter()
             for chunk in _active_llm.stream(prompt_value):
                 content = chunk.content
@@ -3730,7 +3732,21 @@ def ask():
                         t_first_chunk = time.perf_counter()
                     answer_chars += len(content)
                     answer_parts.append(content)
-                    yield f"data: {json.dumps({'type': 'chunk', 'text': content}, ensure_ascii=False)}\n\n"
+                    if not _label_sent:
+                        _buf += content
+                        if len(_buf) >= len(_NO_DATA_PREFIX):
+                            _label_sent = True
+                            if not _buf.startswith(_NO_DATA_PREFIX):
+                                yield f"data: {json.dumps({'type': 'chunk', 'text': _intent_label + chr(10)}, ensure_ascii=False)}\n\n"
+                            yield f"data: {json.dumps({'type': 'chunk', 'text': _buf}, ensure_ascii=False)}\n\n"
+                        # 還不夠長：繼續緩衝，不輸出
+                    else:
+                        yield f"data: {json.dumps({'type': 'chunk', 'text': content}, ensure_ascii=False)}\n\n"
+            # 串流結束後若緩衝仍未輸出（極短回覆）
+            if not _label_sent and _buf:
+                if not _buf.startswith(_NO_DATA_PREFIX):
+                    yield f"data: {json.dumps({'type': 'chunk', 'text': _intent_label + chr(10)}, ensure_ascii=False)}\n\n"
+                yield f"data: {json.dumps({'type': 'chunk', 'text': _buf}, ensure_ascii=False)}\n\n"
 
             t_end = time.perf_counter()
             if t_first_chunk is None:
