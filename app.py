@@ -2679,6 +2679,7 @@ def ask():
             _live_scan_kws: list[str] = []
             annotated: list[str] | None = None
             _plan_list_lines: list[str] = []
+            _kw_pair_ext_snippets: dict[str, str] = {}
 
             if _list and not _multi_enumerate:
                 _base_terms = _llm_kws or _extract_query_terms(question)
