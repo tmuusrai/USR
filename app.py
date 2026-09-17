@@ -1869,7 +1869,7 @@ def _load_plans(year: str = "114"):
         name = re.sub(r'\([^)]*\)', '', f.stem).replace('_formatted', '').strip('_').strip()
         parts = name.split('_', 1)
         if len(parts) == 2:
-            school = parts[0].strip()
+            school = re.sub(r'學校財團法人.+', '', parts[0]).strip()
             title  = parts[1].strip()
             plans.append({"school": school, "title": title,
                           "theme": _get_theme(title), "idx": i})
