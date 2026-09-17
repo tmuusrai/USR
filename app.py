@@ -1695,12 +1695,13 @@ _FULL_TO_SHORT_COUNTY: dict[str, str] = {
 _location_county_plans: dict[str, set[str]] = {}
 for _yr_loc in _location_index.values():
     for _loc_plan, _loc_info in _yr_loc.get("plans", {}).items():
-        for _full_c in _loc_info.get("counties", []):
+        for _field in _loc_info.get("fields", []):
+            _full_c = _field.get("county", "")
+            if not _full_c:
+                continue
             _short_c = _FULL_TO_SHORT_COUNTY.get(_full_c)
             if _short_c:
                 _location_county_plans.setdefault(_short_c, set()).add(_loc_plan)
-        if _loc_info.get("overseas_fields"):
-            _location_county_plans.setdefault("國外", set()).add(_loc_plan)
 
 
 _LOCATION_INTENT_RE = re.compile(
