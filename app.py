@@ -3080,7 +3080,16 @@ def ask():
                         else:
                             print(f"[LIST-REGION] 實踐場域過濾={_question_counties}，無匹配，不過濾")
                     else:
-                        print(f"[LIST-REGION] 縣市={_question_counties}，location_index 無資料，不過濾")
+                        # location_index 無資料，改用 region label 計畫清單過濾
+                        if _kw_plan_list:
+                            _region_filtered = [l for l in _plan_list_lines if l in set(_kw_plan_list)]
+                            if _region_filtered:
+                                _plan_list_lines = _region_filtered
+                                print(f"[LIST-REGION] location_index 無資料，改用 label 清單過濾，剩餘 {len(_plan_list_lines)} 件")
+                            else:
+                                print(f"[LIST-REGION] 縣市={_question_counties}，location_index 無資料，label 無匹配，不過濾")
+                        else:
+                            print(f"[LIST-REGION] 縣市={_question_counties}，location_index 無資料，不過濾")
 
                 # 分離 kw_chunks 核心計畫 vs FAISS 補充計畫（地區過濾後再分）
                 _kw_core_lines = [p for p in _plan_list_lines if p in _kw_plan_set]
