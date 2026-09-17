@@ -1881,10 +1881,11 @@ def index():
     username = session.get("username", "") if authenticated else ""
     p114 = _load_plans("114")
     p113 = _load_plans("113")
-    schools_sorted = sorted(
-        {p["school"] for p in p114 + p113},
-        key=len, reverse=True
-    )
+    _school_set = {p["school"] for p in p114 + p113}
+    for s in list(_school_set):
+        if s.startswith("國立"):
+            _school_set.add(s[2:])  # 加入去掉「國立」的別名，如「中興大學」
+    schools_sorted = sorted(_school_set, key=len, reverse=True)
     return render_template("index.html", authenticated=authenticated,
         username=username, is_admin=_is_admin(),
         plans_114=p114, plans_113=p113,
