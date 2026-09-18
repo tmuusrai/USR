@@ -135,7 +135,7 @@ for country, plans in country_to_plans.items():
 for region, plans in region_to_plans.items():
     labels_114[region] = _sl(plans)
 
-label_data["國外"] = _sl(all_plans)
+labels_114["國外"] = _sl(all_plans)
 
 LABEL_INDEX_PATH.write_text(
     json.dumps(label_data, ensure_ascii=False, indent=2),

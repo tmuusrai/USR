@@ -3063,7 +3063,7 @@ def ask():
                 if _question_counties and not _pure_label_mode:
                     # 「國外」查詢：LIVE/SEQ 覆蓋不到所有國外場域計畫，先補齊
                     if "國外" in _question_counties:
-                        _overseas_seed = list(_location_county_plans.get("國外", set()))
+                        _overseas_seed = list(_label_only_index.get(year, {}).get("國外", []))
                         if _overseas_seed:
                             _existing_set = set(_plan_list_lines)
                             _plan_list_lines = list(dict.fromkeys(
@@ -3143,7 +3143,7 @@ def ask():
                     print(f"[CHUNK-LIVE] live 合併後 _plan_to_snippet {len(_plan_to_snippet)} 件")
 
                 # 國外場域計畫：用 location_index overseas_fields 補充 snippet
-                _overseas_plan_set = _location_county_plans.get("國外", set())
+                _overseas_plan_set = set(_label_only_index.get(year, {}).get("國外", []))
                 if _overseas_plan_set & set(_plan_list_lines):
                     _loc_yr_plans = _location_index.get(year, {}).get("plans", {})
                     _ov_added = 0
