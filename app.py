@@ -2387,12 +2387,9 @@ def ask():
                     yield "data: [DONE]\n\n"
                     return
                 # 額外詞：先查 kw_chunks，有就直接用；沒有才 live scan
-                # 若命中的全是地區 label（無議題 label），topic 關鍵字也視為額外內容詞
-                _only_location_labels = bool(_matched_county_lks) and not _matched_topic_lks
                 _extra_pre = [k for k in _q_terms_pre
                               if k not in _matched_kws and k not in _kw_stop_pre
                               and len(k) >= 2
-                              and (k not in _all_topic_kws_set or _only_location_labels)
                               and not any(k in mk or mk in k for mk in _matched_kws)]
                 if _extra_pre:
                     print(f"[KW-PRE] 額外詞：{_extra_pre}")
