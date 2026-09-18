@@ -304,6 +304,28 @@ if without_county:
         print(f"  [{reg}] {k}")
         print(f"    locs: {locs}")
 
+# ── 手動覆蓋：場域名稱無縣市關鍵字，依學校所在地/地區推斷 ──────────────────
+_MANUAL_COUNTY: dict[str, str] = {
+    # 實踐大學台北校區；中華民國運動神經元疾病病友協會辦公室在台北
+    "實踐大學：漸凍病症及相似病徵病友的科技生活設計": "台北",
+    # 合作場域（中國醫藥/中臺科技/朝陽科大）均在台中；亞洲大學在台中霧峰
+    "亞洲大學：食品安全與健康的守護者": "台中",
+    # 正修科技大學在高雄楠梓；地區=高屏澎東
+    "正修科技大學：否極泰來–原住民文化資產保存人才培育與在地實踐計畫": "高雄",
+    # 暨南大學在南投埔里；「水沙連」為南投日月潭/埔里地區舊稱
+    "國立暨南國際大學：水沙連區域產業永續發展計畫：地方創生 x 借鏡日本 x 連結泰國": "南投",
+}
+
+for key, county in _MANUAL_COUNTY.items():
+    if key in plan_locs:
+        for f in plan_locs[key]:
+            if not f.get("county"):
+                f["county"] = county
+        print(f"  [手動補縣市] {key} → {county}")
+    else:
+        # 計畫不在 Excel（如純海外計畫），直接在後段寫入 location_index
+        pass
+
 # ── 更新 location_index.json ──────────────────────────────────────────────────
 loc_data = json.loads(LOCATION_PATH.read_text(encoding="utf-8"))
 plans_114 = loc_data.setdefault("114", {}).setdefault("plans", {})
@@ -317,6 +339,17 @@ for key, fields in plan_locs.items():
         updated += 1
     # 只更新 fields，保留 overseas_fields / overseas_countries
     plans_114[key]["fields"] = fields
+
+# 手動補縣市（不在 Excel 的計畫，如純海外計畫）
+for key, county in _MANUAL_COUNTY.items():
+    if key not in plan_locs and key in plans_114:
+        if not plans_114[key].get("fields"):
+            plans_114[key]["fields"] = [{"county": county, "location": ""}]
+        else:
+            for f in plans_114[key]["fields"]:
+                if not f.get("county"):
+                    f["county"] = county
+        print(f"  [手動補縣市(直接)] {key} → {county}")
 
 LOCATION_PATH.write_text(
     json.dumps(loc_data, ensure_ascii=False, indent=2),
