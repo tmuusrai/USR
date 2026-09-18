@@ -1662,6 +1662,18 @@ def _load_kw_index() -> None:
         except Exception as _e:
             print(f"[{tag}] 載入失敗：{_e}")
 
+    # 地區別名補充：label_index 用 "桃竹苗宜花"，但使用者可能只說 "桃竹苗"
+    # "宜花東" 不加 alias（因台東屬高屏澎東，由縣市偵測路徑處理即可）
+    _REGION_ALIASES: dict[str, str] = {
+        "桃竹苗": "桃竹苗宜花",
+    }
+    for yr in ("114", "113"):
+        yr_labels = _label_only_index.get(yr, {})
+        for alias, canonical in _REGION_ALIASES.items():
+            if alias not in yr_labels and canonical in yr_labels:
+                yr_labels[alias] = yr_labels[canonical]
+                jieba.add_word(alias)
+
 _load_kw_index()
 
 
@@ -1691,6 +1703,13 @@ _FULL_TO_SHORT_COUNTY: dict[str, str] = {
     '南投縣': '南投', '雲林縣': '雲林', '嘉義市': '嘉義', '嘉義縣': '嘉義',
     '宜蘭縣': '宜蘭', '花蓮縣': '花蓮', '澎湖縣': '澎湖', '金門縣': '金門',
     '連江縣': '馬祖', '基隆市': '基隆',
+    # 短名直通（location_index 可能已用短名儲存）
+    '台北': '台北', '臺北': '台北', '新北': '新北', '基隆': '基隆',
+    '桃園': '桃園', '新竹': '新竹', '苗栗': '苗栗', '台中': '台中', '臺中': '台中',
+    '彰化': '彰化', '南投': '南投', '雲林': '雲林', '嘉義': '嘉義',
+    '台南': '台南', '臺南': '台南', '高雄': '高雄', '屏東': '屏東',
+    '台東': '台東', '臺東': '台東', '花蓮': '花蓮', '宜蘭': '宜蘭',
+    '澎湖': '澎湖', '金門': '金門', '馬祖': '馬祖',
 }
 _location_county_plans: dict[str, set[str]] = {}
 for _yr_loc in _location_index.values():
