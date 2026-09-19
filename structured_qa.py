@@ -227,6 +227,10 @@ def _has_extra_content(question: str, phrase: str) -> bool:
     phrase_tokens = set(_tokenize(_half(phrase).lower()))
     q_tokens = _tokenize(_half(question).lower())
 
+    # phrase 全由停用詞組成時 phrase_tokens 為空 → 視為無額外限制
+    if not phrase_tokens:
+        return False
+
     def _covered(tok: str) -> bool:
         if tok in _QUERY_STOPS:
             return True

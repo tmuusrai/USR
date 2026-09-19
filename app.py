@@ -2383,7 +2383,7 @@ def ask():
                 _kw_list_hit = _matched_kws[0]
                 # 縣市/大區 label AND 過濾：地區 label 與議題 label 同時命中時取交集
                 _LOCATION_LABEL_KEYS = set(_COUNTY_KEYWORDS.values()) | {
-                    "北北基金馬", "桃竹苗宜花", "中彰投", "雲嘉南", "高屏澎東",
+                    "北北基金馬", "桃竹苗宜花", "桃竹苗", "中彰投", "雲嘉南", "高屏澎東",
                     "北北基金馬區", "桃竹苗宜花區", "中彰投區", "雲嘉南區", "高屏澎東區",
                 }
                 _matched_county_lks = [k for k in _matched_kws if k in _LOCATION_LABEL_KEYS or "縣" in k or "市" in k]
@@ -2478,7 +2478,7 @@ def ask():
                                     _ov_lines.append(_ov_line)
                     _dom_raw: list[str] = []
                     _REGION_LABELS = {
-                        "北北基金馬", "桃竹苗宜花", "中彰投", "雲嘉南", "高屏澎東",
+                        "北北基金馬", "桃竹苗宜花", "桃竹苗", "中彰投", "雲嘉南", "高屏澎東",
                         "北北基金馬區", "桃竹苗宜花區", "中彰投區", "雲嘉南區", "高屏澎東區",
                     }
                     _SHORT_COUNTY_SET = set(_COUNTY_KEYWORDS.values()) - {"國外"}
