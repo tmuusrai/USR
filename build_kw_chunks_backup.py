@@ -28,7 +28,7 @@ from usr_topics import USR_TOPIC_KEYWORDS
 # ── 路徑設定 ──────────────────────────────────────────
 INDEX_DIR      = Path(os.getenv("INDEX_DIR",      "faiss_index"))
 INDEX_DIR_113  = Path(os.getenv("INDEX_DIR_113",  "faiss_index_113"))
-OUTPUT_PATH    = Path("114_output/kw_chunks_test.json")
+OUTPUT_PATH    = Path("114_output/kw_chunks.json")
 LABEL_INDEX    = Path("114_output/label_index.json")
 
 _PRIMARY_TOPICS = {
@@ -193,7 +193,10 @@ def main():
             continue
         kw_allowed = _build_kw_allowed(year, label_data)
         chunks = _build_chunks(year, vs, kw_allowed)
-        existing[year] = chunks
+        # 只更新本次重建的 key，保留手動加入的 key（如原鄉教育）
+        if year not in existing:
+            existing[year] = {}
+        existing[year].update(chunks)
 
     OUTPUT_PATH.write_text(json.dumps(existing, ensure_ascii=False, indent=2), encoding="utf-8")
     print(f"\n完成！輸出至 {OUTPUT_PATH}")
