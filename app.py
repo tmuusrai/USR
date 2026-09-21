@@ -1852,9 +1852,7 @@ def _livescan_fallback(question: str, plan_keys: list[str] | None) -> list:
 
 
 def _fanout_location(question: str, plan_keys: list[str], year: str) -> str:
-    """有場域關鍵字時，從 location_index 取結構化場域資訊，格式化為文字。"""
-    if not _LOCATION_QUERY_RE.search(question):
-        return ""
+    """從 location_index 取結構化場域資訊，格式化為文字（所有問題均執行）。"""
     loc_yr = _location_index.get(year, {})
     loc_plans = loc_yr.get("plans", {})
     if not loc_plans:
@@ -2540,16 +2538,6 @@ def ask():
                 return
 
             # ── ①-c 國內實踐場域短路：直接從 location_index 回傳 ──
-            location_ctx = _try_location_answer(question, year=year)
-            if location_ctx:
-                _save_shortcut_history(location_ctx)
-                yield f"data: {json.dumps({'type': 'sources', 'sources': []}, ensure_ascii=False)}\n\n"
-                yield f"data: {json.dumps({'type': 'chunk', 'text': _intent_label + chr(10)}, ensure_ascii=False)}\n\n"
-                yield f"data: {json.dumps({'type': 'chunk', 'text': location_ctx}, ensure_ascii=False)}\n\n"
-                total_ms = round((time.perf_counter() - t0) * 1000)
-                yield f"data: {json.dumps({'type': 'done', 'timing': {'total_ms': total_ms}, 'mode': 'location_direct'}, ensure_ascii=False)}\n\n"
-                return
-
             # ── ①-d 計畫總覽/內容短路：直接回傳 summary TXT ──
             summary_ctx = _try_summary_answer(question, year=year,
                                               kw_plan_list=_kw_plan_list or None,
