@@ -3373,15 +3373,14 @@ def ask():
                     r'|請(?:直接)?給(?:我)?(?:數字|件數|數量)'
                     r'|數量就好|只要提供數量|提供數量就好'
                 )
-                # 計數模式：使用者明確要求「只給數字」
-                # 完成限定詞查詢仍需跑 per-plan LLM 過濾，但最後只輸出件數
+                # 計數模式：使用者明確要求「只給數字」，完全跳過 LLM
                 _count_only_mode = _COUNT_ONLY_RE.search(question) is not None
 
                 # 先收集所有結果，才能在標頭寫正確件數
                 _para_collected: list[tuple[str, str]] = []
                 _skipped = 0
-                if _count_only_mode and not _completion_filter:
-                    # 無完成過濾：只列計畫名稱，不呼叫 LLM 產生摘要
+                if _count_only_mode:
+                    # 只列計畫名稱，不呼叫 LLM 產生摘要
                     _para_collected = [(_pl, "") for _pl in _display_lines]
                     print(f"[COUNT-ONLY] 計數模式，{len(_para_collected)} 件，略過摘要")
                 else:
@@ -3392,13 +3391,12 @@ def ask():
                             if not _ps2 or _ps2 == "\x01":
                                 _skipped += 1
                                 continue
-                            # 計數模式時捨棄摘要文字，保留計畫名供計數
-                            _para_collected.append((_pl, "" if _count_only_mode else _ps2))
+                            _para_collected.append((_pl, _ps2))
 
                 # 擴展計畫並行收集
                 _ext_para_collected: list[tuple[str, str]] = []
                 if _ext_display_lines:
-                    if _count_only_mode and not _completion_filter:
+                    if _count_only_mode:
                         _ext_para_collected = [(_pl, "") for _pl in _ext_display_lines]
                     else:
                         with ThreadPoolExecutor(max_workers=25) as _ext_ex:
@@ -3406,7 +3404,7 @@ def ask():
                             for _pl, _pf in _ext_futs:
                                 _ps2 = _pf.result()
                                 if _ps2 and _ps2 != "\x01":
-                                    _ext_para_collected.append((_pl, "" if _count_only_mode else _ps2))
+                                    _ext_para_collected.append((_pl, _ps2))
 
                 # 依相關度排序：描述中含查詢詞越多排越前
                 if _q_priority_kws or _q_terms:
