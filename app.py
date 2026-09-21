@@ -2397,12 +2397,10 @@ def ask():
                         print(f"[KW-PRE] 場域縣市 AND 結果為空，維持 OR → {len(_plan_set_pre)} 件")
                 _kw_plan_list = sorted(_plan_set_pre)
                 print(f"[KW-PRE] 命中 {_matched_kws[:3]} → {len(_kw_plan_list)} 件")
-                # 空 label key（如已完成SROI=[]）：直接回傳 0 件
+                # 空 label key → 當作未命中，不限制搜尋範圍
                 if _label_hit and not _kw_plan_list:
-                    _zero_label_ans = f"【列舉型】\n\n目前資料中**{_matched_kws[0]}** 共 **0 件**。"
-                    yield f"data: {json.dumps({'token': _zero_label_ans}, ensure_ascii=False)}\n\n"
-                    yield "data: [DONE]\n\n"
-                    return
+                    _label_hit = False
+                    print(f"[KW-PRE] label 清單為空，重設為未命中，繼續全範圍搜尋")
                 # 額外詞：先查 kw_chunks，有就直接用；沒有才 live scan
                 _extra_pre = [k for k in _q_terms_pre
                               if k not in _matched_kws and k not in _kw_stop_pre
