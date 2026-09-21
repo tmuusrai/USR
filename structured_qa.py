@@ -139,7 +139,9 @@ def _match_custom_qa(question: str, qa_list: list[dict], year: str = "114") -> s
     無 embedding 時退回 token/bigram/seq 三層比對。
     """
     if _EMBEDDINGS and year in _QA_EMB_BY_YEAR:
-        return _match_by_embedding(question, qa_list, year)
+        result = _match_by_embedding(question, qa_list, year)
+        if result is not None:
+            return result
     return _match_by_string(question, qa_list)
 
 
