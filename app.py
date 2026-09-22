@@ -1779,7 +1779,7 @@ def _try_location_answer(question: str, year: str,
             fields = p.get("fields", [])
             field_strs = []
             for f in fields:
-                parts = [f["county"], f["district"], f["location"]]
+                parts = [f.get("county", ""), f.get("district", ""), f.get("location", "")]
                 s = "　".join(x for x in parts if x)
                 if s:
                     field_strs.append(s)
@@ -2668,7 +2668,8 @@ def ask():
 
             # ── ①-c 國內實踐場域短路：直接從 location_index 回傳 ──
             _loc_ans = _try_location_answer(question, year,
-                                              plan_keys=_kw_plan_list or None)
+                                              plan_keys=_kw_plan_list or None) \
+                        if not _kw_pre_extra else None
             if _loc_ans:
                 _save_shortcut_history(_loc_ans)
                 yield f"data: {json.dumps({'type': 'sources', 'sources': []}, ensure_ascii=False)}\n\n"
