@@ -2454,7 +2454,8 @@ def ask():
                 _extra_pre = [k for k in _q_terms_pre
                               if k not in _matched_kws and k not in _kw_stop_pre
                               and len(k) >= 2
-                              and not any(k in mk or mk in k for mk in _matched_kws)]
+                              and not any(k in mk or mk in k for mk in _matched_kws)
+                              and k != _llm_district]
                 if _extra_pre:
                     print(f"[KW-PRE] 額外詞：{_extra_pre}")
                     _kw_chunks_cur = _keyword_index.get(year, {})
