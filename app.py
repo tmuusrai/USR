@@ -2402,6 +2402,17 @@ def ask():
                 if _label_hit and not _kw_plan_list:
                     _label_hit = False
                     print(f"[KW-PRE] label 清單為空，重設為未命中，繼續全範圍搜尋")
+                # 學校名稱覆蓋：偵測到學校時直接用學校的 label key，避免學名中的地名（如「澎湖」）被當縣市 label
+                if _school and _school in _label_direct:
+                    _school_label_plans = [
+                        p if isinstance(p, str) else _kw_entry_plan(p)
+                        for p in _label_direct[_school]
+                    ]
+                    if _school_label_plans:
+                        _kw_plan_list = sorted(_school_label_plans)
+                        _label_hit = True
+                        _matched_kws = [_school]
+                        print(f"[KW-PRE] 學校名稱覆蓋 label：{_school} → {len(_kw_plan_list)} 件")
                 # 額外詞：先查 kw_chunks，有就直接用；沒有才 live scan
                 _extra_pre = [k for k in _q_terms_pre
                               if k not in _matched_kws and k not in _kw_stop_pre
@@ -2449,7 +2460,8 @@ def ask():
             # ── ① Label 短路：label 命中 + 列舉問題 → 輸出名單 + 結構化資料 ──
             # 含「完成/已完成」限定詞時不短路，讓 _completion_filter 讀內容判斷
             _completion_qual = bool(re.search(r'完成|已完成', question))
-            if _label_hit and _llm_is_listing and _kw_plan_list and not _kw_pre_extra and not _completion_qual and not _detected_plan_key:
+            # 學校 label key 存在時仍允許短路（_kw_plan_list 已被覆蓋為正確學校計畫）；無 key 時走 FAISS
+            if _label_hit and _llm_is_listing and _kw_plan_list and not _kw_pre_extra and not _completion_qual and not _detected_plan_key and (not _school or _school in _label_direct):
                 _lbl_header = f"【列舉型】\n找到 {len(_kw_plan_list)} 件相關計畫（{'/'.join(_matched_kws[:2])}）：\n\n"
                 _lbl_loc_yr = _location_index.get(year) or _location_index.get("114", {})
                 _lbl_loc_plans = _lbl_loc_yr.get("plans", {})
@@ -4311,13 +4323,27 @@ def _is_evaluation_question(question: str) -> bool:
 
 
 def _build_known_schools() -> list[str]:
-    """從 114md/ 檔名提取已知學校名稱，按長度降冪排列（優先匹配較長名稱）。"""
-    schools = set()
-    _name_re = re.compile(r'^([一-鿿]{3,12}(?:大學|學院|科大))')
-    for f in MD_DIR.glob("*.md"):
-        m = _name_re.match(f.name)
-        if m:
-            schools.add(m.group(1))
+    """從 label_index.json 抓學校 key，確保與系統其他索引一致。
+    fallback 至 md 檔名 regex（label_index 不存在時）。"""
+    _school_suffixes = ('大學', '學院', '科大', '學校', '醫學院')
+    schools: set[str] = set()
+    try:
+        import json as _json
+        _lbl_path = Path(__file__).parent / "114_output" / "label_index.json"
+        if _lbl_path.exists():
+            _lbl_data = _json.loads(_lbl_path.read_text(encoding="utf-8"))
+            for _yr_data in _lbl_data.values():
+                for _k in _yr_data:
+                    if any(_k.endswith(s) for s in _school_suffixes):
+                        schools.add(_k)
+    except Exception:
+        pass
+    if not schools:
+        _name_re = re.compile(r'^([一-鿿]{3,12}(?:大學|學院|科大))')
+        for f in MD_DIR.glob("*.md"):
+            m = _name_re.match(f.name)
+            if m:
+                schools.add(m.group(1))
     return sorted(schools, key=len, reverse=True)
 
 _KNOWN_SCHOOLS: list[str] = _build_known_schools()
