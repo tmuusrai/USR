@@ -3283,6 +3283,15 @@ def ask():
 
                 _specificity_filter = ""
 
+                # 地區 × 議題交叉查詢：若議題不是核心主題（只是偶爾提及），過濾掉
+                _topic_core_filter = ""
+                if _kw_pre_extra and _label_hit:
+                    _topic_hint = '、'.join(_kw_pre_extra[:5])
+                    _topic_core_filter = (
+                        f"- 查詢同時限定了特定議題（關鍵詞：{_topic_hint}）；"
+                        f"若這些議題**不是此計畫的核心執行方向或主要成果**（例如只是順帶提及一次活動、作為背景說明），直接輸出「#RAW」\n"
+                    )
+
                 def _sum_one_plan(_plan_line: str) -> str:
                     _snip = _strip_hr(_plan_to_snippet.get(_plan_line, ""))
                     if not _snip:
@@ -3311,6 +3320,7 @@ def ask():
                         f"- 將與查詢議題語意相關的詞語（含同義詞、相關概念）用**標記**加粗\n"
                         f"- 若內容僅含章節標題（如「一、」「（一）」「叁、」「## 標題」等）或單位名稱清單、聯絡表格等無具體描述，直接輸出「#RAW」\n"
                         f"- 若內容含有表格欄位標題（如「學校名稱：」「計畫名稱：」「計畫/活動名稱：」「執行單位：」「聯絡人：」等），直接輸出「#RAW」\n"
+                        f"{_topic_core_filter}"
                         f"只輸出說明句，不要其他文字。\n\n{_snip}"
                     )
                     try:
