@@ -2666,17 +2666,11 @@ def ask():
                 yield f"data: {json.dumps({'type': 'done', 'timing': {'total_ms': total_ms}, 'mode': 'label_count'}, ensure_ascii=False)}\n\n"
                 return
 
-            # ── ①-c 國內實踐場域短路：直接從 location_index 回傳 ──
-            _loc_ans = _try_location_answer(question, year,
-                                              plan_keys=_kw_plan_list or None) \
-                        if not _kw_pre_extra else None
-            if _loc_ans:
-                _save_shortcut_history(_loc_ans)
-                yield f"data: {json.dumps({'type': 'sources', 'sources': []}, ensure_ascii=False)}\n\n"
-                yield f"data: {json.dumps({'type': 'chunk', 'text': _loc_ans}, ensure_ascii=False)}\n\n"
-                total_ms = round((time.perf_counter() - t0) * 1000)
-                yield f"data: {json.dumps({'type': 'done', 'timing': {'total_ms': total_ms}, 'mode': 'location_shortcut'}, ensure_ascii=False)}\n\n"
-                return
+            # ── ①-c 國內實踐場域：注入 context（不短路，讓所有搜尋路徑繼續跑）──
+            _out5_location: str | None = _try_location_answer(
+                question, year, plan_keys=_kw_plan_list or None)
+            if _out5_location:
+                print(f"[LOCATION-CTX] 取得場域資料，注入 context")
 
             # ── ①-d 計畫總覽/內容短路：直接回傳 summary TXT ──
             summary_ctx = _try_summary_answer(question, year=year,
@@ -3854,6 +3848,8 @@ def ask():
                         peer_ctx = "\n\n".join(_sanitize_chunk(_clean_plan_code(d.page_content)) for d in peer_docs)
                         context = f"{context}\n\n【同類型計畫參考（{plan_type}）】\n{peer_ctx}"
 
+            if _out5_location:
+                context = f"【場域資料參考】\n{_out5_location}\n\n" + context
             if _out5_summary:
                 context = f"【計畫摘要參考】\n{_out5_summary}\n\n" + context
 
