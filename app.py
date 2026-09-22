@@ -2439,17 +2439,29 @@ def ask():
                         _matched_kws = [_school]
                         print(f"[KW-PRE] 學校名稱覆蓋 label：{_school} → {len(_kw_plan_list)} 件")
                 # district 精化：用 LLM 解析出的地區名稱縮小 _kw_plan_list
-                if _kw_plan_list and _llm_district and not _school:
-                    _dk_plans = _location_district_plans.get(_llm_district, set())
-                    if _dk_plans:
-                        _dist_intersect = sorted(set(_kw_plan_list) & _dk_plans)
-                        if _dist_intersect:
-                            _kw_plan_list = _dist_intersect
-                            print(f"[DISTRICT] {_llm_district} 精化 → {len(_kw_plan_list)} 件")
+                # 若無縣市 label 命中（_kw_plan_list 空），先從靜態表補縣市再過濾
+                if _llm_district and not _school:
+                    if not _kw_plan_list and _llm_district in _TAIWAN_DISTRICT_MAP:
+                        _auto_county = _TAIWAN_DISTRICT_MAP[_llm_district]
+                        _auto_entries = _label_direct.get(_auto_county, [])
+                        if _auto_entries:
+                            _auto_plans = [p if isinstance(p, str) else _kw_entry_plan(p) for p in _auto_entries]
+                            _kw_plan_list = sorted(_auto_plans)
+                            _label_hit = True
+                            _matched_kws = [_auto_county]
+                            _matched_county_lks = [_auto_county]
+                            print(f"[DISTRICT] {_llm_district} 自動補縣市 {_auto_county} → {len(_kw_plan_list)} 件")
+                    if _kw_plan_list:
+                        _dk_plans = _location_district_plans.get(_llm_district, set())
+                        if _dk_plans:
+                            _dist_intersect = sorted(set(_kw_plan_list) & _dk_plans)
+                            if _dist_intersect:
+                                _kw_plan_list = _dist_intersect
+                                print(f"[DISTRICT] {_llm_district} 精化 → {len(_kw_plan_list)} 件")
+                            else:
+                                print(f"[DISTRICT] {_llm_district} 交集為空，維持縣市清單 {len(_kw_plan_list)} 件")
                         else:
-                            print(f"[DISTRICT] {_llm_district} 交集為空，維持縣市清單 {len(_kw_plan_list)} 件")
-                    else:
-                        print(f"[DISTRICT] {_llm_district} 無計畫場域資料，維持縣市清單")
+                            print(f"[DISTRICT] {_llm_district} 無計畫場域資料，維持縣市清單")
                 # 額外詞：先查 kw_chunks，有就直接用；沒有才 live scan
                 _extra_pre = [k for k in _q_terms_pre
                               if k not in _matched_kws and k not in _kw_stop_pre
