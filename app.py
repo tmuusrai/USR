@@ -1755,20 +1755,51 @@ _LOCATION_INTENT_RE = re.compile(
 )
 
 
-def _try_location_answer(question: str, year: str) -> str | None:
-    """學校場域查詢：直接從 location_index 回傳結構化場域資訊。"""
+def _try_location_answer(question: str, year: str,
+                          plan_keys: list[str] | None = None) -> str | None:
+    """場域查詢短路：直接從 location_index 回傳結構化場域資訊。
+    - 有學校名 → 回傳該校所有計畫場域
+    - 無學校名但有 plan_keys（縣市 label 命中）→ 回傳該縣市計畫場域清單
+    """
     if not _LOCATION_INTENT_RE.search(question):
         return None
-    school = _extract_school(question)
-    if not school:
-        return None
     loc_yr = _location_index.get(year) or _location_index.get("114", {})
-    sc_data = loc_yr.get("schools", {}).get(school)
-    if not sc_data:
-        return None
     plans_data = loc_yr.get("plans", {})
-    lines = [f"**{school}** 共有 {len(sc_data['plans'])} 個計畫，國內實踐場域如下：\n"]
-    for i, pk in enumerate(sc_data["plans"], 1):
+
+    # ── 學校層級 ──────────────────────────────────────────
+    school = _extract_school(question)
+    if school:
+        sc_data = loc_yr.get("schools", {}).get(school)
+        if not sc_data:
+            return None
+        lines = [f"**{school}** 共有 {len(sc_data['plans'])} 個計畫，國內實踐場域如下：\n"]
+        for i, pk in enumerate(sc_data["plans"], 1):
+            plan_name = pk.split("：", 1)[1] if "：" in pk else pk
+            p = plans_data.get(pk, {})
+            fields = p.get("fields", [])
+            field_strs = []
+            for f in fields:
+                parts = [f["county"], f["district"], f["location"]]
+                s = "　".join(x for x in parts if x)
+                if s:
+                    field_strs.append(s)
+            field_text = "、".join(field_strs) if field_strs else "（無場域資料）"
+            lines.append(f"{i}. **{plan_name}**")
+            lines.append(f"   場域：{field_text}\n")
+        return "\n".join(lines)
+
+    # ── 縣市層級：plan_keys 由外部傳入（label 命中的計畫集）──
+    if not plan_keys:
+        return None
+    plan_keys_with_fields = [pk for pk in plan_keys if plans_data.get(pk, {}).get("fields")]
+    if not plan_keys_with_fields:
+        return None
+    MAX_DISPLAY = 25
+    total = len(plan_keys)
+    show_keys = plan_keys_with_fields[:MAX_DISPLAY]
+    lines = [f"共 **{total} 個**計畫，以下列出有場域資料的計畫（{len(plan_keys_with_fields)} 個）：\n"]
+    for i, pk in enumerate(show_keys, 1):
+        school_name = pk.split("：", 1)[0]
         plan_name = pk.split("：", 1)[1] if "：" in pk else pk
         p = plans_data.get(pk, {})
         fields = p.get("fields", [])
@@ -1779,8 +1810,10 @@ def _try_location_answer(question: str, year: str) -> str | None:
             if s:
                 field_strs.append(s)
         field_text = "、".join(field_strs) if field_strs else "（無場域資料）"
-        lines.append(f"{i}. **{plan_name}**")
+        lines.append(f"{i}. **{school_name}**：{plan_name}")
         lines.append(f"   場域：{field_text}\n")
+    if len(plan_keys_with_fields) > MAX_DISPLAY:
+        lines.append(f"（僅顯示前 {MAX_DISPLAY} 個，共 {len(plan_keys_with_fields)} 個有場域資料）")
     return "\n".join(lines)
 
 
@@ -2634,7 +2667,8 @@ def ask():
                 return
 
             # ── ①-c 國內實踐場域短路：直接從 location_index 回傳 ──
-            _loc_ans = _try_location_answer(question, year)
+            _loc_ans = _try_location_answer(question, year,
+                                              plan_keys=_kw_plan_list or None)
             if _loc_ans:
                 _save_shortcut_history(_loc_ans)
                 yield f"data: {json.dumps({'type': 'sources', 'sources': []}, ensure_ascii=False)}\n\n"
