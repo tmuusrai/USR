@@ -1712,15 +1712,40 @@ _FULL_TO_SHORT_COUNTY: dict[str, str] = {
     '澎湖': '澎湖', '金門': '金門', '馬祖': '馬祖',
 }
 _location_county_plans: dict[str, set[str]] = {}
+_location_district_plans: dict[str, set[str]] = {}
+_DIST_STRIP_RE = re.compile(r'[區鄉鎮市村里]$')
+
+# 靜態台灣鄉鎮區 → 縣市對照表
+_TAIWAN_DISTRICT_MAP: dict[str, str] = {}
+try:
+    _tw_dist_path = Path(__file__).parent / "taiwan_districts.json"
+    if _tw_dist_path.exists():
+        _tw_raw = json.loads(_tw_dist_path.read_text(encoding="utf-8"))
+        _TAIWAN_DISTRICT_MAP = {k: v for k, v in _tw_raw.items() if not k.startswith("_")}
+        print(f"[DISTRICT] 載入台灣鄉鎮區對照表：{len(_TAIWAN_DISTRICT_MAP)} 筆")
+except Exception as _e:
+    print(f"[DISTRICT] 載入台灣鄉鎮區對照表失敗：{_e}")
 for _yr_loc in _location_index.values():
     for _loc_plan, _loc_info in _yr_loc.get("plans", {}).items():
         for _field in _loc_info.get("fields", []):
             _full_c = _field.get("county", "")
-            if not _full_c:
-                continue
-            _short_c = _FULL_TO_SHORT_COUNTY.get(_full_c)
-            if _short_c:
-                _location_county_plans.setdefault(_short_c, set()).add(_loc_plan)
+            if _full_c:
+                _short_c = _FULL_TO_SHORT_COUNTY.get(_full_c)
+                if _short_c:
+                    _location_county_plans.setdefault(_short_c, set()).add(_loc_plan)
+            # district 欄位（如 "中壢區"）
+            _dist_v = _field.get("district", "")
+            if _dist_v:
+                _dk = _DIST_STRIP_RE.sub('', _dist_v)
+                if len(_dk) >= 2:
+                    _location_district_plans.setdefault(_dk, set()).add(_loc_plan)
+            # location 文字裡的「縣/市+X區/X鄉/X鎮」（如 "桃園市中壢區龍安里"）
+            _loc_v = _field.get("location", "")
+            if _loc_v:
+                for _dm in re.finditer(r'(?:縣|市)([一-鿿]{2,3})[區鄉鎮]', _loc_v):
+                    _dk = _dm.group(1)
+                    if len(_dk) >= 2:
+                        _location_district_plans.setdefault(_dk, set()).add(_loc_plan)
 
 
 _LOCATION_INTENT_RE = re.compile(
@@ -2413,6 +2438,21 @@ def ask():
                         _label_hit = True
                         _matched_kws = [_school]
                         print(f"[KW-PRE] 學校名稱覆蓋 label：{_school} → {len(_kw_plan_list)} 件")
+                # district 精化：用靜態台灣鄉鎮區表偵測 query 裡的地名，縣市清單 ∩ district 清單
+                if _kw_plan_list and _matched_county_lks and not _school:
+                    for _dk in sorted(_TAIWAN_DISTRICT_MAP.keys(), key=len, reverse=True):
+                        if len(_dk) >= 2 and _dk in question:
+                            _dk_plans = _location_district_plans.get(_dk, set())
+                            if _dk_plans:
+                                _dist_intersect = sorted(set(_kw_plan_list) & _dk_plans)
+                                if _dist_intersect:
+                                    _kw_plan_list = _dist_intersect
+                                    print(f"[DISTRICT] {_dk} 精化 → {len(_kw_plan_list)} 件")
+                                else:
+                                    print(f"[DISTRICT] {_dk} 交集為空，維持縣市清單 {len(_kw_plan_list)} 件")
+                            else:
+                                print(f"[DISTRICT] {_dk} 在靜態表但無計畫場域資料，維持縣市清單")
+                            break
                 # 額外詞：先查 kw_chunks，有就直接用；沒有才 live scan
                 _extra_pre = [k for k in _q_terms_pre
                               if k not in _matched_kws and k not in _kw_stop_pre
