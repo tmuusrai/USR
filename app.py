@@ -2531,6 +2531,16 @@ def ask():
                         if _dist_intersect:
                             _kw_plan_list = _dist_intersect
                             print(f"[DISTRICT] {_llm_district} 精化 → {len(_kw_plan_list)} 件")
+                    # 補算 extra keywords：防止 label shortcut 忽略主題詞（如「中壢有哪些高齡照護計畫」）
+                    _extra_pre_d = [k for k in _q_terms_pre
+                                    if k not in _matched_kws and k not in _kw_stop_pre
+                                    and len(k) >= 2
+                                    and not any(k in mk or mk in k for mk in _matched_kws)
+                                    and k != _llm_district]
+                    if _extra_pre_d:
+                        _kw_pre_extra = _extra_pre_d
+                        _kw_pre_schools = {e.split('：', 1)[0] for e in _kw_plan_list}
+                        print(f"[KW-PRE] district-only 額外詞：{_extra_pre_d}；範圍 {len(_kw_pre_schools)} 間")
 
             # ── ① Label 短路：label 命中 + 列舉問題 → 輸出名單 + 結構化資料 ──
             # 含「完成/已完成」限定詞時不短路，讓 _completion_filter 讀內容判斷
