@@ -1742,7 +1742,7 @@ for _yr_loc in _location_index.values():
             # location 文字裡的「縣/市+X區/X鄉/X鎮」（如 "桃園市中壢區龍安里"）
             _loc_v = _field.get("location", "")
             if _loc_v:
-                for _dm in re.finditer(r'(?:縣|市)([一-鿿]{2,3})[區鄉鎮]', _loc_v):
+                for _dm in re.finditer(r'(?:縣|市)([一-鿿]{2,3})[區鄉鎮市]', _loc_v):
                     _dk = _dm.group(1)
                     if len(_dk) >= 2:
                         _location_district_plans.setdefault(_dk, set()).add(_loc_plan)
@@ -2380,7 +2380,7 @@ def ask():
             _plan_set_pre: set[str] = set()
             _matched_kws: list[str] = []
             _matched_kw_plans: dict[str, list[str]] = {}   # 每個命中 LABEL 各自的計畫清單
-            _label_direct = _label_only_index.get(year, {})
+            _label_direct = _label_only_index.get(year) or _label_only_index.get("114", {})
             _label_hit = False
 
             # 0. 直接比對 label_index key（topic/SDG/縣市/類型）
@@ -4134,7 +4134,7 @@ def _llm_parse_query(q: str) -> tuple[list[str], list[str], str, str]:
             intent = str(d.get("intent", "explain")).strip().lower()
             if intent not in ("list", "explain", "location", "compare", "detail"):
                 intent = "explain"
-            district = str(d.get("district", "")).strip()
+            district = _DIST_STRIP_RE.sub('', str(d.get("district", "")).strip())
             print(f"[LLM-PARSE] keywords={kws} extended={extended} intent={intent} district={district!r}")
             return kws, extended, intent, district
     except Exception as e:
