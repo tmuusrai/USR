@@ -2448,7 +2448,7 @@ def ask():
             # ── ① Label 短路：label 命中 + 列舉問題 → 輸出名單 + 結構化資料 ──
             # 含「完成/已完成」限定詞時不短路，讓 _completion_filter 讀內容判斷
             _completion_qual = bool(re.search(r'完成|已完成', question))
-            if _label_hit and _llm_is_listing and _kw_plan_list and not _kw_pre_extra and not _completion_qual:
+            if _label_hit and _llm_is_listing and _kw_plan_list and not _kw_pre_extra and not _completion_qual and not _detected_plan_key:
                 _lbl_header = f"【列舉型】\n找到 {len(_kw_plan_list)} 件相關計畫（{'/'.join(_matched_kws[:2])}）：\n\n"
                 _lbl_loc_yr = _location_index.get(year) or _location_index.get("114", {})
                 _lbl_loc_plans = _lbl_loc_yr.get("plans", {})
@@ -2525,7 +2525,7 @@ def ask():
             # ── ①-a Label 短路：label 命中 + 計數問題 → 直接回傳數量 ──
             _COUNT_Q_RE = re.compile(r'有多少|幾件|幾個|幾間|幾所|幾[所所]|總數量|共幾|計畫數量|件數|數量')
             if (_label_hit and _kw_plan_list and not _kw_pre_extra
-                    and _COUNT_Q_RE.search(question) and not _llm_is_listing):
+                    and _COUNT_Q_RE.search(question) and not _llm_is_listing and not _detected_plan_key):
                 _cnt_tag  = '/'.join(_matched_kws[:2])
                 _cnt_ans  = f"共 **{len(_kw_plan_list)} 件**相關計畫（{_cnt_tag}）。"
                 _save_shortcut_history(_cnt_ans, _kw_plan_list)
