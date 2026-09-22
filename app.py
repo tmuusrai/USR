@@ -2634,6 +2634,15 @@ def ask():
                 return
 
             # ── ①-c 國內實踐場域短路：直接從 location_index 回傳 ──
+            _loc_ans = _try_location_answer(question, year)
+            if _loc_ans:
+                _save_shortcut_history(_loc_ans)
+                yield f"data: {json.dumps({'type': 'sources', 'sources': []}, ensure_ascii=False)}\n\n"
+                yield f"data: {json.dumps({'type': 'chunk', 'text': _loc_ans}, ensure_ascii=False)}\n\n"
+                total_ms = round((time.perf_counter() - t0) * 1000)
+                yield f"data: {json.dumps({'type': 'done', 'timing': {'total_ms': total_ms}, 'mode': 'location_shortcut'}, ensure_ascii=False)}\n\n"
+                return
+
             # ── ①-d 計畫總覽/內容短路：直接回傳 summary TXT ──
             summary_ctx = _try_summary_answer(question, year=year,
                                               kw_plan_list=_kw_plan_list or None,
