@@ -2930,7 +2930,7 @@ def ask():
 
 
             # 列舉型用 Flash 處理大 context 很快，給更多空間；其他問題截短避免拖慢 Pro
-            _CTX_CHAR_LIMIT = 60000 if _list else 30000
+            _CTX_CHAR_LIMIT = 60000
             if _list:
                 # 列舉型：FAISS 結果也精簡，每筆只保留學校名稱 + 150 字摘要
                 faiss_texts = [
