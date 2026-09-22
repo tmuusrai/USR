@@ -2675,7 +2675,7 @@ def ask():
                 print(f"[FAISS-DOCS] {len(docs)} 筆：{_faiss_srcs}")
 
             # label 命中：過濾 FAISS docs 到 label 計畫範圍（學校+計畫名精確比對）
-            if _label_hit and _kw_plan_list and docs and not _detected_plan_key:
+            if _label_hit and _kw_plan_list and docs and not _detected_plan_key and not _school:
                 _lbl_plan_set = set(_kw_plan_list)
                 _lbl_code_re = re.compile(r'\s*\(\d{3}USR-[^)]*\)?|_formatted(?:\(\d+\))?|\(\d+\)$')
                 def _doc_plan_key(d) -> str:
@@ -2941,8 +2941,8 @@ def ask():
                 ]
             else:
                 # 概念型／摘要型：LABEL 命中（含六大議題）時，只保留那幾間學校的文件
-                # 偵測到特定計畫時不做學校過濾，避免把正確計畫刪掉
-                _nonlist_school_filter = set() if _detected_plan_key else (
+                # 偵測到特定計畫或學校時不做過濾（FAISS 已精確過濾）
+                _nonlist_school_filter = set() if (_detected_plan_key or _school) else (
                     _kw_pre_schools or (
                         {e.split('：', 1)[0] for e in _kw_plan_list} if _kw_plan_list else set()
                     )
@@ -2968,7 +2968,7 @@ def ask():
                         print(f"[LIVE-NONLIST] 補充 {len(_live_texts)} 筆 live 結果至 faiss_texts")
                     faiss_texts = _live_texts + faiss_texts
                 # AND 篩選後的 label 計畫清單注入 context，讓 LLM 能準確回答「嗎？」類問題
-                if _kw_plan_list and not _detected_plan_key:
+                if _kw_plan_list and not _detected_plan_key and not _school:
                     _plan_list_note = (
                         f"【系統提示】以下 {len(_kw_plan_list)} 件計畫已由關鍵字引擎確認符合查詢條件，"
                         f"請依此清單回答：\n"
