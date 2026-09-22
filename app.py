@@ -2383,10 +2383,16 @@ def ask():
             _label_hit = False
 
             # 0. 直接比對 label_index key（topic/SDG/縣市/類型）
+            _SDG_LABEL_RE = re.compile(r'^SDG\d+$', re.IGNORECASE)
             for _lk in sorted(_label_direct, key=len, reverse=True):
                 if _lk in _kw_stop_pre:
                     continue
-                if len(_lk) >= 2 and (_lk in question or _lk in _llm_kws_set) and _lk not in _matched_kws:
+                # SDG label 用 negative lookahead，避免 SDG1 誤中 SDG10
+                if _SDG_LABEL_RE.match(_lk):
+                    _lk_in_q = bool(re.search(re.escape(_lk) + r'(?!\d)', question, re.IGNORECASE))
+                else:
+                    _lk_in_q = _lk in question
+                if len(_lk) >= 2 and (_lk_in_q or _lk in _llm_kws_set) and _lk not in _matched_kws:
                     _entries = _label_direct[_lk]
                     if not _entries:
                         _matched_kws.append(_lk)
@@ -2588,7 +2594,7 @@ def ask():
             # ── ①-a Label 短路：label 命中 + 計數問題 → 直接回傳數量 ──
             _COUNT_Q_RE = re.compile(r'有多少|幾件|幾個|幾間|幾所|幾[所所]|總數量|共幾|計畫數量|件數|數量')
             if (_label_hit and _kw_plan_list and not _kw_pre_extra
-                    and _COUNT_Q_RE.search(question) and not _llm_is_listing and not _detected_plan_key):
+                    and _COUNT_Q_RE.search(question) and not _detected_plan_key):
                 _cnt_tag  = '/'.join(_matched_kws[:2])
                 _cnt_ans  = f"共 **{len(_kw_plan_list)} 件**相關計畫（{_cnt_tag}）。"
                 _save_shortcut_history(_cnt_ans, _kw_plan_list)
