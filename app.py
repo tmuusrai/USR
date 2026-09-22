@@ -2339,7 +2339,7 @@ def ask():
             if _school:
                 print(f"[PARSE] {'計畫' if _detected_plan_key else '學校'}偵測：{_detected_plan_key or _school}，LLM解析：{_llm_parse_q[:40]}")
 
-            _llm_kws, _llm_extended_kws, _llm_intent = _llm_parse_query(_llm_parse_q if _llm_parse_q else search_question)
+            _llm_kws, _llm_extended_kws, _llm_intent, _llm_district = _llm_parse_query(_llm_parse_q if _llm_parse_q else search_question)
             # 問特定計畫的內容時強制概念型（計畫名裡的地名不應觸發列舉）
             _llm_is_listing = (_llm_intent == "list") and not _detected_plan_key
             _intent_label = "【列舉型】" if _llm_is_listing else "【概念型】"
@@ -2438,21 +2438,18 @@ def ask():
                         _label_hit = True
                         _matched_kws = [_school]
                         print(f"[KW-PRE] 學校名稱覆蓋 label：{_school} → {len(_kw_plan_list)} 件")
-                # district 精化：用靜態台灣鄉鎮區表偵測 query 裡的地名，縣市清單 ∩ district 清單
-                if _kw_plan_list and _matched_county_lks and not _school:
-                    for _dk in sorted(_TAIWAN_DISTRICT_MAP.keys(), key=len, reverse=True):
-                        if len(_dk) >= 2 and _dk in question:
-                            _dk_plans = _location_district_plans.get(_dk, set())
-                            if _dk_plans:
-                                _dist_intersect = sorted(set(_kw_plan_list) & _dk_plans)
-                                if _dist_intersect:
-                                    _kw_plan_list = _dist_intersect
-                                    print(f"[DISTRICT] {_dk} 精化 → {len(_kw_plan_list)} 件")
-                                else:
-                                    print(f"[DISTRICT] {_dk} 交集為空，維持縣市清單 {len(_kw_plan_list)} 件")
-                            else:
-                                print(f"[DISTRICT] {_dk} 在靜態表但無計畫場域資料，維持縣市清單")
-                            break
+                # district 精化：用 LLM 解析出的地區名稱縮小 _kw_plan_list
+                if _kw_plan_list and _llm_district and not _school:
+                    _dk_plans = _location_district_plans.get(_llm_district, set())
+                    if _dk_plans:
+                        _dist_intersect = sorted(set(_kw_plan_list) & _dk_plans)
+                        if _dist_intersect:
+                            _kw_plan_list = _dist_intersect
+                            print(f"[DISTRICT] {_llm_district} 精化 → {len(_kw_plan_list)} 件")
+                        else:
+                            print(f"[DISTRICT] {_llm_district} 交集為空，維持縣市清單 {len(_kw_plan_list)} 件")
+                    else:
+                        print(f"[DISTRICT] {_llm_district} 無計畫場域資料，維持縣市清單")
                 # 額外詞：先查 kw_chunks，有就直接用；沒有才 live scan
                 _extra_pre = [k for k in _q_terms_pre
                               if k not in _matched_kws and k not in _kw_stop_pre
@@ -4045,16 +4042,17 @@ def _extract_query_terms(q: str) -> list[str]:
     return list(dict.fromkeys(result))
 
 
-def _llm_parse_query(q: str) -> tuple[list[str], list[str], str]:
+def _llm_parse_query(q: str) -> tuple[list[str], list[str], str, str]:
     """用 LLM 提取關鍵字、擴充相關詞、並理解使用者意圖。
-    回傳 (keywords, extended, intent)。
+    回傳 (keywords, extended, intent, district)。
     intent: list / explain / location / compare / detail
+    district: 問題中明確指定的鄉鎮區名稱（不含區/鄉/鎮後綴），無則空字串
     失敗時退回 jieba + _LIST_INTENT_RE。
     """
     from langchain_core.messages import HumanMessage as _HMParse
     prompt = (
         "分析以下 USR 計畫查詢，只輸出 JSON，不要任何其他文字：\n"
-        '{"keywords": ["詞1","詞2",...], "extended": ["擴充詞1",...], "intent": "list"}\n\n'
+        '{"keywords": ["詞1","詞2",...], "extended": ["擴充詞1",...], "intent": "list", "district": ""}\n\n'
         "keywords：2~6 個最重要的繁體中文關鍵詞，保留完整詞（例：「流浪動物」不要切成「流浪」+「動物」）\n"
         "  ✗ 不要抽取以下類型的詞：\n"
         "    - 問句語氣詞：相關計畫、有關計畫、相關的計畫、哪些計畫、計畫有哪些\n"
@@ -4068,7 +4066,9 @@ def _llm_parse_query(q: str) -> tuple[list[str], list[str], str]:
         "  explain  → 詢問策略/做法/方法/影響/成效（綜合說明）\n"
         "  location → 詢問場域/地點/在哪裡/哪個縣市/海外場域\n"
         "  compare  → 比較不同計畫或學校之間的差異\n"
-        "  detail   → 詢問某個特定計畫或學校的詳細內容\n\n"
+        "  detail   → 詢問某個特定計畫或學校的詳細內容\n"
+        "district：若問題明確指定台灣某個鄉鎮區作為場域目標，填入該地名（不含區/鄉/鎮後綴），否則填空字串\n"
+        "  例：「桃園中壢的計畫」→ \"中壢\"；「台北信義區場域」→ \"信義\"；「信義原則相關計畫」→ \"\"\n\n"
         f"查詢：{q}"
     )
     try:
@@ -4086,12 +4086,13 @@ def _llm_parse_query(q: str) -> tuple[list[str], list[str], str]:
             intent = str(d.get("intent", "explain")).strip().lower()
             if intent not in ("list", "explain", "location", "compare", "detail"):
                 intent = "explain"
-            print(f"[LLM-PARSE] keywords={kws} extended={extended} intent={intent}")
-            return kws, extended, intent
+            district = str(d.get("district", "")).strip()
+            print(f"[LLM-PARSE] keywords={kws} extended={extended} intent={intent} district={district!r}")
+            return kws, extended, intent, district
     except Exception as e:
         print(f"[LLM-PARSE] 失敗，退回 jieba：{e}")
     _fallback_intent = "list" if _LIST_INTENT_RE.search(q) else "explain"
-    return _extract_query_terms(q), [], _fallback_intent
+    return _extract_query_terms(q), [], _fallback_intent, ""
 
 
 
