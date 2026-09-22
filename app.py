@@ -2363,6 +2363,7 @@ def ask():
             _kw_pre_schools: set[str] = set()
             _kw_pre_live_results: list[str] = []
             _kw_pre_extra: list[str] = []
+            _matched_county_lks: list[str] = []
             _kw_list_hit: str | None = None
             _all_topic_kws_set: set[str] = {kw for kws in USR_TOPIC_KEYWORDS.values() for kw in kws}
             _q_terms_pre = list(_llm_kws)
@@ -2512,6 +2513,24 @@ def ask():
                         _kw_pre_schools = {e.split('：', 1)[0] for e in _kw_plan_list}
                         print(f"[KW-PRE] 搜尋範圍學校 {len(_kw_pre_schools)} 間（SDG/縣市/類型 filter）")
 
+
+            # district-only：完全沒有 label 命中但 LLM 偵測到地區（如「中壢有哪些計畫」）
+            if not _matched_kws and _llm_district and not _school and _llm_district in _TAIWAN_DISTRICT_MAP:
+                _auto_county = _TAIWAN_DISTRICT_MAP[_llm_district]
+                _auto_entries = _label_direct.get(_auto_county, [])
+                if _auto_entries:
+                    _auto_plans = [p if isinstance(p, str) else _kw_entry_plan(p) for p in _auto_entries]
+                    _kw_plan_list = sorted(_auto_plans)
+                    _label_hit = True
+                    _matched_kws = [_auto_county]
+                    _matched_county_lks = [_auto_county]
+                    print(f"[DISTRICT] {_llm_district} 無 label → 自動補縣市 {_auto_county} → {len(_kw_plan_list)} 件")
+                    _dk_plans = _location_district_plans.get(_llm_district, set())
+                    if _dk_plans:
+                        _dist_intersect = sorted(set(_kw_plan_list) & _dk_plans)
+                        if _dist_intersect:
+                            _kw_plan_list = _dist_intersect
+                            print(f"[DISTRICT] {_llm_district} 精化 → {len(_kw_plan_list)} 件")
 
             # ── ① Label 短路：label 命中 + 列舉問題 → 輸出名單 + 結構化資料 ──
             # 含「完成/已完成」限定詞時不短路，讓 _completion_filter 讀內容判斷
