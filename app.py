@@ -3619,12 +3619,10 @@ def ask():
                     if _fo_sum:
                         _fo_add.append("【計畫摘要】\n" + "\n\n".join(
                             f"[{p}]\n{t[:500]}" for p, t in list(_fo_sum.items())[:15]))
-                    # kw/summary 前置（比 FAISS 更精準），location 後置（補充用，不擠壓主要內容）
+                    if _fo_loc:
+                        _fo_add.insert(0, f"【實踐場域資料】\n{_fo_loc}")
                     if _fo_add:
                         context = "\n\n".join(_fo_add) + "\n\n" + context
-                    if _fo_loc:
-                        context = context + f"\n\n【實踐場域資料】\n{_fo_loc}"
-                    if _fo_add or _fo_loc:
                         print(f"[FANOUT] 非列舉補充 kw={len(_fo_kw)} sum={len(_fo_sum)} loc={bool(_fo_loc)}")
 
             if len(context) > _CTX_CHAR_LIMIT:
