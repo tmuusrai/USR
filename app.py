@@ -4416,6 +4416,13 @@ def _get_school_county(school_name: str) -> str:
             return v
     return ''
 
+# 縣市名後若接這些字，表示縣市詞是機構名的一部分（如「台南大學」）而非地名
+_SCHOOL_FOLLOW_BIGRAMS = frozenset([
+    "大學", "科技", "師範", "醫學", "護理", "應用", "藝術", "商業", "市立", "縣立",
+    "教育", "體育", "工業", "農業", "海洋", "航空", "交通", "建築", "設計", "法律",
+    "政治", "音樂", "美術", "管理", "健康", "資訊", "商科", "學院",
+])
+
 def _detect_question_counties(q: str) -> set[str]:
     """從問題偵測地區，回傳縣市集合；空集合表示不過濾。"""
     counties: set[str] = set()
@@ -4423,10 +4430,18 @@ def _detect_question_counties(q: str) -> set[str]:
     for abbrev in sorted(_REGION_TO_COUNTIES, key=len, reverse=True):
         if abbrev in q:
             counties.update(_REGION_TO_COUNTIES[abbrev])
-    # 再偵測個別縣市名稱
+    # 再偵測個別縣市名稱；若縣市詞後接機構名後綴則跳過（避免「台南大學」→台南）
     for kw, county in _COUNTY_KEYWORDS.items():
-        if kw in q:
-            counties.add(county)
+        start = 0
+        while True:
+            idx = q.find(kw, start)
+            if idx == -1:
+                break
+            end = idx + len(kw)
+            if q[end:end + 2] not in _SCHOOL_FOLLOW_BIGRAMS:
+                counties.add(county)
+                break
+            start = idx + 1
     return counties
 
 _EVAL_RE = re.compile(
