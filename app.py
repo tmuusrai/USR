@@ -2745,7 +2745,13 @@ def ask():
 
 
             # ③-c 多校追問（>5 間）→ 強制列舉型（壓縮+60k limit），但跳過 Seq Query
-            _multi_enumerate = bool(_listed_schools and len(_listed_schools) > 5 and not _list)
+            # 問題裡有偵測到特定計畫/學校名稱時，代表是全新查詢，不走多校追問
+            _multi_enumerate = bool(
+                _listed_schools and len(_listed_schools) > 5
+                and not _list
+                and not _detected_plan_key
+                and not _school
+            )
             if _multi_enumerate:
                 _list = True
                 print(f"[ASK] 多校追問({len(_listed_schools)}間) → 強制列舉型（跳過SeqQuery）")
