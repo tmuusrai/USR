@@ -3141,6 +3141,13 @@ def ask():
                             if (m := re.match(r'【(.+?)_', _lv)) and m.group(1) in _allowed_schools
                         ]
                         print(f"[LIVE-NONLIST] label 過濾後 {len(_live_texts)}/{len(_kw_pre_live_results)} 筆 live 結果")
+                    elif _school:
+                        # 單校模式：kw_chunks live 結果也限縮到同一所學校
+                        _live_texts = [
+                            _sanitize_chunk(_clean_plan_code(_lv)) for _lv in _kw_pre_live_results
+                            if _school in _lv
+                        ]
+                        print(f"[LIVE-NONLIST] 單校過濾後 {len(_live_texts)}/{len(_kw_pre_live_results)} 筆 live 結果")
                     else:
                         _live_texts = [_sanitize_chunk(_clean_plan_code(_lv)) for _lv in _kw_pre_live_results]
                         print(f"[LIVE-NONLIST] 補充 {len(_live_texts)} 筆 live 結果至 faiss_texts")
