@@ -2812,6 +2812,7 @@ def ask():
             # label 命中：過濾 FAISS docs 到 label 計畫範圍（學校+計畫名精確比對）
             if _label_hit and _kw_plan_list and docs and not _detected_plan_key and not _school:
                 _lbl_plan_set = set(_kw_plan_list)
+                _lbl_school_set = {pk.split('：', 1)[0] for pk in _kw_plan_list}
                 _lbl_code_re = re.compile(r'\s*\(\d{3}USR-[^)]*\)?|_formatted(?:\(\d+\))?|\(\d+\)$')
                 def _doc_plan_key(d) -> str:
                     stem = Path(d.metadata.get('source', '')).stem
@@ -2819,9 +2820,17 @@ def ask():
                     parts = stem.split('_', 1)
                     return f"{parts[0]}：{parts[1]}" if len(parts) == 2 else stem
                 _orig_doc_count = len(docs)
-                docs = [d for d in docs if _doc_plan_key(d) in _lbl_plan_set]
-                if _orig_doc_count != len(docs):
+                _docs_exact = [d for d in docs if _doc_plan_key(d) in _lbl_plan_set]
+                if _docs_exact:
+                    docs = _docs_exact
                     print(f"[LABEL-FILTER] FAISS {_orig_doc_count} → {len(docs)} 筆（label 計畫精確過濾）")
+                elif _kw_pre_extra:
+                    # 複合查詢：精確比對為空時退回學校集（雲嘉南學校有原住民內容即保留）
+                    docs = [d for d in docs if _doc_plan_key(d).split('：', 1)[0] in _lbl_school_set]
+                    print(f"[LABEL-FILTER] FAISS {_orig_doc_count} → {len(docs)} 筆（退回學校集過濾）")
+                else:
+                    docs = []
+                    print(f"[LABEL-FILTER] FAISS {_orig_doc_count} → 0 筆（label 計畫精確過濾）")
 
             # ── 議題關鍵字索引查詢（keyword_index）+ live scan ──────────────
             _q_priority_kws: list[str] = []
