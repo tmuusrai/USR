@@ -1533,10 +1533,18 @@ def _prepare_search_query(question: str, history: list) -> str:
         if m:
             data = json.loads(m.group())
             search_q = (data.get("search_q") or question).strip() or question
+            prev_school = _extract_school(history[-1]['q'])
             if search_q != question:
-                prev_school = _extract_school(history[-1]['q'])
+                # LLM 改寫了問題，若學校名還沒補入就加進去
                 if prev_school and prev_school not in search_q:
                     search_q = f"{prev_school}：{search_q}"
+            elif prev_school and prev_school not in search_q:
+                # LLM 未改寫，但問題含「學校」等泛稱 → 替換為前一輪的具體學校名
+                # 排除「哪些學校」等列舉意圖
+                if re.search(r'學校|該計畫|這個計畫|他們|其', search_q) \
+                        and not re.search(r'哪[些個間所].*學校|多所|各大學|各學校', search_q):
+                    search_q = re.sub(r'(?<![哪這該])學校', prev_school, search_q, count=1)
+                    print(f"[PREP] 泛稱補足 school={prev_school!r}")
             print(f"[PREP] search={search_q!r}")
             return search_q
     except Exception as e:
