@@ -1527,7 +1527,8 @@ def _prepare_search_query(question: str, history: list) -> str:
     )
     try:
         res = llm_fast.bind(temperature=0, thinking_budget=0).invoke([_HM(content=prompt)])
-        text = res.content.strip()
+        _rc = res.content
+        text = (_rc if isinstance(_rc, str) else "".join(str(p) for p in _rc if p)).strip()
         m = re.search(r'\{.*?\}', text, re.DOTALL)
         if m:
             data = json.loads(m.group())
@@ -2856,6 +2857,7 @@ def ask():
             _plan_list_lines: list[str] = []
             _kw_pair_ext_snippets: dict[str, str] = {}
 
+            _pure_label_mode = False  # 預設值，僅在 _list and not _multi_enumerate 路徑內可能設為 True
             if _list and not _multi_enumerate:
                 _base_terms = _llm_kws or _extract_query_terms(question)
                 _q_terms = list(dict.fromkeys(_base_terms + _llm_extended_kws))
