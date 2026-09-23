@@ -459,6 +459,21 @@ _PLAN_TYPE_RE = re.compile(
 
 from usr_topics import USR_TOPIC_KEYWORDS
 
+# 查詢詞 → 額外要搜的 kw_chunks key（字串比對找不到但語意相關）
+_KW_EXTRA_LOOKUP: dict[str, list[str]] = {
+    "原住民":   ["原住民族關懷", "原鄉教育", "原住民族文化", "部落共學"],
+    "原住民族": ["原住民族關懷", "原鄉教育", "原住民族文化", "部落共學"],
+    "部落":     ["原住民族關懷", "原鄉教育", "部落共學"],
+    "原鄉":     ["原鄉教育", "原住民族關懷"],
+    "族語":     ["原住民族關懷", "原住民族文化"],
+    "高齡":     ["高齡照護", "青銀共創", "銀髮族"],
+    "長者":     ["高齡照護", "青銀共創"],
+    "長照":     ["高齡照護"],
+    "失智":     ["高齡照護"],
+    "新住民":   ["新住民關懷"],
+    "移工":     ["新住民關懷"],
+}
+
 USR_TOPIC_QUESTIONS: dict[str, list[str]] = {
     "在地關懷": [
         "如何盤點社區的實際需求",
@@ -2866,6 +2881,8 @@ def ask():
                                      if _dkw == k
                                      or (len(_dkw) >= 2 and _dkw in k)
                                      or (len(k) >= 2 and k in _dkw)}
+                    _related_keys |= {k for k in _KW_EXTRA_LOOKUP.get(_dkw, [])
+                                      if k in _all_kw_keys}
                     for _rk in _related_keys:
                         for _de in _kw_idx.get(_rk, []):
                             if not isinstance(_de, dict) or "text" not in _de:
