@@ -14,12 +14,16 @@ from collections import OrderedDict
 from pathlib import Path
 
 sys.stdout.reconfigure(encoding="utf-8")
-sys.stderr.reconfigure(encoding="utf-8", line_buffering=True)
-import builtins as _builtins
+sys.stderr.reconfigure(encoding="utf-8")
+import os as _os, builtins as _builtins
 _real_print = _builtins.print
 def _fprint(*args, **kwargs):
     if 'file' not in kwargs:
-        kwargs['file'] = sys.stderr
+        sep = kwargs.get('sep', ' ')
+        end = kwargs.get('end', '\n')
+        msg = sep.join(str(a) for a in args) + end
+        _os.write(2, msg.encode('utf-8', errors='replace'))
+        return
     kwargs.setdefault('flush', True)
     _real_print(*args, **kwargs)
 _builtins.print = _fprint
