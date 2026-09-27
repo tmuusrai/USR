@@ -4190,26 +4190,20 @@ def _llm_parse_query(q: str) -> tuple[list[str], list[str], str, str]:
     from langchain_core.messages import HumanMessage as _HMParse
     prompt = (
         "分析以下 USR 計畫查詢，只輸出 JSON，不要任何其他文字：\n"
-        '{"search_target": "這題在找什麼（一句話）", "keywords": ["詞1","詞2",...], "extended": ["擴充詞1",...], "intent": "list", "district": ""}\n\n'
-        "【第一步：先理解這題在找什麼】\n"
-        "填入 search_target，回答「這題要找的是___的___」，例如：\n"
-        "  「有哪些計畫做農業」→ \"計畫的主題（農業）\"\n"
-        "  「有哪些計畫團隊人員為原住民資源中心人員」→ \"人員的職位（原住民資源中心人員）\"\n"
-        "  「有哪些策略推動產業」→ \"策略的內容（產業發展策略）\"\n"
-        "  「計畫在哪個縣市」→ \"計畫的場域（縣市地點）\"\n\n"
-        "【第二步：根據 search_target 抽取 keywords】\n"
-        "keywords = 直接描述「找什麼」的詞，2~6 個，保留完整詞（例：「流浪動物」不要切成「流浪」+「動物」）\n"
-        "  ✗ 不要抽取問句的結構詞，這些詞出現在哪裡都不應抽取：\n"
+        '{"keywords": ["詞1","詞2",...], "extended": ["擴充詞1",...], "intent": "list", "district": ""}\n\n'
+        "【抽取 keywords 前，先在心裡回答：「這題在找的核心是什麼？」】\n"
+        "例如：\n"
+        "  「有哪些計畫做農業」→ 核心是計畫主題（農業）→ keywords=[\"農業\"]\n"
+        "  「有哪些計畫團隊人員為原住民資源中心人員」→ 核心是人員的職位（原住民資源中心人員）→ keywords=[\"原住民資源中心人員\"]\n"
+        "  「有哪些策略能有效推動產業發展」→ 核心是策略內容（產業發展）→ keywords=[\"產業發展\",\"推動策略\"]\n\n"
+        "keywords：根據上面的核心，抽 2~6 個詞，保留完整詞（例：「流浪動物」不要切成「流浪」+「動物」）\n"
+        "  ✗ 以下類型的詞永遠不抽，不論出現在哪裡：\n"
         "    - 問句語氣詞：相關計畫、有關計畫、哪些計畫、計畫有哪些\n"
         "    - 泛稱：USR計畫、USR相關、大學計畫、社會實踐計畫\n"
         "    - 動作主體泛稱：計畫團隊、執行團隊、師生團隊、計畫人員\n"
         "    - 動詞/介係詞：推動、執行、進行、透過、結合、針對\n"
         "    - 單獨出現的「計畫」「學校」「大學」「哪些」「相關」「人員」\n"
-        "  ✓ 正確示範：\n"
-        "    「有哪些計畫團隊人員為原住民資源中心人員」→ [\"原住民資源中心人員\"]（職位是整個短語，不拆開）\n"
-        "    「有哪些策略能有效推動產業發展」→ [\"產業發展\", \"推動策略\"]（找的是策略內容，不是修飾詞「有效」）\n"
-        "    「有哪些計畫做農業」→ [\"農業\"]（找的是計畫主題）\n\n"
-        "extended：針對 keywords 補充 3~8 個同義詞或密切相關詞（不可與 keywords 重複）\n"
+        "extended：針對 keywords 補充 3~8 個繁體中文同義詞或密切相關詞（供全文搜尋擴充，不可與 keywords 重複）\n"
         "  例：keywords=[\"農業\"] → extended=[\"食農教育\",\"農村\",\"農產品\",\"農業加值\",\"有機農業\"]\n"
         "intent（選一）：\n"
         "  list     → 列出哪些計畫/學校（「有哪些」「哪些學校」「列出」「有關XXX的計畫」）\n"
@@ -4227,6 +4221,8 @@ def _llm_parse_query(q: str) -> tuple[list[str], list[str], str, str]:
         if isinstance(_raw, list):
             _raw = " ".join(b.get("text", "") for b in _raw if isinstance(b, dict) and b.get("type") == "text")
         m = re.search(r'\{.*?\}', _raw, re.DOTALL)
+        if not m:
+            print(f"[LLM-PARSE] regex 無法提取 JSON，原始輸出：{_raw[:200]!r}")
         if m:
             d = json.loads(m.group())
             kws = [str(k).strip() for k in d.get("keywords", []) if k and str(k).strip()]
@@ -4237,8 +4233,7 @@ def _llm_parse_query(q: str) -> tuple[list[str], list[str], str, str]:
             if intent not in ("list", "explain", "location", "compare", "detail"):
                 intent = "explain"
             district = _DIST_STRIP_RE.sub('', str(d.get("district", "")).strip())
-            search_target = str(d.get("search_target", "")).strip()
-            print(f"[LLM-PARSE] search_target={search_target!r} keywords={kws} extended={extended} intent={intent} district={district!r}")
+            print(f"[LLM-PARSE] keywords={kws} extended={extended} intent={intent} district={district!r}")
             return kws, extended, intent, district
     except Exception as e:
         print(f"[LLM-PARSE] 失敗，退回 jieba：{e}")
