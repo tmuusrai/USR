@@ -18,12 +18,6 @@ sys.stderr.reconfigure(encoding="utf-8")
 import builtins as _builtins
 _real_print = _builtins.print
 def _fprint(*args, **kwargs):
-    if 'file' not in kwargs:
-        sep = kwargs.get('sep', ' ')
-        end = kwargs.get('end', '\n')
-        msg = sep.join(str(a) for a in args) + end
-        os.write(2, msg.encode('utf-8', errors='replace'))
-        return
     kwargs.setdefault('flush', True)
     _real_print(*args, **kwargs)
 _builtins.print = _fprint
