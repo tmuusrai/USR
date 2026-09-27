@@ -13,8 +13,8 @@ from concurrent.futures import ThreadPoolExecutor
 from collections import OrderedDict
 from pathlib import Path
 
-sys.stdout.reconfigure(encoding="utf-8")
-sys.stderr.reconfigure(encoding="utf-8")
+sys.stdout.reconfigure(encoding="utf-8", line_buffering=True)
+sys.stderr.reconfigure(encoding="utf-8", line_buffering=True)
 jieba.initialize()
 
 from dotenv import load_dotenv
