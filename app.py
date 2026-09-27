@@ -17,6 +17,18 @@ sys.stdout.reconfigure(encoding="utf-8")
 sys.stderr.reconfigure(encoding="utf-8")
 jieba.initialize()
 
+# in-memory log buffer → /logs endpoint
+import builtins as _builtins
+from collections import deque as _deque
+_LOG_BUF  = _deque(maxlen=500)
+_LOG_LOCK = threading.Lock()
+_orig_print = _builtins.print
+def _buf_print(*args, sep=" ", end="\n", file=None, flush=False):
+    with _LOG_LOCK:
+        _LOG_BUF.append(sep.join(str(a) for a in args))
+    _orig_print(*args, sep=sep, end=end, file=file, flush=flush)
+_builtins.print = _buf_print
+
 from dotenv import load_dotenv
 from flask import Flask, request, jsonify, render_template, session, redirect, url_for, Response, stream_with_context
 from werkzeug.security import generate_password_hash, check_password_hash
@@ -39,6 +51,12 @@ app = Flask(__name__)
 CORS(app)
 app.secret_key = os.getenv("FLASK_SECRET_KEY") or os.urandom(32)
 app.config["PERMANENT_SESSION_LIFETIME"] = __import__("datetime").timedelta(days=1)
+
+@app.route("/logs")
+def view_logs():
+    with _LOG_LOCK:
+        lines = list(_LOG_BUF)
+    return Response("\n".join(lines), mimetype="text/plain; charset=utf-8")
 
 # ── 設定 ──────────────────────────────────────────────
 GOOGLE_API_KEY  = os.getenv("GOOGLE_API_KEY")
