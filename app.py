@@ -15,14 +15,18 @@ from pathlib import Path
 
 sys.stdout.reconfigure(encoding="utf-8")
 sys.stderr.reconfigure(encoding="utf-8")
-import os as _os, builtins as _builtins
+os.write(1, b"[DIAG] fd1 stdout direct write\n")
+os.write(2, b"[DIAG] fd2 stderr direct write\n")
+sys.stdout.write("[DIAG] sys.stdout.write\n"); sys.stdout.flush()
+sys.stderr.write("[DIAG] sys.stderr.write\n"); sys.stderr.flush()
+import builtins as _builtins
 _real_print = _builtins.print
 def _fprint(*args, **kwargs):
     if 'file' not in kwargs:
         sep = kwargs.get('sep', ' ')
         end = kwargs.get('end', '\n')
         msg = sep.join(str(a) for a in args) + end
-        _os.write(2, msg.encode('utf-8', errors='replace'))
+        os.write(2, msg.encode('utf-8', errors='replace'))
         return
     kwargs.setdefault('flush', True)
     _real_print(*args, **kwargs)
