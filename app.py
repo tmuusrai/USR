@@ -3210,7 +3210,10 @@ def ask():
                 if _q_priority_kws:
                     _t2_nonzero = [(s, l) for s, l in _tier2_scored if s > 0]
                     _t2_zero    = [(s, l) for s, l in _tier2_scored if s == 0]
-                    _tier2 = [l for _, l in (_t2_nonzero + _t2_zero)[:_T2_CAP]]
+                    if _t2_nonzero:
+                        _tier2 = [l for _, l in _t2_nonzero[:_T2_CAP]]
+                    else:
+                        _tier2 = [l for _, l in _t2_zero[:_T2_CAP]]
                 else:
                     _tier2 = [l for _, l in _tier2_scored[:_T2_CAP]]
                 if not _plan_list_lines:
