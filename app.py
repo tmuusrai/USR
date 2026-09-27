@@ -2417,7 +2417,7 @@ def ask():
 
             _llm_kws, _llm_extended_kws, _llm_intent, _llm_district = _llm_parse_query(_llm_parse_q if _llm_parse_q else search_question)
             # 問特定計畫的內容時強制概念型（計畫名裡的地名不應觸發列舉）
-            _llm_is_listing = not _detected_plan_key  # 問特定計畫以外，一律跑全部資料庫
+            _llm_is_listing = True  # 所有問題一律跑全部資料庫
             _intent_label = "【列舉型】" if _llm_is_listing else "【概念型】"
             t_prepare_end = time.perf_counter()
 
@@ -2746,7 +2746,7 @@ def ask():
                 _school = _extract_school(history[-1]['q'])
                 if _school:
                     print(f"[ASK] 從歷史補充學校：{_school}")
-            _list      = _llm_is_listing and not _school and not _LIST_CONCEPT_RE.search(search_question) and not _eval_criterion
+            _list      = not _eval_criterion  # 所有問題跑全部資料庫，只有使用者貼計畫評分時例外
             _personnel = bool(_PERSONNEL_RE.search(search_question))
             _kw        = _extract_keywords(search_question)
             _role      = _extract_role_term(question) if _personnel else None
