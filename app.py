@@ -2416,8 +2416,8 @@ def ask():
                 print(f"[PARSE] {'計畫' if _detected_plan_key else '學校'}偵測：{_detected_plan_key or _school}，LLM解析：{_llm_parse_q[:40]}")
 
             _llm_kws, _llm_extended_kws, _llm_intent, _llm_district = _llm_parse_query(_llm_parse_q if _llm_parse_q else search_question)
-            # 問特定計畫的內容時強制概念型（計畫名裡的地名不應觸發列舉）
-            _llm_is_listing = True  # 所有問題一律跑全部資料庫
+            # 給使用者看的分類標籤（不影響搜尋行為）
+            _llm_is_listing = (_llm_intent == "list") and not _detected_plan_key
             _intent_label = "【列舉型】" if _llm_is_listing else "【概念型】"
             t_prepare_end = time.perf_counter()
 
