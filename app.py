@@ -15,12 +15,6 @@ from pathlib import Path
 
 sys.stdout.reconfigure(encoding="utf-8")
 sys.stderr.reconfigure(encoding="utf-8")
-import builtins as _builtins
-_real_print = _builtins.print
-def _fprint(*args, **kwargs):
-    kwargs.setdefault('flush', True)
-    _real_print(*args, **kwargs)
-_builtins.print = _fprint
 jieba.initialize()
 
 from dotenv import load_dotenv
