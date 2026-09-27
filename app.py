@@ -2417,7 +2417,7 @@ def ask():
 
             _llm_kws, _llm_extended_kws, _llm_intent, _llm_district = _llm_parse_query(_llm_parse_q if _llm_parse_q else search_question)
             # 問特定計畫的內容時強制概念型（計畫名裡的地名不應觸發列舉）
-            _llm_is_listing = (_llm_intent == "list") and not _detected_plan_key
+            _llm_is_listing = not _detected_plan_key  # 問特定計畫以外，一律跑全部資料庫
             _intent_label = "【列舉型】" if _llm_is_listing else "【概念型】"
             t_prepare_end = time.perf_counter()
 
