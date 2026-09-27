@@ -15,10 +15,6 @@ from pathlib import Path
 
 sys.stdout.reconfigure(encoding="utf-8")
 sys.stderr.reconfigure(encoding="utf-8")
-os.write(1, b"[DIAG] fd1 stdout direct write\n")
-os.write(2, b"[DIAG] fd2 stderr direct write\n")
-sys.stdout.write("[DIAG] sys.stdout.write\n"); sys.stdout.flush()
-sys.stderr.write("[DIAG] sys.stderr.write\n"); sys.stderr.flush()
 import builtins as _builtins
 _real_print = _builtins.print
 def _fprint(*args, **kwargs):
