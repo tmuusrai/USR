@@ -10032,20 +10032,24 @@
       "國立澎湖科技大學：健康創齡湖東里海澎17線": {
         "fields": [
           {
-            "location": "南臺科技大學"
+            "location": "南臺科技大學",
+            "county": "台南市"
           },
           {
-            "location": "敏惠醫護管理專科學校"
+            "location": "敏惠醫護管理專科學校",
+            "county": "台南市"
           },
           {
-            "location": "湖東社區發展協會"
+            "location": "湖東社區發展協會",
+            "county": "澎湖縣"
           },
           {
             "location": "澎湖縣農嶼海青年創生協會共創實驗基地",
             "county": "澎湖"
           },
           {
-            "location": "聊療物理治療所"
+            "location": "聊療物理治療所",
+            "county": "澎湖縣"
           },
           {
             "location": "澎湖縣文化局",
