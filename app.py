@@ -1827,9 +1827,9 @@ def _try_location_answer(question: str, year: str,
                 s = "　".join(x for x in parts if x)
                 if s:
                     field_strs.append(s)
-            field_text = "、".join(field_strs) if field_strs else "（無場域資料）"
-            lines.append(f"{i}. **{plan_name}**")
-            lines.append(f"   場域：{field_text}\n")
+            field_text = "\n".join(f"   - {s}" for s in field_strs) if field_strs else "   （無場域資料）"
+            lines.append(f"{i}. **{plan_name}** 執行場域：")
+            lines.append(field_text + "\n")
         return "\n".join(lines)
 
     # ── 縣市層級：plan_keys 由外部傳入（label 命中的計畫集）──
@@ -1853,9 +1853,9 @@ def _try_location_answer(question: str, year: str,
             s = "　".join(x for x in parts if x)
             if s:
                 field_strs.append(s)
-        field_text = "、".join(field_strs) if field_strs else "（無場域資料）"
-        lines.append(f"{i}. **{school_name}**：{plan_name}")
-        lines.append(f"   場域：{field_text}\n")
+        field_text = "\n".join(f"   - {s}" for s in field_strs) if field_strs else "   （無場域資料）"
+        lines.append(f"{i}. **{school_name}**：{plan_name} 執行場域：")
+        lines.append(field_text + "\n")
     if len(plan_keys_with_fields) > MAX_DISPLAY:
         lines.append(f"（僅顯示前 {MAX_DISPLAY} 個，共 {len(plan_keys_with_fields)} 個有場域資料）")
     return "\n".join(lines)
