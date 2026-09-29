@@ -1800,12 +1800,13 @@ _LOCATION_INTENT_RE = re.compile(
 
 
 def _try_location_answer(question: str, year: str,
-                          plan_keys: list[str] | None = None) -> str | None:
+                          plan_keys: list[str] | None = None,
+                          ask_location: bool = False) -> str | None:
     """場域查詢短路：直接從 location_index 回傳結構化場域資訊。
     - 有學校名 → 回傳該校所有計畫場域
     - 無學校名但有 plan_keys（縣市 label 命中）→ 回傳該縣市計畫場域清單
     """
-    if not _LOCATION_INTENT_RE.search(question):
+    if not ask_location and not _LOCATION_INTENT_RE.search(question):
         return None
     loc_yr = _location_index.get(year) or _location_index.get("114", {})
     plans_data = loc_yr.get("plans", {})
@@ -2416,7 +2417,7 @@ def ask():
             if _school:
                 print(f"[PARSE] {'計畫' if _detected_plan_key else '學校'}偵測：{_detected_plan_key or _school}，LLM解析：{_llm_parse_q[:40]}")
 
-            _llm_kws, _llm_extended_kws, _llm_intent, _llm_district = _llm_parse_query(_llm_parse_q if _llm_parse_q else search_question)
+            _llm_kws, _llm_extended_kws, _llm_intent, _llm_district, _llm_ask_location = _llm_parse_query(_llm_parse_q if _llm_parse_q else search_question)
             # 給使用者看的分類標籤（不影響搜尋行為）
             _llm_is_listing = (_llm_intent == "list") and not _detected_plan_key
             _intent_label = "【列舉型】" if _llm_is_listing else "【概念型】"
@@ -2712,7 +2713,8 @@ def ask():
 
             # ── ①-c 國內實踐場域：注入 context（不短路，讓所有搜尋路徑繼續跑）──
             _out5_location: str | None = _try_location_answer(
-                question, year, plan_keys=_kw_plan_list or None)
+                question, year, plan_keys=_kw_plan_list or None,
+                ask_location=_llm_ask_location)
             if _out5_location:
                 print(f"[LOCATION-CTX] 取得場域資料，注入 context")
 
@@ -4204,17 +4206,18 @@ def _extract_query_terms(q: str) -> list[str]:
     return list(dict.fromkeys(result))
 
 
-def _llm_parse_query(q: str) -> tuple[list[str], list[str], str, str]:
+def _llm_parse_query(q: str) -> tuple[list[str], list[str], str, str, bool]:
     """用 LLM 提取關鍵字、擴充相關詞、並理解使用者意圖。
-    回傳 (keywords, extended, intent, district)。
+    回傳 (keywords, extended, intent, district, ask_location)。
     intent: list / explain / location / compare / detail
     district: 問題中明確指定的鄉鎮區名稱（不含區/鄉/鎮後綴），無則空字串
+    ask_location: 問題是否在詢問計畫的執行場域/地點
     失敗時退回 jieba + _LIST_INTENT_RE。
     """
     from langchain_core.messages import HumanMessage as _HMParse
     prompt = (
         "分析以下 USR 計畫查詢，只輸出 JSON，不要任何其他文字：\n"
-        '{"keywords": ["詞1","詞2",...], "extended": ["擴充詞1",...], "intent": "list", "district": ""}\n\n'
+        '{"keywords": ["詞1","詞2",...], "extended": ["擴充詞1",...], "intent": "list", "district": "", "ask_location": false}\n\n'
         "【抽取 keywords 前，先在心裡回答：「這題在找的核心是什麼？」】\n"
         "例如：\n"
         "  「有哪些計畫做農業」→ 核心是計畫主題（農業）→ keywords=[\"農業\"]\n"
@@ -4236,7 +4239,10 @@ def _llm_parse_query(q: str) -> tuple[list[str], list[str], str, str]:
         "  compare  → 比較不同計畫或學校之間的差異\n"
         "  detail   → 詢問某個特定計畫或學校的詳細內容\n"
         "district：若問題明確指定台灣某個鄉鎮區作為場域目標，填入該地名（不含區/鄉/鎮後綴），否則填空字串\n"
-        "  例：「桃園中壢的計畫」→ \"中壢\"；「台北信義區場域」→ \"信義\"；「信義原則相關計畫」→ \"\"\n\n"
+        "  例：「桃園中壢的計畫」→ \"中壢\"；「台北信義區場域」→ \"信義\"；「信義原則相關計畫」→ \"\"\n"
+        "ask_location：true/false，問題是否在詢問某計畫或學校的執行場域、實踐地點、在哪裡執行等地點資訊\n"
+        "  true 範例：「執行場域」「場域在哪」「在哪裡執行」「計畫地點」「實踐場域有哪些」「在哪個縣市執行」\n"
+        "  false 範例：「有哪些計畫」「計畫成效」「執行策略」「有多少件」\n\n"
         f"查詢：{q}"
     )
     try:
@@ -4257,12 +4263,14 @@ def _llm_parse_query(q: str) -> tuple[list[str], list[str], str, str]:
             if intent not in ("list", "explain", "location", "compare", "detail"):
                 intent = "explain"
             district = _DIST_STRIP_RE.sub('', str(d.get("district", "")).strip())
-            print(f"[LLM-PARSE] keywords={kws} extended={extended} intent={intent} district={district!r}")
-            return kws, extended, intent, district
+            ask_location = bool(d.get("ask_location", False))
+            print(f"[LLM-PARSE] keywords={kws} extended={extended} intent={intent} district={district!r} ask_location={ask_location}")
+            return kws, extended, intent, district, ask_location
     except Exception as e:
         print(f"[LLM-PARSE] 失敗，退回 jieba：{e}")
     _fallback_intent = "list" if _LIST_INTENT_RE.search(q) else "explain"
-    return _extract_query_terms(q), [], _fallback_intent, ""
+    _fallback_loc = bool(_LOCATION_INTENT_RE.search(q))
+    return _extract_query_terms(q), [], _fallback_intent, "", _fallback_loc
 
 
 
