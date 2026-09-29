@@ -3475,6 +3475,19 @@ def ask():
                 _list_display_note = f"（另有更多計畫，以下列出前{_SUB_CAP}件）" if _extra_sub_qs and len(_main_lines) > _SUB_CAP else ""
                 print(f"[LIST-SUB] extra_sub_qs={_extra_sub_qs} kw={len(_kw_core_lines)} faiss={len(_faiss_supp_lines)} ext={len(_ext_supp)} display={len(_display_lines)} cap={_SUB_CAP if _extra_sub_qs else '∞'} total={len(_plan_list_lines)}")
 
+                # ── 場域問題短路：ask_location=True + LOCATION-CTX → 直接輸出，跳過 LIST-PARA ──
+                if _llm_ask_location and _out5_location:
+                    print(f"[LOC-SHORTCUT] ask_location=True，直接輸出 LOCATION-CTX ({len(_out5_location)} 字元)")
+                    _loc_src_list: list[dict] = [
+                        {"source": _clean_plan_code(_pl).replace('：', '_', 1), "page": 1}
+                        for _pl in _plan_list_lines[:100]
+                    ]
+                    yield f"data: {json.dumps({'type': 'sources', 'sources': _loc_src_list}, ensure_ascii=False)}\n\n"
+                    yield f"data: {json.dumps({'type': 'chunk', 'text': _out5_location}, ensure_ascii=False)}\n\n"
+                    total_ms = round((time.perf_counter() - t0) * 1000)
+                    yield f"data: {json.dumps({'type': 'done', 'timing': {'total_ms': total_ms}, 'mode': 'location_shortcut'}, ensure_ascii=False)}\n\n"
+                    return
+
                 # ── 列舉型並行路徑：每個計畫單獨送 LLM，擷取原文關鍵句 ──
                 from langchain_core.messages import HumanMessage as _HMList
 
