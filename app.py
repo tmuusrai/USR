@@ -3040,6 +3040,8 @@ def ask():
                     # KW-SEED：label 有計畫清單就直接作為初始名單（六大議題問題走這條）
                     if _kw_plan_list:
                         _plan_list_lines = list(_kw_plan_list)
+                        if _detected_plan_key and _detected_plan_key in _plan_list_lines:
+                            _plan_list_lines = [_detected_plan_key]
                         print(f"[KW-SEED] label 名單 → _plan_list_lines {len(_plan_list_lines)} 件")
 
                 # 純 label 模式：label 直接命中且無額外詞（direct hit 時不適用）
