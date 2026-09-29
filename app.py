@@ -2746,7 +2746,7 @@ def ask():
                 _school = _extract_school(history[-1]['q'])
                 if _school:
                     print(f"[ASK] 從歷史補充學校：{_school}")
-            _list      = not _eval_criterion  # 所有問題跑全部資料庫，只有使用者貼計畫評分時例外
+            _list      = not _eval_criterion and not _detected_plan_key  # 偵測到特定計畫時強制概念型
             _personnel = bool(_PERSONNEL_RE.search(search_question))
             _kw        = _extract_keywords(search_question)
             _role      = _extract_role_term(question) if _personnel else None
