@@ -56,7 +56,8 @@ app.config["PERMANENT_SESSION_LIFETIME"] = __import__("datetime").timedelta(days
 def view_logs():
     with _LOG_LOCK:
         lines = list(_LOG_BUF)
-    return Response("\n".join(lines), mimetype="text/plain; charset=utf-8")
+    buf_status = f"[buffer size={len(lines)}, print_override={'YES' if _builtins.print is _buf_print else 'NO'}]\n\n"
+    return Response(buf_status + "\n".join(lines), mimetype="text/plain; charset=utf-8")
 
 # ── 設定 ──────────────────────────────────────────────
 GOOGLE_API_KEY  = os.getenv("GOOGLE_API_KEY")
