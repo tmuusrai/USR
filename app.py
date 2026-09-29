@@ -1437,14 +1437,18 @@ def _seq_query_by_index(kws: list[str], topic: str, index: dict,
 
 def _seq_query_live(kws: list[str], topic: str, vs,
                     dedup_by_source: bool = True,
-                    condense: bool = False) -> list[str]:
+                    condense: bool = False,
+                    school: str | None = None) -> list[str]:
     """即時掃描所有文件找 LLM 生成的關鍵字（不依賴預建索引）。
     用於預建索引未涵蓋的詞彙（如「流浪動物」、「收容所」）。
     condense=True 時每筆只輸出學校名稱 + 150 字摘要（列舉型用）。
+    school 有值時只掃該學校的文件。
     """
     if not kws:
         return []
     all_docs = list(vs.docstore._dict.values())
+    if school:
+        all_docs = [d for d in all_docs if school in d.metadata.get("source", "")]
     doc_scores: dict[int, list] = {}
     for doc in all_docs:
         text = _clean_plan_code(doc.page_content)
@@ -1492,10 +1496,12 @@ def _seq_query_live(kws: list[str], topic: str, vs,
 
 def _faiss_scan_kws(kws: list[str], vs, k: int = 60,
                     dedup_by_source: bool = True,
-                    condense: bool = True) -> list[str]:
+                    condense: bool = True,
+                    school: str | None = None) -> list[str]:
     """FAISS 語意搜尋，替代 _seq_query_live 的全庫掃描。
     對 keyword_index 未涵蓋的詞彙做向量相似度搜尋，回傳與 _seq_query_live 相同的
     【source】\\nsnippet… 格式。
+    school 有值時只保留該學校的結果。
     """
     if not kws or vs is None:
         return []
@@ -1508,6 +1514,8 @@ def _faiss_scan_kws(kws: list[str], vs, k: int = 60,
         docs = vs.similarity_search_by_vector(vec, k=k)
         for doc in docs:
             src = doc.metadata.get("source", "")
+            if school and school not in src:
+                continue
             if dedup_by_source and src in seen_src:
                 continue
             seen_src.add(src)
@@ -2577,7 +2585,7 @@ def ask():
                             print(f"[KW-PRE] 額外詞 kw_chunks 命中 {len(_kw_pre_schools)} 間")
                     # kw_chunks 沒有 → live scan
                     if _extra_no_kw:
-                        _fres = _seq_query_live(_extra_no_kw, '', vs, condense=True)
+                        _fres = _seq_query_live(_extra_no_kw, '', vs, condense=True, school=_school or None)
                         _kw_pre_live_results.extend(_fres)
                         if _fres:
                             _live_schools = {_m.group(1) for _r in _fres
@@ -2974,7 +2982,7 @@ def ask():
                         and not any(isinstance(_e, dict) and "text" in _e for _e in _kw_idx.get(k, []))
                     ]
                     if _no_chunk_kws and _direct_plan_chunks:
-                        _live_nc = _seq_query_live(_no_chunk_kws, '', vs, condense=True)
+                        _live_nc = _seq_query_live(_no_chunk_kws, '', vs, condense=True, school=_school or None)
                         if _live_nc:
                             _live_nc_plans = {
                                 _m.group(1) for _r in _live_nc
@@ -3099,7 +3107,7 @@ def ask():
                         _live_school_sets = []
                         _live_per_kw: dict[str, list[str]] = {}
                         for _lk in _need_scan_kws:
-                            _res = _faiss_scan_kws([_lk], vs, condense=True)
+                            _res = _faiss_scan_kws([_lk], vs, condense=True, school=_school or None)
                             _live_per_kw[_lk] = _res
                             _schools = {re.match(r'【(.+?)(?:_|】)', r).group(1)
                                         for r in _res if re.match(r'【(.+?)(?:_|】)', r)}
@@ -3111,12 +3119,12 @@ def ask():
                             _live_results = [r for kw_res in _live_per_kw.values()
                                              for r in kw_res if any(s in r for s in _and_schools)]
                         else:
-                            _live_results = _faiss_scan_kws(_need_scan_kws, vs, condense=True)
+                            _live_results = _faiss_scan_kws(_need_scan_kws, vs, condense=True, school=_school or None)
                             print(f"[LIVE] AND 交集為空，退回 OR")
                     elif _need_scan_kws:
                         if _query_is_or and len(_need_scan_kws) >= 2:
                             print(f"[LIVE] OR 模式，{len(_need_scan_kws)} 詞取聯集")
-                        _live_results = _faiss_scan_kws(_need_scan_kws, vs, condense=True)
+                        _live_results = _faiss_scan_kws(_need_scan_kws, vs, condense=True, school=_school or None)
 
                     # 合併快取
                     _seen_cache = {r[:80] for r in _live_results}
