@@ -3050,6 +3050,30 @@ def ask():
                                 _plan_to_snippet[_ep] = f"【{_ep}】\n" + "\n\n".join(_ecs[:3])
                             print(f"[KW-EXT] 擴充詞 {_ext_only_kws[:3]} → {len(_ext_plan_set)} 件擴展計畫")
 
+                    # FAISS 語意補充：找語意相關但 kw_idx 沒收錄的計畫
+                    _sem_ext_docs = vs.similarity_search(question, k=30)
+                    for _fd in _sem_ext_docs:
+                        _fd_src = _PATH_SEP_RE.split(
+                            (_fd.metadata.get("source") or "")
+                        )[-1].rsplit('.', 1)[0]
+                        _fd_key = _clean_plan_code(_fd_src)
+                        _fd_parts = _fd_key.split('_', 1)
+                        if len(_fd_parts) != 2:
+                            continue
+                        _fd_key = f"{_fd_parts[0]}：{_fd_parts[1]}"
+                        if _fd_key in _core_plan_set:
+                            continue
+                        if _direct_label_set is not None and _fd_key not in _direct_label_set:
+                            continue
+                        if _direct_scope_schools and _fd_key.split('：', 1)[0] not in _direct_scope_schools:
+                            continue
+                        _ext_plan_set.add(_fd_key)
+                        if _fd_key not in _plan_to_snippet:
+                            _plan_to_snippet[_fd_key] = _fd.page_content[:600]
+                        else:
+                            _plan_to_snippet[_fd_key] = _plan_to_snippet[_fd_key] + "\n\n" + _fd.page_content[:400]
+                    print(f"[KW-EXT-SEM] FAISS 語意補充 → ext_plan_set 共 {len(_ext_plan_set)} 件")
+
                 if not _direct_kw_hit:
                     # KW-SEED：label 有計畫清單就直接作為初始名單（六大議題問題走這條）
                     if _kw_plan_list:
