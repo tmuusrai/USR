@@ -54,6 +54,8 @@ app.config["PERMANENT_SESSION_LIFETIME"] = __import__("datetime").timedelta(days
 
 @app.route("/logs")
 def view_logs():
+    if not _is_admin():
+        return Response("unauthorized", status=403)
     with _LOG_LOCK:
         lines = list(_LOG_BUF)
     buf_status = f"[buffer size={len(lines)}, print_override={'YES' if _builtins.print is _buf_print else 'NO'}]\n\n"
@@ -5023,6 +5025,8 @@ def subagent_ask():
 @app.route("/rebuild-index", methods=["POST"])
 def rebuild_index():
     """重新建立索引（上傳新 PDF 後呼叫）。"""
+    if not _is_admin():
+        return jsonify({"error": "unauthorized"}), 403
     global vectorstores
 
     req_data = request.get_json(silent=True) or {}
