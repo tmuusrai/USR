@@ -48,7 +48,7 @@ load_dotenv()
 from structured_qa import init_qa, try_structured_answer
 
 app = Flask(__name__)
-CORS(app)
+CORS(app, origins=["https://usr-su3o.onrender.com"])
 app.secret_key = os.getenv("FLASK_SECRET_KEY") or os.urandom(32)
 app.config["PERMANENT_SESSION_LIFETIME"] = __import__("datetime").timedelta(days=1)
 
