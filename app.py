@@ -3053,8 +3053,9 @@ def ask():
                                 _plan_to_snippet[_ep] = f"【{_ep}】\n" + "\n\n".join(_ecs[:3])
                             print(f"[KW-EXT] 擴充詞 {_ext_only_kws[:3]} → {len(_ext_plan_set)} 件擴展計畫")
 
-                    # FAISS 語意補充：找語意相關但 kw_idx 沒收錄的計畫
-                    _sem_ext_docs = vs.similarity_search(question, k=30)
+                    # FAISS 語意補充：找語意相關但 kw_idx 沒收錄的計畫（門檻 0.75 過濾低相關）
+                    _sem_ext_pairs = vs.similarity_search_with_relevance_scores(question, k=30)
+                    _sem_ext_docs = [d for d, s in _sem_ext_pairs if s >= 0.75]
                     for _fd in _sem_ext_docs:
                         _fd_src = _PATH_SEP_RE.split(
                             (_fd.metadata.get("source") or "")
