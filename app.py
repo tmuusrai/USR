@@ -1864,7 +1864,7 @@ def _try_location_answer(question: str, year: str,
         fields = p.get("fields", [])
         field_strs = []
         for f in fields:
-            parts = [f["county"], f["district"], f["location"]]
+            parts = [f.get("county", ""), f.get("district", ""), f.get("location", "")]
             s = "　".join(x for x in parts if x)
             if s:
                 field_strs.append(s)
