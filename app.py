@@ -1812,18 +1812,99 @@ _LOCATION_INTENT_RE = re.compile(
     r'在哪.{0,5}實踐|在哪.{0,5}場域'
 )
 
+# 查詢詞 → overseas_fields 的 region 值（None = 全部海外）
+_OVERSEAS_KW_TO_REGIONS: dict[str, list[str] | None] = {
+    '東南亞': ['東南亞'],
+    '東北亞': ['東北亞'],
+    '歐美':   ['歐洲', '美洲'],
+    '歐洲':   ['歐洲'],
+    '美洲':   ['美洲'],
+    '南亞':   ['南亞'],
+    '大洋洲': ['大洋洲'],
+    '非洲':   ['非洲'],
+    '海外':    None,
+    '國外':    None,
+    '境外':    None,
+    '海外地區': None,
+    '海外場域': None,
+    '國際':    None,
+}
+
+def _get_overseas_regions(keywords: list[str]) -> list[str] | None:
+    """
+    從查詢詞推導目標 region 清單。
+    回傳 None = 全部海外；回傳 [] = 非海外查詢；回傳 ['東南亞', ...] = 指定地區。
+    """
+    regions: set[str] = set()
+    want_all = False
+    is_overseas_query = False
+    for kw in keywords:
+        mapping = _OVERSEAS_KW_TO_REGIONS.get(kw)
+        if kw in _OVERSEAS_KW_TO_REGIONS:
+            is_overseas_query = True
+            if mapping is None:
+                want_all = True
+            else:
+                regions.update(mapping)
+    if not is_overseas_query:
+        return []          # 非海外查詢
+    if want_all and not regions:
+        return None        # 全部海外
+    return list(regions) if regions else None
+
 
 def _try_location_answer(question: str, year: str,
                           plan_keys: list[str] | None = None,
-                          ask_location: bool = False) -> str | None:
+                          ask_location: bool = False,
+                          keywords: list[str] | None = None) -> str | None:
     """場域查詢短路：直接從 location_index 回傳結構化場域資訊。
     - 有學校名 → 回傳該校所有計畫場域
     - 無學校名但有 plan_keys（縣市 label 命中）→ 回傳該縣市計畫場域清單
+    - keywords 含海外地區詞 → 改查 overseas_fields
     """
     if not ask_location and not _LOCATION_INTENT_RE.search(question):
         return None
     loc_yr = _location_index.get(year) or _location_index.get("114", {})
     plans_data = loc_yr.get("plans", {})
+
+    # ── 海外場域查詢 ──────────────────────────────────────
+    overseas_regions = _get_overseas_regions(keywords or [])
+    # overseas_regions: None=全部海外, []=非海外, ['東南亞',...]=指定地區
+    if overseas_regions != []:
+        results: list[tuple[str, list[str]]] = []
+        for pk, p in plans_data.items():
+            ofields = p.get("overseas_fields", [])
+            if not ofields:
+                continue
+            if overseas_regions is not None:
+                ofields = [of for of in ofields if of.get("region") in overseas_regions]
+            if not ofields:
+                continue
+            field_strs = []
+            for of in ofields:
+                country  = of.get("country", "")
+                region   = of.get("region", "")
+                city     = of.get("city", "")
+                location = of.get("location", "")
+                label = f"{country}（{region}）" if region else country
+                parts = [label, city, location]
+                s = "　".join(x for x in parts if x)
+                if s:
+                    field_strs.append(s)
+            if field_strs:
+                results.append((pk, field_strs))
+        if not results:
+            return None
+        region_label = "、".join(sorted({r for kw in (keywords or [])
+                                          for r in (_OVERSEAS_KW_TO_REGIONS.get(kw) or [])})) or "海外"
+        lines = [f"共找到 **{len(results)} 個**計畫在 {region_label} 地區有實踐場域：\n"]
+        for i, (pk, field_strs) in enumerate(results, 1):
+            school_name = pk.split("：", 1)[0]
+            plan_name   = pk.split("：", 1)[1] if "：" in pk else pk
+            field_text  = "\n".join(f"   - {s}" for s in field_strs)
+            lines.append(f"{i}. **{school_name}**：{plan_name} 海外實踐場域：")
+            lines.append(field_text + "\n")
+        return "\n".join(lines)
 
     # ── 學校層級 ──────────────────────────────────────────
     school = _extract_school(question)
@@ -2728,7 +2809,8 @@ def ask():
             # ── ①-c 國內實踐場域：注入 context（不短路，讓所有搜尋路徑繼續跑）──
             _out5_location: str | None = _try_location_answer(
                 question, year, plan_keys=_kw_plan_list or None,
-                ask_location=_llm_ask_location)
+                ask_location=_llm_ask_location,
+                keywords=_llm_kws or [])
             if _out5_location:
                 print(f"[LOCATION-CTX] 取得場域資料，注入 context")
 
