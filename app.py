@@ -1798,12 +1798,19 @@ for _yr_loc in _location_index.values():
                 if len(_dk) >= 2:
                     _location_district_plans.setdefault(_dk, set()).add(_loc_plan)
             # location 文字裡的「縣/市+X區/X鄉/X鎮」（如 "桃園市中壢區龍安里"）
+            # 也抓開頭直接是地區名的情況（如 "中壢商業高中"、"樸樹咖啡中壢一號"）
             _loc_v = _field.get("location", "")
             if _loc_v:
                 for _dm in re.finditer(r'(?:縣|市)([一-鿿]{2,3})[區鄉鎮市]', _loc_v):
                     _dk = _dm.group(1)
                     if len(_dk) >= 2:
                         _location_district_plans.setdefault(_dk, set()).add(_loc_plan)
+                # 直接出現地區名（不帶縣市前綴），掃已知鄉鎮對照表
+                for _town in _TOWN_TO_COUNTY:
+                    if len(_town) >= 2 and _town in _loc_v:
+                        _dk2 = _DIST_STRIP_RE.sub('', _town)
+                        if len(_dk2) >= 2:
+                            _location_district_plans.setdefault(_dk2, set()).add(_loc_plan)
 
 
 _LOCATION_INTENT_RE = re.compile(
@@ -1856,7 +1863,8 @@ def _get_overseas_regions(keywords: list[str]) -> list[str] | None:
 def _try_location_answer(question: str, year: str,
                           plan_keys: list[str] | None = None,
                           ask_location: bool = False,
-                          keywords: list[str] | None = None) -> str | None:
+                          keywords: list[str] | None = None,
+                          district: str = "") -> str | None:
     """場域查詢短路：直接從 location_index 回傳結構化場域資訊。
     - 有學校名 → 回傳該校所有計畫場域
     - 無學校名但有 plan_keys（縣市 label 命中）→ 回傳該縣市計畫場域清單
@@ -1931,29 +1939,48 @@ def _try_location_answer(question: str, year: str,
     # ── 縣市層級：plan_keys 由外部傳入（label 命中的計畫集）──
     if not plan_keys:
         return None
-    plan_keys_with_fields = [pk for pk in plan_keys if plans_data.get(pk, {}).get("fields")]
-    if not plan_keys_with_fields:
-        return None
+
+    def _field_matches_district(f: dict, dist: str) -> bool:
+        if not dist:
+            return True
+        d = f.get("district", "")
+        l = f.get("location", "")
+        # district 欄位包含，或 location 文字包含地區名
+        return dist in d or dist in l
+
     MAX_DISPLAY = 25
-    total = len(plan_keys)
-    show_keys = plan_keys_with_fields[:MAX_DISPLAY]
-    lines = [f"共 **{total} 個**計畫，以下列出有場域資料的計畫（{len(plan_keys_with_fields)} 個）：\n"]
-    for i, pk in enumerate(show_keys, 1):
-        school_name = pk.split("：", 1)[0]
-        plan_name = pk.split("：", 1)[1] if "：" in pk else pk
+    result_plans: list[tuple[str, list[str]]] = []
+    for pk in plan_keys:
         p = plans_data.get(pk, {})
         fields = p.get("fields", [])
+        if district:
+            fields = [f for f in fields if _field_matches_district(f, district)]
+        if not fields:
+            continue
         field_strs = []
         for f in fields:
             parts = [f.get("county", ""), f.get("district", ""), f.get("location", "")]
             s = "　".join(x for x in parts if x)
             if s:
                 field_strs.append(s)
-        field_text = "\n".join(f"   - {s}" for s in field_strs) if field_strs else "   （無場域資料）"
+        if field_strs:
+            result_plans.append((pk, field_strs))
+
+    if not result_plans:
+        return None
+
+    dist_label = f"（{district}）" if district else ""
+    total = len(result_plans)
+    show = result_plans[:MAX_DISPLAY]
+    lines = [f"共 **{total} 個**計畫在{dist_label}有場域資料：\n"]
+    for i, (pk, field_strs) in enumerate(show, 1):
+        school_name = pk.split("：", 1)[0]
+        plan_name   = pk.split("：", 1)[1] if "：" in pk else pk
+        field_text  = "\n".join(f"   - {s}" for s in field_strs)
         lines.append(f"{i}. **{school_name}**：{plan_name} 執行場域：")
         lines.append(field_text + "\n")
-    if len(plan_keys_with_fields) > MAX_DISPLAY:
-        lines.append(f"（僅顯示前 {MAX_DISPLAY} 個，共 {len(plan_keys_with_fields)} 個有場域資料）")
+    if total > MAX_DISPLAY:
+        lines.append(f"（僅顯示前 {MAX_DISPLAY} 個）")
     return "\n".join(lines)
 
 
@@ -2810,7 +2837,8 @@ def ask():
             _out5_location: str | None = _try_location_answer(
                 question, year, plan_keys=_kw_plan_list or None,
                 ask_location=_llm_ask_location,
-                keywords=_llm_kws or [])
+                keywords=_llm_kws or [],
+                district=_llm_district or "")
             if _out5_location:
                 print(f"[LOCATION-CTX] 取得場域資料，注入 context")
 
