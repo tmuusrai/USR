@@ -1828,6 +1828,13 @@ _LOCATION_RANK_RE = re.compile(
     r'|場域數量.{0,5}(?:哪|最|排)'
 )
 
+# 區域 × 計畫類型交叉統計偵測
+_CROSSTAB_REGIONS = ['北北基金馬', '桃竹苗宜花', '桃竹苗', '中彰投', '雲嘉南', '高屏澎東']
+_CROSSTAB_TYPES   = ['萌芽型', '深耕型', '永續發展類國際合作型', '永續發展類特色永續型',
+                     '國際合作型', '特色永續型']
+_CROSSTAB_REGION_RE = re.compile('|'.join(re.escape(r) for r in _CROSSTAB_REGIONS))
+_CROSSTAB_TYPE_RE   = re.compile('|'.join(re.escape(t) for t in _CROSSTAB_TYPES))
+
 # 查詢詞 → overseas_fields 的 region 值（None = 全部海外）
 _OVERSEAS_KW_TO_REGIONS: dict[str, list[str] | None] = {
     '東南亞': ['東南亞'],
@@ -2030,6 +2037,69 @@ def _location_rank_answer(year: str, question: str, top_n: int = 15) -> str:
             school = pk.split("：")[0]
             pname = pk.split("：", 1)[1] if "：" in pk else pk
             lines.append(f"{i}. **{school}**：{pname[:40]}…（{cnt} 個場域）")
+
+    return "\n".join(lines)
+
+
+def _crosstab_answer(year: str, question: str) -> str | None:
+    """區域 × 計畫類型交叉統計。
+    偵測問題中出現 ≥2 個區域標籤且至少1個類型標籤時觸發，
+    回傳每個區域下各類型的學校清單與件數。
+    """
+    found_regions = list(dict.fromkeys(m for m in _CROSSTAB_REGION_RE.findall(question)
+                                       if m in _CROSSTAB_REGIONS))
+    # 桃竹苗 = 桃竹苗宜花 的別名；去重
+    if '桃竹苗' in found_regions and '桃竹苗宜花' in found_regions:
+        found_regions = [r for r in found_regions if r != '桃竹苗']
+
+    found_types = list(dict.fromkeys(m for m in _CROSSTAB_TYPE_RE.findall(question)
+                                     if m in _CROSSTAB_TYPES))
+    # 別名正規化
+    type_map = {'國際合作型': '永續發展類國際合作型', '特色永續型': '永續發展類特色永續型'}
+    found_types = [type_map.get(t, t) for t in found_types]
+    found_types = list(dict.fromkeys(found_types))
+
+    # 若只提到1個區域且無類型 → 不走此路
+    if len(found_regions) < 2 and not found_types:
+        return None
+    # 補齊：若有區域但無明確類型 → 預設全部4種
+    if not found_types:
+        found_types = ['萌芽型', '深耕型', '永續發展類國際合作型', '永續發展類特色永續型']
+    # 補齊：若有類型但只提1區域 → 補全5區
+    if len(found_regions) < 2 and found_types:
+        found_regions = ['北北基金馬', '桃竹苗宜花', '中彰投', '雲嘉南', '高屏澎東']
+
+    lbl_yr = _label_only_index.get(year) or _label_only_index.get("114", {})
+
+    lines: list[str] = ["【交叉統計】\n"]
+    grand_total = 0
+    type_totals: dict[str, int] = {t: 0 for t in found_types}
+
+    for r in found_regions:
+        r_set = set(lbl_yr.get(r, []))
+        region_total = len(r_set)
+        lines.append(f"**{r}**（共 {region_total} 件）")
+        for t in found_types:
+            t_set = set(lbl_yr.get(t, []))
+            crossed = sorted(r_set & t_set)
+            type_totals[t] += len(crossed)
+            grand_total += len(crossed)
+            if crossed:
+                # 去重：同一學校多計畫時顯示「學校（N件）」
+                from collections import Counter
+                school_cnt = Counter(p.split("：")[0] for p in crossed)
+                school_parts = [f"{s}（{c}件）" if c > 1 else s
+                                for s, c in sorted(school_cnt.items())]
+                lines.append(f"- {t}（{len(crossed)} 件，{len(school_cnt)} 校）：{'、'.join(school_parts)}")
+            else:
+                lines.append(f"- {t}：0 件")
+        lines.append("")  # 空行分隔
+
+    # 彙總列
+    lines.append("---")
+    lines.append("**各類型合計**")
+    for t in found_types:
+        lines.append(f"- {t}：{type_totals[t]} 件")
 
     return "\n".join(lines)
 
@@ -2892,6 +2962,17 @@ def ask():
                 yield f"data: {json.dumps({'type': 'chunk', 'text': _rank_ans}, ensure_ascii=False)}\n\n"
                 total_ms = round((time.perf_counter() - t0) * 1000)
                 yield f"data: {json.dumps({'type': 'done', 'timing': {'total_ms': total_ms}, 'mode': 'loc_rank'}, ensure_ascii=False)}\n\n"
+                return
+
+            # ── ①-b3 區域×類型交叉統計短路 ──
+            _crosstab_ans = _crosstab_answer(year, question)
+            if _crosstab_ans:
+                print(f"[CROSSTAB] 區域×類型交叉統計，直接回傳")
+                _save_shortcut_history(_crosstab_ans, [])
+                yield f"data: {json.dumps({'type': 'sources', 'sources': []}, ensure_ascii=False)}\n\n"
+                yield f"data: {json.dumps({'type': 'chunk', 'text': _crosstab_ans}, ensure_ascii=False)}\n\n"
+                total_ms = round((time.perf_counter() - t0) * 1000)
+                yield f"data: {json.dumps({'type': 'done', 'timing': {'total_ms': total_ms}, 'mode': 'crosstab'}, ensure_ascii=False)}\n\n"
                 return
 
             # ── ①-c 國內實踐場域：注入 context（不短路，讓所有搜尋路徑繼續跑）──
