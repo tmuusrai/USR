@@ -2096,9 +2096,11 @@ def _crosstab_answer(year: str, question: str) -> str | None:
                 for _s in sorted(school_plans.keys()):
                     _pns = school_plans[_s]
                     lines.append(f"  - {_s}：{'、'.join(_pns)}")
+                lines.append("")
             else:
                 lines.append(f"- {t}：0 件")
-        lines.append("")  # 空行分隔
+                lines.append("")
+        lines.append("")
 
     # 彙總列
     lines.append("---")
