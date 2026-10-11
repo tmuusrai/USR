@@ -1806,7 +1806,7 @@ for _yr_loc in _location_index.values():
                     if len(_dk) >= 2:
                         _location_district_plans.setdefault(_dk, set()).add(_loc_plan)
                 # 直接出現地區名（不帶縣市前綴），掃已知鄉鎮對照表
-                for _town in _TOWN_TO_COUNTY:
+                for _town in _TAIWAN_DISTRICT_MAP:
                     if len(_town) >= 2 and _town in _loc_v:
                         _dk2 = _DIST_STRIP_RE.sub('', _town)
                         if len(_dk2) >= 2:
