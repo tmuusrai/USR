@@ -3243,11 +3243,14 @@ def ask():
                         print(f"[LIVE] 使用 KW-PRE 快取（{len(_cached_results)} 筆）：{[k for k in _live_scan_kws if k in _cached_kws]}")
 
                     _live_results: list[str] = []
-                    if _need_scan_kws and len(_need_scan_kws) >= 2 and not _query_is_or:
-                        # 多詞 AND：各自掃一次取學校交集
+                    # 分離 primary（使用者明確輸入）與 extended（LLM 擴充同義詞）
+                    _need_primary_kws = [k for k in _need_scan_kws if k in set(_q_priority_kws)]
+                    _need_ext_kws = [k for k in _need_scan_kws if k not in set(_q_priority_kws)]
+                    if _need_primary_kws and len(_need_primary_kws) >= 2 and not _query_is_or:
+                        # 多詞 AND：僅對 primary 關鍵字取學校交集，extended 詞以 OR 補充
                         _live_school_sets = []
                         _live_per_kw: dict[str, list[str]] = {}
-                        for _lk in _need_scan_kws:
+                        for _lk in _need_primary_kws:
                             _res = _faiss_scan_kws([_lk], vs, condense=True, school=_school or None)
                             _live_per_kw[_lk] = _res
                             _schools = {re.match(r'【(.+?)(?:_|】)', r).group(1)
@@ -3260,8 +3263,13 @@ def ask():
                             _live_results = [r for kw_res in _live_per_kw.values()
                                              for r in kw_res if any(s in r for s in _and_schools)]
                         else:
-                            _live_results = _faiss_scan_kws(_need_scan_kws, vs, condense=True, school=_school or None)
+                            _live_results = _faiss_scan_kws(_need_primary_kws, vs, condense=True, school=_school or None)
                             print(f"[LIVE] AND 交集為空，退回 OR")
+                        if _need_ext_kws:
+                            _ext_res = _faiss_scan_kws(_need_ext_kws, vs, condense=True, school=_school or None)
+                            _seen_and = {r[:80] for r in _live_results}
+                            _live_results += [r for r in _ext_res if r[:80] not in _seen_and]
+                            print(f"[LIVE] 擴充詞 OR 補充 {len(_need_ext_kws)} 詞")
                     elif _need_scan_kws:
                         if _query_is_or and len(_need_scan_kws) >= 2:
                             print(f"[LIVE] OR 模式，{len(_need_scan_kws)} 詞取聯集")
