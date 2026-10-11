@@ -2085,12 +2085,17 @@ def _crosstab_answer(year: str, question: str) -> str | None:
             type_totals[t] += len(crossed)
             grand_total += len(crossed)
             if crossed:
-                # 去重：同一學校多計畫時顯示「學校（N件）」
-                from collections import Counter
-                school_cnt = Counter(p.split("：")[0] for p in crossed)
-                school_parts = [f"{s}（{c}件）" if c > 1 else s
-                                for s, c in sorted(school_cnt.items())]
-                lines.append(f"- {t}（{len(crossed)} 件，{len(school_cnt)} 校）：{'、'.join(school_parts)}")
+                from collections import defaultdict
+                school_plans: dict[str, list[str]] = defaultdict(list)
+                for p in crossed:
+                    _s = p.split("：", 1)[0]
+                    _pn = _clean_plan_code(p.split("：", 1)[1] if "：" in p else p)
+                    school_plans[_s].append(_pn)
+                n_schools = len(school_plans)
+                lines.append(f"- {t}（{len(crossed)} 件，{n_schools} 校）：")
+                for _s in sorted(school_plans.keys()):
+                    _pns = school_plans[_s]
+                    lines.append(f"  - {_s}：{'、'.join(_pns)}")
             else:
                 lines.append(f"- {t}：0 件")
         lines.append("")  # 空行分隔
