@@ -2884,6 +2884,19 @@ def ask():
                 yield f"data: {json.dumps({'type': 'done', 'timing': {'total_ms': total_ms}, 'mode': 'crosstab'}, ensure_ascii=False)}\n\n"
                 return
 
+            # ── ①-b4 學校類型詞過濾：若 extra 詞全為學校類型（科技大學/醫學院等），
+            #         改成對 _kw_plan_list 做學校名稱篩選，避免觸發大範圍 live scan ──
+            _SCHOOL_TYPE_SUFFIXES = ('科技大學', '醫學院', '醫學大學', '師範大學',
+                                     '護理健康', '科大', '醫大', '藝術大學', '教育大學')
+            if _kw_pre_extra and _kw_plan_list and all(
+                    any(suf in ek for suf in _SCHOOL_TYPE_SUFFIXES) for ek in _kw_pre_extra):
+                _type_filtered = [p for p in _kw_plan_list
+                                  if any(ek in p.split('：', 1)[0] for ek in _kw_pre_extra)]
+                if _type_filtered:
+                    print(f"[SCHOOL-TYPE] 學校類型過濾 {_kw_pre_extra} → {len(_kw_plan_list)} → {len(_type_filtered)} 件")
+                    _kw_plan_list = _type_filtered
+                    _kw_pre_extra = []
+
             # ── ① Label 短路：label 命中 + 列舉問題 → 輸出名單 + 結構化資料 ──
             # 含「完成/已完成」限定詞時不短路，讓 _completion_filter 讀內容判斷
             _completion_qual = bool(re.search(r'完成|已完成', question))
