@@ -2687,7 +2687,7 @@ def ask():
                 return
 
             # ── KW-PRE：label 比對（早期執行，結果作為後續所有路徑的搜尋範圍）──
-            _query_is_or = '或' in question
+            _query_is_or = bool(re.search(r'或|跟|及|與', question))
             _usr_topic, _usr_topic_kws = _detect_usr_topic(question)
             _kw_plan_list: list[str] = []
             _kw_pre_schools: set[str] = set()
