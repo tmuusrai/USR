@@ -1819,6 +1819,15 @@ _LOCATION_INTENT_RE = re.compile(
     r'在哪.{0,5}實踐|在哪.{0,5}場域'
 )
 
+# 場域數量排名查詢：「哪個學校場域最多」、「場域數量排名」等
+_LOCATION_RANK_RE = re.compile(
+    r'哪.{0,12}(?:固定)?(?:實踐|執行|合作)?場域.{0,5}最多'
+    r'|(?:固定)?(?:實踐|執行|合作)?場域.{0,5}(?:最多|數量最多|最豐富|最廣|最大量)'
+    r'|最多.{0,5}(?:實踐|執行|合作)?場域'
+    r'|(?:固定)?(?:實踐|執行)?場域.{0,8}(?:數量|排名|排行).{0,8}(?:最多|第一|冠軍|排名)?'
+    r'|場域數量.{0,5}(?:哪|最|排)'
+)
+
 # 查詢詞 → overseas_fields 的 region 值（None = 全部海外）
 _OVERSEAS_KW_TO_REGIONS: dict[str, list[str] | None] = {
     '東南亞': ['東南亞'],
@@ -1981,6 +1990,47 @@ def _try_location_answer(question: str, year: str,
         lines.append(field_text + "\n")
     if total > MAX_DISPLAY:
         lines.append(f"（僅顯示前 {MAX_DISPLAY} 個）")
+    return "\n".join(lines)
+
+
+def _location_rank_answer(year: str, question: str, top_n: int = 15) -> str:
+    """場域數量排名：統計各學校跨計畫不重複場域地點數，回傳 Markdown 排名表。"""
+    from collections import defaultdict
+    loc_yr = _location_index.get(year) or _location_index.get("114", {})
+    plans_data = loc_yr.get("plans", {})
+
+    # 判斷問的是「計畫層級」還是「學校層級」
+    ask_plan = bool(re.search(r'計畫|哪個計畫|哪件計畫', question))
+    ask_school = bool(re.search(r'學校|大學|科大|科技大學|哪間|哪所|哪個學校', question))
+    by_school = ask_school or not ask_plan
+
+    if by_school:
+        school_locs: dict[str, set] = defaultdict(set)
+        school_plan_cnt: dict[str, int] = defaultdict(int)
+        for pk, info in plans_data.items():
+            school = pk.split("：")[0]
+            school_plan_cnt[school] += 1
+            for f in info.get("fields", []):
+                loc = f.get("location", "")
+                if loc:
+                    school_locs[school].add(loc)
+        ranked = sorted(school_locs.items(), key=lambda x: len(x[1]), reverse=True)
+        lines = [f"**各學校場域數量排名（前 {min(top_n, len(ranked))} 名）**：\n"]
+        for i, (school, locs) in enumerate(ranked[:top_n], 1):
+            n_plans = school_plan_cnt[school]
+            lines.append(f"{i}. **{school}**：{len(locs)} 個場域（{n_plans} 件計畫）")
+    else:
+        plan_locs: list[tuple[int, str]] = []
+        for pk, info in plans_data.items():
+            locs = {f.get("location", "") for f in info.get("fields", []) if f.get("location")}
+            plan_locs.append((len(locs), pk))
+        plan_locs.sort(reverse=True)
+        lines = [f"**各計畫場域數量排名（前 {min(top_n, len(plan_locs))} 名）**：\n"]
+        for i, (cnt, pk) in enumerate(plan_locs[:top_n], 1):
+            school = pk.split("：")[0]
+            pname = pk.split("：", 1)[1] if "：" in pk else pk
+            lines.append(f"{i}. **{school}**：{pname[:40]}…（{cnt} 個場域）")
+
     return "\n".join(lines)
 
 
@@ -2831,6 +2881,17 @@ def ask():
                 yield f"data: {json.dumps({'type': 'chunk', 'text': _cnt_ans}, ensure_ascii=False)}\n\n"
                 total_ms = round((time.perf_counter() - t0) * 1000)
                 yield f"data: {json.dumps({'type': 'done', 'timing': {'total_ms': total_ms}, 'mode': 'label_count'}, ensure_ascii=False)}\n\n"
+                return
+
+            # ── ①-b2 場域數量排名短路：「哪個學校場域最多」→ 直接從 location_index 統計 ──
+            if _LOCATION_RANK_RE.search(question):
+                _rank_ans = _location_rank_answer(year, question)
+                print(f"[LOC-RANK] 場域排名查詢，直接統計回傳")
+                _save_shortcut_history(_rank_ans, [])
+                yield f"data: {json.dumps({'type': 'sources', 'sources': []}, ensure_ascii=False)}\n\n"
+                yield f"data: {json.dumps({'type': 'chunk', 'text': _rank_ans}, ensure_ascii=False)}\n\n"
+                total_ms = round((time.perf_counter() - t0) * 1000)
+                yield f"data: {json.dumps({'type': 'done', 'timing': {'total_ms': total_ms}, 'mode': 'loc_rank'}, ensure_ascii=False)}\n\n"
                 return
 
             # ── ①-c 國內實踐場域：注入 context（不短路，讓所有搜尋路徑繼續跑）──
