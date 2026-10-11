@@ -2897,6 +2897,29 @@ def ask():
                     _kw_plan_list = _type_filtered
                     _kw_pre_extra = []
 
+            # ── ①-b5 國家場域過濾：matched labels 含國家名時，改用 location_index
+            #         overseas_fields 驗證，避免僅「文中提到」該國就被標入 ──
+            _COUNTRY_LABELS = {
+                '尼泊爾','帛琉','澳洲','美國','日本','韓國','印尼','新加坡','泰國',
+                '緬甸','菲律賓','越南','馬來西亞','匈牙利','德國','捷克','法國',
+                '瑞士','英國','加拿大','坦尚尼亞','南亞','大洋洲','東北亞',
+                '東南亞','歐洲','美洲','非洲','國外'
+            }
+            _matched_countries = [k for k in _matched_kws if k in _COUNTRY_LABELS]
+            if _matched_countries and _kw_plan_list:
+                _loc_yr_ov = (_location_index.get(year) or _location_index.get("114", {})).get("plans", {})
+                def _has_ov_field(pk, countries):
+                    for f in _loc_yr_ov.get(pk, {}).get("overseas_fields", []):
+                        c = f.get("country", "")
+                        r = f.get("region", "")
+                        if any(cn in c or cn in r for cn in countries):
+                            return True
+                    return False
+                _country_filtered = [p for p in _kw_plan_list if _has_ov_field(p, _matched_countries)]
+                if _country_filtered:
+                    print(f"[COUNTRY-FILTER] 海外場域過濾 {_matched_countries} → {len(_kw_plan_list)} → {len(_country_filtered)} 件")
+                    _kw_plan_list = _country_filtered
+
             # ── ① Label 短路：label 命中 + 列舉問題 → 輸出名單 + 結構化資料 ──
             # 含「完成/已完成」限定詞時不短路，讓 _completion_filter 讀內容判斷
             _completion_qual = bool(re.search(r'完成|已完成', question))
