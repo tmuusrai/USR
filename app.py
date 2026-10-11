@@ -2060,14 +2060,12 @@ def _crosstab_answer(year: str, question: str) -> str | None:
     found_types = list(dict.fromkeys(found_types))
 
     # 若只提到1個區域且無類型 → 不走此路
-    if len(found_regions) < 2 and not found_types:
+    # 至少需要 2 個地區才觸發交叉統計；單一地區交給 label_direct 處理
+    if len(found_regions) < 2:
         return None
     # 補齊：若有區域但無明確類型 → 預設全部4種
     if not found_types:
         found_types = ['萌芽型', '深耕型', '永續發展類國際合作型', '永續發展類特色永續型']
-    # 補齊：若有類型但只提1區域 → 補全5區
-    if len(found_regions) < 2 and found_types:
-        found_regions = ['北北基金馬', '桃竹苗宜花', '中彰投', '雲嘉南', '高屏澎東']
 
     lbl_yr = _label_only_index.get(year) or _label_only_index.get("114", {})
 
