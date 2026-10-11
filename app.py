@@ -2862,6 +2862,17 @@ def ask():
                         _kw_pre_schools = {e.split('：', 1)[0] for e in _kw_plan_list}
                         print(f"[KW-PRE] district-only 額外詞：{_extra_pre_d}；範圍 {len(_kw_pre_schools)} 間")
 
+            # ── ①-b3 區域×類型交叉統計短路（優先於 label_direct）──
+            _crosstab_ans = _crosstab_answer(year, question)
+            if _crosstab_ans:
+                print(f"[CROSSTAB] 區域×類型交叉統計，直接回傳")
+                _save_shortcut_history(_crosstab_ans, [])
+                yield f"data: {json.dumps({'type': 'sources', 'sources': []}, ensure_ascii=False)}\n\n"
+                yield f"data: {json.dumps({'type': 'chunk', 'text': _crosstab_ans}, ensure_ascii=False)}\n\n"
+                total_ms = round((time.perf_counter() - t0) * 1000)
+                yield f"data: {json.dumps({'type': 'done', 'timing': {'total_ms': total_ms}, 'mode': 'crosstab'}, ensure_ascii=False)}\n\n"
+                return
+
             # ── ① Label 短路：label 命中 + 列舉問題 → 輸出名單 + 結構化資料 ──
             # 含「完成/已完成」限定詞時不短路，讓 _completion_filter 讀內容判斷
             _completion_qual = bool(re.search(r'完成|已完成', question))
@@ -2962,17 +2973,6 @@ def ask():
                 yield f"data: {json.dumps({'type': 'chunk', 'text': _rank_ans}, ensure_ascii=False)}\n\n"
                 total_ms = round((time.perf_counter() - t0) * 1000)
                 yield f"data: {json.dumps({'type': 'done', 'timing': {'total_ms': total_ms}, 'mode': 'loc_rank'}, ensure_ascii=False)}\n\n"
-                return
-
-            # ── ①-b3 區域×類型交叉統計短路 ──
-            _crosstab_ans = _crosstab_answer(year, question)
-            if _crosstab_ans:
-                print(f"[CROSSTAB] 區域×類型交叉統計，直接回傳")
-                _save_shortcut_history(_crosstab_ans, [])
-                yield f"data: {json.dumps({'type': 'sources', 'sources': []}, ensure_ascii=False)}\n\n"
-                yield f"data: {json.dumps({'type': 'chunk', 'text': _crosstab_ans}, ensure_ascii=False)}\n\n"
-                total_ms = round((time.perf_counter() - t0) * 1000)
-                yield f"data: {json.dumps({'type': 'done', 'timing': {'total_ms': total_ms}, 'mode': 'crosstab'}, ensure_ascii=False)}\n\n"
                 return
 
             # ── ①-c 國內實踐場域：注入 context（不短路，讓所有搜尋路徑繼續跑）──
