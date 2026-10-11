@@ -1880,7 +1880,8 @@ def _try_location_answer(question: str, year: str,
                           plan_keys: list[str] | None = None,
                           ask_location: bool = False,
                           keywords: list[str] | None = None,
-                          district: str = "") -> str | None:
+                          district: str = "",
+                          counties: list[str] | None = None) -> str | None:
     """場域查詢短路：直接從 location_index 回傳結構化場域資訊。
     - 有學校名 → 回傳該校所有計畫場域
     - 無學校名但有 plan_keys（縣市 label 命中）→ 回傳該縣市計畫場域清單
@@ -1969,6 +1970,10 @@ def _try_location_answer(question: str, year: str,
     for pk in plan_keys:
         p = plans_data.get(pk, {})
         fields = p.get("fields", [])
+        if counties:
+            fields = [f for f in fields
+                      if any(c in f.get("county", "") or f.get("county", "") in c
+                             for c in counties)]
         if district:
             fields = [f for f in fields if _field_matches_district(f, district)]
         if not fields:
@@ -2982,11 +2987,13 @@ def ask():
                 return
 
             # ── ①-c 國內實踐場域：注入 context（不短路，讓所有搜尋路徑繼續跑）──
+            _county_kws = [k for k in _matched_kws if "縣" in k or "市" in k]
             _out5_location: str | None = _try_location_answer(
                 question, year, plan_keys=_kw_plan_list or None,
                 ask_location=_llm_ask_location,
                 keywords=_llm_kws or [],
-                district=_llm_district or "")
+                district=_llm_district or "",
+                counties=_county_kws or None)
             if _out5_location:
                 print(f"[LOCATION-CTX] 取得場域資料，注入 context")
 
