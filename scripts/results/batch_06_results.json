@@ -1,0 +1,826 @@
+{
+  "大元國小": {
+    "county": "台中",
+    "district": "大里區"
+  },
+  "大里國小": {
+    "county": "台中",
+    "district": "大里區"
+  },
+  "忠信國小": {
+    "county": "台中",
+    "district": "西區"
+  },
+  "新庄國小": {
+    "county": "南投",
+    "district": "草屯鎮"
+  },
+  "永隆國小": {
+    "county": "台中",
+    "district": "大里區"
+  },
+  "美群國小": {
+    "county": "台中",
+    "district": "大里區"
+  },
+  "虎山國小": {
+    "county": "南投",
+    "district": "草屯鎮"
+  },
+  "霧峰國小": {
+    "county": "台中",
+    "district": "霧峰區"
+  },
+  "黃竹國小": {
+    "county": "台中",
+    "district": "太平區"
+  },
+  "僑光科技大學": {
+    "county": "台中",
+    "district": "西屯區"
+  },
+  "南開科技大學": {
+    "county": "南投",
+    "district": "草屯鎮"
+  },
+  "美和科技大學": {
+    "county": "屏東",
+    "district": "內埔鄉"
+  },
+  "黎明技術學院": {
+    "county": "新北",
+    "district": "泰山區"
+  },
+  "國立中興大學附屬高級中學": {
+    "county": "台中",
+    "district": "大里區"
+  },
+  "國立中興高級中學": {
+    "county": "南投",
+    "district": "南投市"
+  },
+  "國立家齊高級中學": {
+    "county": "台南",
+    "district": "中西區"
+  },
+  "嶺東高中": {
+    "county": "台中",
+    "district": "南屯區"
+  },
+  "私立僑泰高級中學": {
+    "county": "台中",
+    "district": "大里區"
+  },
+  "私立嶺東高級中學": {
+    "county": "台中",
+    "district": "南屯區"
+  },
+  "私立常春藤高級中學": {
+    "county": "台中",
+    "district": "潭子區"
+  },
+  "私立弘文高級中學": {
+    "county": "台中",
+    "district": "潭子區"
+  },
+  "私立揚子高級中學": {
+    "county": "雲林",
+    "district": "虎尾鎮"
+  },
+  "私立明德高級中學": {
+    "county": "台中",
+    "district": "南區"
+  },
+  "私立立人高級中學": {
+    "county": "台中",
+    "district": "大里區"
+  },
+  "私立華盛頓高級中學": {
+    "county": "台中",
+    "district": "太平區"
+  },
+  "中華民國匹克球協會": {
+    "county": "台中",
+    "district": "大里區"
+  },
+  "奇異天然飲食教育關懷協會": {
+    "county": "",
+    "district": ""
+  },
+  "禾昀社區復健中心": {
+    "county": "台中",
+    "district": "大里區"
+  },
+  "臺灣動物輔助治療專業發展協會": {
+    "county": "",
+    "district": ""
+  },
+  "國立海洋生物博物館": {
+    "county": "屏東",
+    "district": "車城鄉"
+  },
+  "教育部高等教育司": {
+    "county": "台北",
+    "district": "中正區"
+  },
+  "衛生福利部草屯療養院": {
+    "county": "南投",
+    "district": "草屯鎮"
+  },
+  "衛生福利部草屯療養院日間照護中心": {
+    "county": "南投",
+    "district": "草屯鎮"
+  },
+  "丞石運動事業有限公司": {
+    "county": "",
+    "district": ""
+  },
+  "亞洲大學現代美術館": {
+    "county": "台中",
+    "district": "霧峰區"
+  },
+  "亞洲大學附屬現代美術館": {
+    "county": "台中",
+    "district": "霧峰區"
+  },
+  "亞洲大學附屬醫院": {
+    "county": "台中",
+    "district": "霧峰區"
+  },
+  "佐臻股份有限公司": {
+    "county": "台北",
+    "district": "南港區"
+  },
+  "安永聯合會計師事務所": {
+    "county": "台北",
+    "district": "信義區"
+  },
+  "宏達國際電子股份有限公司(HTC)": {
+    "county": "新北",
+    "district": "新店區"
+  },
+  "快樂聯播網": {
+    "county": "台北",
+    "district": ""
+  },
+  "愛設享生活文化有限公司": {
+    "county": "",
+    "district": ""
+  },
+  "歐澤科技有限公司": {
+    "county": "",
+    "district": ""
+  },
+  "海樂思生活工作室": {
+    "county": "",
+    "district": ""
+  },
+  "烏日好憶綜合長照機構": {
+    "county": "台中",
+    "district": "烏日區"
+  },
+  "環境友善種子有限公司": {
+    "county": "台北",
+    "district": "文山區"
+  },
+  "真善美居家護理所": {
+    "county": "",
+    "district": ""
+  },
+  "秀老郎日間照顧中心": {
+    "county": "彰化",
+    "district": "員林市"
+  },
+  "英業達股份有限公司": {
+    "county": "台北",
+    "district": "士林區"
+  },
+  "金色博士生活文化創意國際股份有限公司": {
+    "county": "",
+    "district": ""
+  },
+  "大里仁化幸福匹克球隊": {
+    "county": "台中",
+    "district": "大里區"
+  },
+  "大里仁德金勇匹克球隊": {
+    "county": "台中",
+    "district": "大里區"
+  },
+  "纖維工藝博物館": {
+    "county": "台中",
+    "district": "大里區"
+  },
+  "中寮國中": {
+    "county": "南投",
+    "district": "中寮鄉"
+  },
+  "原斗國中": {
+    "county": "彰化",
+    "district": "二林鎮"
+  },
+  "明潭國中": {
+    "county": "南投",
+    "district": "魚池鄉"
+  },
+  "瑞竹國中": {
+    "county": "南投",
+    "district": "竹山鎮"
+  },
+  "線西國中": {
+    "county": "彰化",
+    "district": "線西鄉"
+  },
+  "集集國中": {
+    "county": "南投",
+    "district": "集集鎮"
+  },
+  "中港高中": {
+    "county": "台中",
+    "district": "梧棲區"
+  },
+  "后綜高中": {
+    "county": "台中",
+    "district": "后里區"
+  },
+  "和美實驗學校": {
+    "county": "彰化",
+    "district": "和美鎮"
+  },
+  "國立和美實驗學校": {
+    "county": "彰化",
+    "district": "和美鎮"
+  },
+  "Tsai P.咖啡莊園": {
+    "county": "南投",
+    "district": "國姓鄉"
+  },
+  "楊基裕有機農場": {
+    "county": "",
+    "district": ""
+  },
+  "財團法人台灣省 私立台灣盲人重建院": {
+    "county": "新北",
+    "district": "新莊區"
+  },
+  "財團法人瑪利亞社會福利基金會": {
+    "county": "台中",
+    "district": "南屯區"
+  },
+  "財團法人瑪利亞社會福利基金會瑪利媽媽清潔高手工作隊(磐石隊)": {
+    "county": "台中",
+    "district": "南屯區"
+  },
+  "社團法人在宅醫療學會": {
+    "county": "台東",
+    "district": "台東市"
+  },
+  "月園流浪動物照護協會": {
+    "county": "台中",
+    "district": ""
+  },
+  "犬山居/臺灣同伴動物扶助協會": {
+    "county": "台中",
+    "district": "沙鹿區"
+  },
+  "關懷生命協會": {
+    "county": "台北",
+    "district": "中山區"
+  },
+  "國歡企業有限公司": {
+    "county": "",
+    "district": ""
+  },
+  "美商默沙東藥廠股份有限公司臺灣分公司(MSD)": {
+    "county": "台北",
+    "district": "信義區"
+  },
+  "臺灣碩騰股份有限公司": {
+    "county": "台北",
+    "district": ""
+  },
+  "_線西國中": {
+    "county": "彰化",
+    "district": "線西鄉"
+  },
+  "北斗國中": {
+    "county": "彰化",
+    "district": "北斗鎮"
+  },
+  "和美國中": {
+    "county": "彰化",
+    "district": "和美鎮"
+  },
+  "埔心國中": {
+    "county": "彰化",
+    "district": "埔心鄉"
+  },
+  "大同國中": {
+    "county": "彰化",
+    "district": "員林市"
+  },
+  "彰安國中": {
+    "county": "彰化",
+    "district": "彰化市"
+  },
+  "明倫國中": {
+    "county": "彰化",
+    "district": "員林市"
+  },
+  "溪州國中": {
+    "county": "彰化",
+    "district": "溪州鄉"
+  },
+  "溪湖國中": {
+    "county": "彰化",
+    "district": "溪湖鎮"
+  },
+  "田尾國中": {
+    "county": "彰化",
+    "district": "田尾鄉"
+  },
+  "福興國中": {
+    "county": "彰化",
+    "district": "福興鄉"
+  },
+  "花壇國中": {
+    "county": "彰化",
+    "district": "花壇鄉"
+  },
+  "芳苑國中": {
+    "county": "彰化",
+    "district": "芳苑鄉"
+  },
+  "褔興國中": {
+    "county": "彰化",
+    "district": "福興鄉"
+  },
+  "南興國小": {
+    "county": "彰化",
+    "district": "彰化市"
+  },
+  "文開國小": {
+    "county": "彰化",
+    "district": "鹿港鎮"
+  },
+  "新民國小": {
+    "county": "彰化",
+    "district": "田中鎮"
+  },
+  "湳雅國小": {
+    "county": "彰化",
+    "district": "社頭鄉"
+  },
+  "源泉國小": {
+    "county": "彰化",
+    "district": "二水鄉"
+  },
+  "竹塘國小": {
+    "county": "彰化",
+    "district": "竹塘鄉"
+  },
+  "舊館國小": {
+    "county": "彰化",
+    "district": "埔心鄉"
+  },
+  "低碳科技股份有限公司": {
+    "county": "",
+    "district": ""
+  },
+  "埤頭工業區": {
+    "county": "彰化",
+    "district": "埤頭鄉"
+  },
+  "法國電力公司": {
+    "county": "台北",
+    "district": ""
+  },
+  "田中工業區": {
+    "county": "彰化",
+    "district": "田中鎮"
+  },
+  "福興工業區": {
+    "county": "彰化",
+    "district": "福興鄉"
+  },
+  "埔心科技教育中心": {
+    "county": "彰化",
+    "district": "埔心鄉"
+  },
+  "彰安科技教育中心": {
+    "county": "彰化",
+    "district": "彰化市"
+  },
+  "田尾科技教育中心": {
+    "county": "彰化",
+    "district": "田尾鄉"
+  },
+  "福興科技教育中心": {
+    "county": "彰化",
+    "district": "福興鄉"
+  },
+  "財團法人遠哲科學教育基金會": {
+    "county": "台北",
+    "district": "中正區"
+  },
+  "經濟暨綠能發展處": {
+    "county": "彰化",
+    "district": "彰化市"
+  },
+  "國軍退除役官兵輔導委員會中彰榮譽國民之家": {
+    "county": "彰化",
+    "district": "彰化市"
+  },
+  "香山社區發展協會": {
+    "county": "",
+    "district": ""
+  },
+  "夢的N次方": {
+    "county": "",
+    "district": ""
+  },
+  "台灣山水教育永續發展協會": {
+    "county": "",
+    "district": ""
+  },
+  "國立台灣大學生物資源暨農學院實驗林管理處": {
+    "county": "南投",
+    "district": "竹山鎮"
+  },
+  "全方位探索顧問有限公司": {
+    "county": "",
+    "district": ""
+  },
+  "廣興紙寮": {
+    "county": "南投",
+    "district": "埔里鎮"
+  },
+  "振昌興業股份有限公司": {
+    "county": "南投",
+    "district": "水里鄉"
+  },
+  "新故鄉紙教堂教育見學園區": {
+    "county": "南投",
+    "district": "埔里鎮"
+  },
+  "桃米休閒農業區": {
+    "county": "南投",
+    "district": "埔里鎮"
+  },
+  "樂晴SUP企業社": {
+    "county": "南投",
+    "district": "魚池鄉"
+  },
+  "樂晴企業社": {
+    "county": "南投",
+    "district": "魚池鄉"
+  },
+  "溪頭福華渡假飯店": {
+    "county": "南投",
+    "district": "鹿谷鄉"
+  },
+  "肌齊力運動工作室": {
+    "county": "",
+    "district": ""
+  },
+  "變色龍攀樹工作室": {
+    "county": "",
+    "district": ""
+  },
+  "順騎自然有限公司": {
+    "county": "南投",
+    "district": "埔里鎮"
+  },
+  "龍南漆器": {
+    "county": "南投",
+    "district": "埔里鎮"
+  },
+  "國立暨南國際大學附屬高級中學": {
+    "county": "南投",
+    "district": "埔里鎮"
+  },
+  "TFT(Teach For Taiwan,為台灣而教)教育創新基地": {
+    "county": "",
+    "district": ""
+  },
+  "中華民國農會四健會": {
+    "county": "台中",
+    "district": "大里區"
+  },
+  "全國代理暨代課教師產業工會": {
+    "county": "",
+    "district": ""
+  },
+  "博幼基金會": {
+    "county": "南投",
+    "district": "埔里鎮"
+  },
+  "台灣基督長老教會豐丘教會": {
+    "county": "南投",
+    "district": "信義鄉"
+  },
+  "良顯堂基金會": {
+    "county": "南投",
+    "district": "埔里鎮"
+  },
+  "財團法人博幼社會福利基金會": {
+    "county": "南投",
+    "district": "埔里鎮"
+  },
+  "財團法人大立光電教育基金會": {
+    "county": "台中",
+    "district": "南屯區"
+  },
+  "財團法人瑩光教育協會": {
+    "county": "台北",
+    "district": ""
+  },
+  "財團法人陳綢阿嬤社會福利基金會(原良顯堂基金會)": {
+    "county": "南投",
+    "district": "埔里鎮"
+  },
+  "貝登堡智能股份有限公司": {
+    "county": "台北",
+    "district": ""
+  },
+  "金逢源股份有限公司": {
+    "county": "",
+    "district": ""
+  },
+  "金逢源開發股份有限公司": {
+    "county": "",
+    "district": ""
+  },
+  "愛蘭國小": {
+    "county": "南投",
+    "district": "埔里鎮"
+  },
+  "溪南國小": {
+    "county": "南投",
+    "district": "埔里鎮"
+  },
+  "育英國小": {
+    "county": "南投",
+    "district": "埔里鎮"
+  },
+  "國立海洋大學": {
+    "county": "基隆",
+    "district": "中正區"
+  },
+  "中華民國民宿協會全國聯合會": {
+    "county": "",
+    "district": ""
+  },
+  "台灣咖啡品質研究策進協會": {
+    "county": "",
+    "district": ""
+  },
+  "大雁休閒農業區發展協會": {
+    "county": "南投",
+    "district": "魚池鄉"
+  },
+  "桃米社區發展協會": {
+    "county": "南投",
+    "district": "埔里鎮"
+  },
+  "糯米橋休閒農業區發展協會": {
+    "county": "南投",
+    "district": "國姓鄉"
+  },
+  "交通部觀光署": {
+    "county": "台北",
+    "district": "大安區"
+  },
+  "台灣電力公司": {
+    "county": "台北",
+    "district": "中正區"
+  },
+  "國發會中興新村地方創生育成村": {
+    "county": "南投",
+    "district": "南投市"
+  },
+  "環境部": {
+    "county": "台北",
+    "district": "中正區"
+  },
+  "R立方學堂": {
+    "county": "南投",
+    "district": "埔里鎮"
+  },
+  "八蔘聚餐廳": {
+    "county": "",
+    "district": ""
+  },
+  "天下雜誌微笑台灣": {
+    "county": "台北",
+    "district": "中山區"
+  },
+  "妮珂森咖啡館、雅谷咖啡、行者咖啡、佳芳咖啡、山間良物、向陽咖啡": {
+    "county": "南投",
+    "district": "國姓鄉"
+  },
+  "娜娜泰式料理、維格餅家": {
+    "county": "",
+    "district": ""
+  },
+  "微笑台灣": {
+    "county": "台北",
+    "district": "中山區"
+  },
+  "晶淨科技股份有限公司、京丞資源國際有限公司": {
+    "county": "",
+    "district": ""
+  },
+  "最佳主茭": {
+    "county": "南投",
+    "district": "埔里鎮"
+  },
+  "本竹莊園": {
+    "county": "",
+    "district": ""
+  },
+  "桃米塾": {
+    "county": "南投",
+    "district": "埔里鎮"
+  },
+  "森禾整合行銷顧問": {
+    "county": "",
+    "district": ""
+  },
+  "植芳園、39 Laetitia、夏安居森林農場、唐印工作室": {
+    "county": "",
+    "district": ""
+  },
+  "田野勤學": {
+    "county": "彰化",
+    "district": "北斗鎮"
+  },
+  "艾邁思國際有限公司": {
+    "county": "",
+    "district": ""
+  },
+  "草屯_添興師": {
+    "county": "南投",
+    "district": "草屯鎮"
+  },
+  "虎嘯山嵐、大雁休區澀水步道": {
+    "county": "南投",
+    "district": ""
+  },
+  "豐年靈芝菇類生態農場、愛儷仕有限公司": {
+    "county": "南投",
+    "district": "埔里鎮"
+  },
+  "陳老爹茭白筍": {
+    "county": "南投",
+    "district": "埔里鎮"
+  },
+  "大成國中": {
+    "county": "南投",
+    "district": "埔里鎮"
+  },
+  "五城國小": {
+    "county": "南投",
+    "district": "魚池鄉"
+  },
+  "史港國小": {
+    "county": "南投",
+    "district": "埔里鎮"
+  },
+  "大成國小": {
+    "county": "南投",
+    "district": "埔里鎮"
+  },
+  "忠孝國小": {
+    "county": "南投",
+    "district": ""
+  },
+  "新城國小": {
+    "county": "南投",
+    "district": "魚池鄉"
+  },
+  "明潭國小": {
+    "county": "南投",
+    "district": "魚池鄉"
+  },
+  "麒麟國小": {
+    "county": "南投",
+    "district": "埔里鎮"
+  },
+  "中興高中": {
+    "county": "南投",
+    "district": "南投市"
+  },
+  "國立暨南大學附屬中學": {
+    "county": "南投",
+    "district": "埔里鎮"
+  },
+  "溪湖高中": {
+    "county": "彰化",
+    "district": "溪湖鎮"
+  },
+  "西苑高中": {
+    "county": "台中",
+    "district": "西屯區"
+  },
+  "財團法人仰望教育基金會": {
+    "county": "",
+    "district": ""
+  },
+  "環興科技股份有限公司": {
+    "county": "台北",
+    "district": ""
+  },
+  "精遊趣工作坊": {
+    "county": "",
+    "district": ""
+  },
+  "聖景科技有限公司": {
+    "county": "",
+    "district": ""
+  },
+  "黑皮泥思": {
+    "county": "南投",
+    "district": "埔里鎮"
+  },
+  "黑皮泥斯": {
+    "county": "南投",
+    "district": "埔里鎮"
+  },
+  "全優設計": {
+    "county": "",
+    "district": ""
+  },
+  "台灣城鄉藝農實踐協會": {
+    "county": "台南",
+    "district": "官田區"
+  },
+  "棨業股份有限公司": {
+    "county": "",
+    "district": ""
+  },
+  "自然色染工坊": {
+    "county": "",
+    "district": ""
+  },
+  "赧貓設計": {
+    "county": "",
+    "district": ""
+  },
+  "台灣主婦聯盟生活消費合作社": {
+    "county": "台北",
+    "district": ""
+  },
+  "台灣公益團體自律聯盟": {
+    "county": "台北",
+    "district": ""
+  },
+  "有限責任臺灣伯拉罕共生照顧勞動合作社": {
+    "county": "台中",
+    "district": "和平區"
+  },
+  "舊城綠町故事館": {
+    "county": "台中",
+    "district": "中區"
+  },
+  "繼光商圈管理委員會": {
+    "county": "台中",
+    "district": "中區"
+  },
+  "萬里國民中學": {
+    "county": "新北",
+    "district": "萬里區"
+  },
+  "大龍國民小學": {
+    "county": "台北",
+    "district": "大同區"
+  },
+  "瑞芳高級工業學校": {
+    "county": "新北",
+    "district": "瑞芳區"
+  },
+  "萬芳高級中學": {
+    "county": "台北",
+    "district": "文山區"
+  },
+  "Skills For U": {
+    "county": "新北",
+    "district": "板橋區"
+  },
+  "社團法人臺灣高等教育學會": {
+    "county": "台北",
+    "district": "大安區"
+  },
+  "超越遊戲": {
+    "county": "",
+    "district": ""
+  },
+  "逆風劇團": {
+    "county": "台北",
+    "district": "大同區"
+  },
+  "國家發展委員會國土區域離島發展處": {
+    "county": "台北",
+    "district": "中正區"
+  }
+}

@@ -1,0 +1,826 @@
+{
+  "信星集團": {
+    "county": "",
+    "district": ""
+  },
+  "山河海有限公司": {
+    "county": "",
+    "district": ""
+  },
+  "晶睿通訊股份有限公司(VIVOTEK)": {
+    "county": "新北",
+    "district": "中和"
+  },
+  "觀察家生態顧問有限公司": {
+    "county": "台北",
+    "district": "大同"
+  },
+  "經濟部水利署第二河川分署": {
+    "county": "新竹",
+    "district": "北區"
+  },
+  "台泥東立綠能股份有限公司(紅葉谷綠能溫泉園區)": {
+    "county": "台東",
+    "district": "延平"
+  },
+  "大地旅人環境工作室": {
+    "county": "台北",
+    "district": ""
+  },
+  "智器科技股份有限公司": {
+    "county": "台北",
+    "district": ""
+  },
+  "知本老爺大酒店股份有限公司": {
+    "county": "台東",
+    "district": "卑南"
+  },
+  "綠色冀泉股份有限公司": {
+    "county": "台東",
+    "district": "台東"
+  },
+  "自然主義農園呂宏文": {
+    "county": "台東",
+    "district": "卑南"
+  },
+  "茂登碳中和環保有限公司": {
+    "county": "",
+    "district": ""
+  },
+  "財團法人一粒麥子社會福利慈善事業基金會": {
+    "county": "台東",
+    "district": "台東"
+  },
+  "達魯瑪克古馥維": {
+    "county": "台東",
+    "district": "卑南"
+  },
+  "義竹國民中學": {
+    "county": "嘉義",
+    "district": "義竹"
+  },
+  "中埔國民小學": {
+    "county": "嘉義",
+    "district": "中埔"
+  },
+  "民和國民小學": {
+    "county": "嘉義",
+    "district": "番路"
+  },
+  "育人國民小學暨附設幼兒園": {
+    "county": "嘉義",
+    "district": "西區"
+  },
+  "豐崙國小": {
+    "county": "彰化",
+    "district": "埤頭"
+  },
+  "一龍谷茗茶": {
+    "county": "嘉義",
+    "district": "梅山"
+  },
+  "旭美製茶所": {
+    "county": "嘉義",
+    "district": "梅山"
+  },
+  "緯銓茶葉商行": {
+    "county": "嘉義",
+    "district": "梅山"
+  },
+  "茶悅杉林": {
+    "county": "嘉義",
+    "district": "梅山"
+  },
+  "菁埔國小": {
+    "county": "嘉義",
+    "district": "民雄"
+  },
+  "國立東華大學": {
+    "county": "花蓮",
+    "district": "壽豐"
+  },
+  "億豐昌畜牧場": {
+    "county": "雲林",
+    "district": "崙背"
+  },
+  "威獅農場": {
+    "county": "",
+    "district": ""
+  },
+  "松井生技開發食品有限公司": {
+    "county": "嘉義",
+    "district": "民雄"
+  },
+  "菁埔社區發展協會": {
+    "county": "嘉義",
+    "district": "民雄"
+  },
+  "袋寶塑膠機械廠股份有限公司": {
+    "county": "台中",
+    "district": "烏日"
+  },
+  "達和環保服務股份有限公司": {
+    "county": "台北",
+    "district": "中山"
+  },
+  "恩主公醫院": {
+    "county": "新北",
+    "district": "三峽"
+  },
+  "綠色和平": {
+    "county": "台北",
+    "district": "中正"
+  },
+  "亞瑞仕國際驗證股份有限公司": {
+    "county": "台中",
+    "district": "西屯"
+  },
+  "全家便利商店": {
+    "county": "台北",
+    "district": "中山"
+  },
+  "全球傳動": {
+    "county": "新北",
+    "district": "樹林"
+  },
+  "台灣永續解方公司": {
+    "county": "台北",
+    "district": ""
+  },
+  "天芳茶行": {
+    "county": "新北",
+    "district": "三峽"
+  },
+  "奇麗灣珍奶文化館": {
+    "county": "宜蘭",
+    "district": "蘇澳"
+  },
+  "戴記茶坊": {
+    "county": "新北",
+    "district": "三峽"
+  },
+  "新旺集瓷": {
+    "county": "新北",
+    "district": "鶯歌"
+  },
+  "歐萊德企業": {
+    "county": "桃園",
+    "district": "龍潭"
+  },
+  "關貿網路公司": {
+    "county": "台北",
+    "district": "南港"
+  },
+  "阜爾運通": {
+    "county": "新北",
+    "district": "中和"
+  },
+  "雲行動服務股份有限公司": {
+    "county": "台北",
+    "district": "大安"
+  },
+  "青出於藍染工坊": {
+    "county": "新北",
+    "district": "三峽"
+  },
+  "永續百貨": {
+    "county": "",
+    "district": ""
+  },
+  "麗寶萊茵社區管理委員會": {
+    "county": "新北",
+    "district": "五股"
+  },
+  "國立臺灣師範大學": {
+    "county": "台北",
+    "district": "大安"
+  },
+  "馬偕醫學大學": {
+    "county": "新北",
+    "district": "三芝"
+  },
+  "馬偕醫學院": {
+    "county": "新北",
+    "district": "三芝"
+  },
+  "聚樂邦Clubon": {
+    "county": "台北",
+    "district": "大同"
+  },
+  "莫比機器人股份有限公司": {
+    "county": "台北",
+    "district": ""
+  },
+  "樸豔辣椒美食文創館": {
+    "county": "宜蘭",
+    "district": "南澳"
+  },
+  "葉家香世界辣椒文創館": {
+    "county": "宜蘭",
+    "district": "礁溪"
+  },
+  "中山醫學大學": {
+    "county": "台中",
+    "district": "南區"
+  },
+  "中山醫藥大學": {
+    "county": "台中",
+    "district": "南區"
+  },
+  "南華大學": {
+    "county": "嘉義",
+    "district": "大林"
+  },
+  "宏國德霖科技大學": {
+    "county": "新北",
+    "district": "土城"
+  },
+  "康寧大學": {
+    "county": "台北",
+    "district": "內湖"
+  },
+  "東吳大學": {
+    "county": "台北",
+    "district": "士林"
+  },
+  "樹德": {
+    "county": "",
+    "district": ""
+  },
+  "治理科技大學": {
+    "county": "新北",
+    "district": "板橋"
+  },
+  "象鼻國民小學": {
+    "county": "苗栗",
+    "district": "泰安"
+  },
+  "青山國民小學": {
+    "county": "",
+    "district": ""
+  },
+  "文藻外語大學": {
+    "county": "高雄",
+    "district": "三民"
+  },
+  "輔仁大學": {
+    "county": "新北",
+    "district": "新莊"
+  },
+  "長庚科技大學": {
+    "county": "桃園",
+    "district": "龜山"
+  },
+  "TIWA台灣國際勞工協會": {
+    "county": "台北",
+    "district": "中山"
+  },
+  "巴拿巴實物銀行": {
+    "county": "苗栗",
+    "district": "苑裡"
+  },
+  "苑裡天主堂": {
+    "county": "苗栗",
+    "district": "苑裡"
+  },
+  "財團法人壹零玖伍移民工文化協會": {
+    "county": "台中",
+    "district": "中區"
+  },
+  "聖采琪弦樂團": {
+    "county": "苗栗",
+    "district": "苑裡"
+  },
+  "苑裡聖心樂團": {
+    "county": "苗栗",
+    "district": "苑裡"
+  },
+  "逗音樂坊": {
+    "county": "苗栗",
+    "district": "苑裡"
+  },
+  "采逸舞蹈藝術中心/絕色舞蹈團": {
+    "county": "苗栗",
+    "district": "苑裡"
+  },
+  "麥可樂團": {
+    "county": "苗栗",
+    "district": "苑裡"
+  },
+  "通霄非營利幼兒園": {
+    "county": "苗栗",
+    "district": "通霄"
+  },
+  "西湖鄉休閒產業發展協會": {
+    "county": "苗栗",
+    "district": "西湖"
+  },
+  "汕尾國小": {
+    "county": "高雄",
+    "district": "林園"
+  },
+  "中華民國空軍軍官學校": {
+    "county": "高雄",
+    "district": "岡山"
+  },
+  "樹人醫護管理專科學校": {
+    "county": "高雄",
+    "district": "路竹"
+  },
+  "正修科技大學": {
+    "county": "高雄",
+    "district": "鳥松"
+  },
+  "清華大學": {
+    "county": "新竹",
+    "district": "東區"
+  },
+  "HESS何嘉仁國際幼兒園": {
+    "county": "台北",
+    "district": "中山"
+  },
+  "國立嘉科實驗高級中等學校": {
+    "county": "嘉義",
+    "district": "太保"
+  },
+  "國立屏科實驗高級中等學校": {
+    "county": "屏東",
+    "district": "屏東"
+  },
+  "中華幼兒創造思考教育學會": {
+    "county": "",
+    "district": ""
+  },
+  "中華民國物理教育學會": {
+    "county": "高雄",
+    "district": ""
+  },
+  "社團法人小樹傳愛協會": {
+    "county": "台北",
+    "district": ""
+  },
+  "國教署普通型高中物理學科中心": {
+    "county": "台中",
+    "district": "北區"
+  },
+  "國立科學工藝博物館": {
+    "county": "高雄",
+    "district": "三民"
+  },
+  "國立自然科學博物館": {
+    "county": "台中",
+    "district": "北區"
+  },
+  "國立臺灣科學教育館": {
+    "county": "台北",
+    "district": "士林"
+  },
+  "教育部國民及學前教育署": {
+    "county": "台中",
+    "district": "霧峰"
+  },
+  "台灣電力公司(台電公眾服務處、南部發電廠)": {
+    "county": "高雄",
+    "district": "前鎮"
+  },
+  "神腦科技文教基金會": {
+    "county": "新北",
+    "district": "新店"
+  },
+  "財團法人人禾環境倫理發展基金會": {
+    "county": "宜蘭",
+    "district": "羅東"
+  },
+  "嘉威聯合會計事務所": {
+    "county": "新北",
+    "district": "五股"
+  },
+  "沃畝股份有限公司": {
+    "county": "桃園",
+    "district": ""
+  },
+  "財團法人臺灣尤努斯基金會": {
+    "county": "台北",
+    "district": "松山"
+  },
+  "創意天時科技股份有限公司": {
+    "county": "台北",
+    "district": "中山"
+  },
+  "創藝天時科技股份有限公司": {
+    "county": "台北",
+    "district": "中山"
+  },
+  "日光暖暖旅行文化工作室": {
+    "county": "基隆",
+    "district": "七堵"
+  },
+  "神奕教育有限公司": {
+    "county": "",
+    "district": ""
+  },
+  "饗樂纖農生技股份有限公司": {
+    "county": "新竹",
+    "district": "寶山"
+  },
+  "臺灣基督長老教會 茶山教會": {
+    "county": "嘉義",
+    "district": "阿里山"
+  },
+  "飛霧文創工作室": {
+    "county": "",
+    "district": ""
+  },
+  "社團法人壹零玖伍移民工文化協會": {
+    "county": "台中",
+    "district": "中區"
+  },
+  "中聲佳播數位文化館": {
+    "county": "台中",
+    "district": "北區"
+  },
+  "大園國民中學": {
+    "county": "桃園",
+    "district": "大園"
+  },
+  "平鎮國民中學": {
+    "county": "桃園",
+    "district": "平鎮"
+  },
+  "中正國民小學": {
+    "county": "桃園",
+    "district": "中壢"
+  },
+  "南門國民小學": {
+    "county": "桃園",
+    "district": "桃園"
+  },
+  "埔心國民小學": {
+    "county": "桃園",
+    "district": "大園"
+  },
+  "大園國民小學": {
+    "county": "桃園",
+    "district": "大園"
+  },
+  "大埔國民小學": {
+    "county": "桃園",
+    "district": "龜山"
+  },
+  "大成國民小學": {
+    "county": "桃園",
+    "district": "八德"
+  },
+  "大湖國民小學": {
+    "county": "桃園",
+    "district": "龜山"
+  },
+  "大潭國民小學": {
+    "county": "桃園",
+    "district": "觀音"
+  },
+  "快樂國民小學": {
+    "county": "桃園",
+    "district": "桃園"
+  },
+  "文化國民小學": {
+    "county": "桃園",
+    "district": "平鎮"
+  },
+  "東明國民小學": {
+    "county": "桃園",
+    "district": "新屋"
+  },
+  "自立國民小學": {
+    "county": "桃園",
+    "district": "中壢"
+  },
+  "草漯國民小學": {
+    "county": "桃園",
+    "district": "觀音"
+  },
+  "華勛國民小學": {
+    "county": "桃園",
+    "district": "中壢"
+  },
+  "高原國民小學": {
+    "county": "桃園",
+    "district": "龍潭"
+  },
+  "中壢商業高級中等學校": {
+    "county": "桃園",
+    "district": "中壢"
+  },
+  "史瓦帝尼駐台大使館": {
+    "county": "台北",
+    "district": "士林"
+  },
+  "聖克里斯多福及尼維斯駐台大使館": {
+    "county": "台北",
+    "district": "士林"
+  },
+  "聖文森駐台大使館": {
+    "county": "台北",
+    "district": "士林"
+  },
+  "馬紹爾群島共和國大使館": {
+    "county": "台北",
+    "district": "士林"
+  },
+  "新東國小": {
+    "county": "台南",
+    "district": "後壁"
+  },
+  "A Life 好.生活整合國際旅宿": {
+    "county": "",
+    "district": ""
+  },
+  "昇利雜糧生產合作社": {
+    "county": "",
+    "district": ""
+  },
+  "牡丹果食": {
+    "county": "屏東",
+    "district": "牡丹"
+  },
+  "藍柏閣居家香氛精品": {
+    "county": "",
+    "district": ""
+  },
+  "三光里砂崙子國民小學": {
+    "county": "桃園",
+    "district": "復興"
+  },
+  "奎輝國民小學": {
+    "county": "桃園",
+    "district": "復興"
+  },
+  "國立土庫高級商工職業學校": {
+    "county": "雲林",
+    "district": "土庫"
+  },
+  "復興高級中學": {
+    "county": "台北",
+    "district": "北投"
+  },
+  "永平高級中學": {
+    "county": "新北",
+    "district": "永和"
+  },
+  "陽明高級中學": {
+    "county": "台北",
+    "district": "士林"
+  },
+  "具像科技股份有限公司": {
+    "county": "台北",
+    "district": ""
+  },
+  "米飛生醫股份有限公司": {
+    "county": "台北",
+    "district": "內湖"
+  },
+  "大岡社區活動中心": {
+    "county": "桃園",
+    "district": "龜山"
+  },
+  "林口西林活動中心": {
+    "county": "新北",
+    "district": "林口"
+  },
+  "歡銀學堂": {
+    "county": "",
+    "district": ""
+  },
+  "社團法人中華培愛全人關懷協會": {
+    "county": "新北",
+    "district": "林口"
+  },
+  "中山國中": {
+    "county": "",
+    "district": ""
+  },
+  "永芳國小": {
+    "county": "高雄",
+    "district": "大寮"
+  },
+  "漢民國小": {
+    "county": "高雄",
+    "district": "小港"
+  },
+  "嘉南藥理大學": {
+    "county": "台南",
+    "district": "仁德"
+  },
+  "國立中央大學": {
+    "county": "桃園",
+    "district": "中壢"
+  },
+  "國立成功大學": {
+    "county": "台南",
+    "district": "東區"
+  },
+  "前鎮高中": {
+    "county": "高雄",
+    "district": "前鎮"
+  },
+  "小港高中": {
+    "county": "高雄",
+    "district": "小港"
+  },
+  "中華民國遊戲教育協會": {
+    "county": "台北",
+    "district": ""
+  },
+  "台灣多元照顧專業發展協會": {
+    "county": "台中",
+    "district": ""
+  },
+  "社團法人台灣多元照顧專業發展協會": {
+    "county": "台中",
+    "district": ""
+  },
+  "國家衛生研究院": {
+    "county": "苗栗",
+    "district": "竹南"
+  },
+  "台灣國際造船股份有限公司": {
+    "county": "高雄",
+    "district": "小港"
+  },
+  "吉樂健康資訊科技股份有限公司": {
+    "county": "台北",
+    "district": "內湖"
+  },
+  "大寮進安康C級長照站&銀髮健康俱樂部": {
+    "county": "高雄",
+    "district": "大寮"
+  },
+  "娜麓灣文健站": {
+    "county": "高雄",
+    "district": "小港"
+  },
+  "娜麓灣文化健康站": {
+    "county": "高雄",
+    "district": "小港"
+  },
+  "小港醫院港興C級長照站": {
+    "county": "高雄",
+    "district": "小港"
+  },
+  "慈濟小港聯絡處C級巷弄長照站": {
+    "county": "高雄",
+    "district": "小港"
+  },
+  "港興里": {
+    "county": "高雄",
+    "district": "小港"
+  },
+  "港興里活動中心": {
+    "county": "高雄",
+    "district": "小港"
+  },
+  "頂厝社區發展協會": {
+    "county": "高雄",
+    "district": "林園"
+  },
+  "草湖國中": {
+    "county": "彰化",
+    "district": "芳苑"
+  },
+  "後寮國小": {
+    "county": "彰化",
+    "district": "芳苑"
+  },
+  "漢寶國小": {
+    "county": "彰化",
+    "district": "芳苑"
+  },
+  "崑山科技大學": {
+    "county": "台南",
+    "district": "永康"
+  },
+  "智紳數位文化事業有限公司": {
+    "county": "台北",
+    "district": "中山"
+  },
+  "魚樂天地有限公司": {
+    "county": "新北",
+    "district": "坪林"
+  },
+  "國立中正大學": {
+    "county": "嘉義",
+    "district": "民雄"
+  },
+  "台灣濕地保護聯盟": {
+    "county": "台南",
+    "district": "中西區"
+  },
+  "惜福文教基金會": {
+    "county": "台北",
+    "district": ""
+  },
+  "農業部生物多樣性研究所": {
+    "county": "南投",
+    "district": "集集"
+  },
+  "低調空間": {
+    "county": "",
+    "district": ""
+  },
+  "台灣地域振興聯盟": {
+    "county": "台北",
+    "district": ""
+  },
+  "大雁休閒農業區(澀水社區)": {
+    "county": "南投",
+    "district": "魚池"
+  },
+  "龍亨號": {
+    "county": "",
+    "district": ""
+  },
+  "O2 Lab 海漂實驗室": {
+    "county": "澎湖",
+    "district": "湖西"
+  },
+  "冠騰的魚": {
+    "county": "台南",
+    "district": "學甲"
+  },
+  "海朋友企業行(年年有鰆)": {
+    "county": "澎湖",
+    "district": "馬公"
+  },
+  "社團法人台灣景觀環境學會": {
+    "county": "",
+    "district": ""
+  },
+  "股份魚鄉": {
+    "county": "台南",
+    "district": "七股"
+  },
+  "蘆竹溝社區發展協會": {
+    "county": "台南",
+    "district": "北門"
+  },
+  "蠔好先生": {
+    "county": "台南",
+    "district": "七股"
+  },
+  "國立臺北科技大學": {
+    "county": "台北",
+    "district": "大安"
+  },
+  "國立臺灣大學": {
+    "county": "台北",
+    "district": "大安"
+  },
+  "台灣海洋保育與漁業永續基金會": {
+    "county": "台北",
+    "district": "中山"
+  },
+  "海洋之心環境永續發展協會": {
+    "county": "澎湖",
+    "district": "湖西"
+  },
+  "勞動部勞動力發展署": {
+    "county": "新北",
+    "district": "新莊"
+  },
+  "八斗邀友善餐廳": {
+    "county": "基隆",
+    "district": "中正"
+  },
+  "大塭休閒農場": {
+    "county": "宜蘭",
+    "district": "礁溪"
+  },
+  "太古可口可樂股份有限公司": {
+    "county": "桃園",
+    "district": "桃園"
+  },
+  "奇力蝦": {
+    "county": "宜蘭",
+    "district": "礁溪"
+  },
+  "恆瑞國際有限公司": {
+    "county": "",
+    "district": ""
+  },
+  "有限責任台灣主婦聯盟生活消費合作社": {
+    "county": "新北",
+    "district": "三重"
+  },
+  "柯林漁廠": {
+    "county": "",
+    "district": ""
+  },
+  "漁人故事館(人良食企業)": {
+    "county": "宜蘭",
+    "district": "蘇澳"
+  },
+  "漁仁企業股份有限公司": {
+    "county": "宜蘭",
+    "district": "蘇澳"
+  }
+}
