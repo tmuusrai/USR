@@ -106,6 +106,8 @@ _TOWN_TO_COUNTY: dict[str, str] = {
     "烏來區": "新北",
     # 部分鄉鎮補充（用地名而非行政區）
     "石碇": "新北", "貢寮": "新北", "烏來": "新北",
+    "萬里": "新北", "三芝": "新北", "石門": "新北", "瑞芳": "新北",
+    "平溪": "新北", "雙溪": "新北", "八里": "新北",
     # 桃園市各區
     "中壢區": "桃園", "平鎮區": "桃園", "龜山區": "桃園", "八德區": "桃園",
     "楊梅區": "桃園", "蘆竹區": "桃園", "大溪區": "桃園", "大園區": "桃園",
@@ -220,6 +222,54 @@ _TOWN_TO_COUNTY: dict[str, str] = {
     "光復": "花蓮", "鳳林": "花蓮", "壽豐": "花蓮",
     "東港": "屏東", "恆春": "屏東",
     "二水": "彰化",
+    # 台南市無後綴地名
+    "左鎮": "台南", "龍崎": "台南", "安慶": "台南",
+    # 台北市無後綴地名
+    "木柵": "台北",
+    # 新北市無後綴地名
+    "桃子腳": "新北",
+    # 南投縣無後綴地名
+    "中寮": "南投", "明潭": "南投",
+    # 雲林縣
+    "原斗": "雲林",
+    # 台中市無後綴地名
+    "瑞竹": "台中",
+    # 花蓮縣
+    "大進": "花蓮",
+    # 新竹縣/市常見無後綴地名
+    "湖口": "新竹", "新埔": "新竹", "竹北": "新竹", "關西": "新竹",
+    "芎林": "新竹", "橫山": "新竹", "竹東": "新竹", "北埔": "新竹",
+    "峨眉": "新竹", "寶山": "新竹",
+    # 桃園市常見無後綴地名
+    "中壢": "桃園", "龜山": "桃園", "八德": "桃園", "楊梅": "桃園",
+    "蘆竹": "桃園", "龍潭": "桃園", "觀音": "桃園", "新屋": "桃園",
+    "平鎮": "桃園",
+    # 新北市常見無後綴地名
+    "林口": "新北", "三峽": "新北", "淡水": "新北", "新莊": "新北",
+    "板橋": "新北", "中和": "新北", "永和": "新北", "新店": "新北",
+    "汐止": "新北", "土城": "新北", "樹林": "新北", "鶯歌": "新北",
+    # 苗栗縣常見無後綴地名
+    "竹南": "苗栗", "頭份": "苗栗", "三義": "苗栗", "南庄": "苗栗",
+    "通霄": "苗栗", "苑裡": "苗栗",
+    # 台中市常見無後綴地名
+    "豐原": "台中", "太平": "台中", "大甲": "台中", "清水": "台中",
+    "沙鹿": "台中", "梧棲": "台中", "大里": "台中", "霧峰": "台中",
+    # 彰化縣常見無後綴地名（補充）
+    "溪湖": "彰化", "田中": "彰化", "北斗": "彰化", "伸港": "彰化",
+    # 雲林縣常見無後綴地名（補充）
+    "土庫": "雲林", "大埤": "雲林", "口湖": "雲林", "四湖": "雲林",
+    # 嘉義市/縣常見無後綴地名（補充）
+    "水上": "嘉義", "義竹": "嘉義", "鹿草": "嘉義", "中埔": "嘉義",
+    # 屏東縣常見無後綴地名（補充）
+    "萬丹": "屏東", "長治": "屏東", "九如": "屏東", "里港": "屏東",
+    "高樹": "屏東", "萬巒": "屏東", "內埔": "屏東", "竹田": "屏東",
+    "枋寮": "屏東",
+    # 台東縣常見無後綴地名（補充）
+    "關山": "台東", "鹿野": "台東", "長濱": "台東", "成功": "台東",
+    "東河": "台東",
+    # 宜蘭縣常見無後綴地名（補充）
+    "冬山": "宜蘭", "五結": "宜蘭", "三星": "宜蘭", "員山": "宜蘭",
+    "壯圍": "宜蘭", "頭城": "宜蘭",
 }
 
 
@@ -236,6 +286,41 @@ def parse_county(text: str) -> str:
             return county
     return ""
 
+
+# ── 從 TXT 原始檔建立 (plan_key, 場域名稱) → 縣市 對照表 ─────────────────────
+_TXT_DIR = Path(__file__).parent / "114md"
+_txt_county_map: dict[tuple[str, str], str] = {}   # (plan_key, loc_name) → county
+
+_LOC_PATTERN = re.compile(
+    r'縣市[：:]\s*(.{2,8}?)\s*[，,].*?場域名稱[：:]\s*(.{1,50}?)(?=\s*縣市|\s*2\.|\s*其他|\n\n|$)'
+)
+_PLAN_CODE_RE = re.compile(r'\(114USR[^)]*\)\s*(?:\(\d+\))?\s*\.(?:md|txt)$')
+
+if _TXT_DIR.exists():
+    for _txt_file in _TXT_DIR.iterdir():
+        if not (_txt_file.suffix in ('.md', '.txt')):
+            continue
+        _stem = _PLAN_CODE_RE.sub('', _txt_file.name)
+        if '_' not in _stem:
+            continue
+        _school_raw, _, _plan_raw = _stem.partition('_')
+        _school_raw = _school_raw.strip()
+        _plan_raw   = _plan_raw.strip()
+        if not _school_raw or not _plan_raw:
+            continue
+        try:
+            _txt_content = _txt_file.read_text(encoding='utf-8')
+        except Exception:
+            continue
+        for _county_raw, _loc_raw in _LOC_PATTERN.findall(_txt_content):
+            _county_short = FULL_TO_SHORT.get(_county_raw.strip(), "")
+            if not _county_short:
+                # 嘗試直接解析
+                _county_short = parse_county(_county_raw.strip())
+            _loc_clean = re.sub(r'\s*\(.*?\)', '', _loc_raw).strip()
+            if _county_short and _loc_clean:
+                _txt_county_map[(_school_raw, _loc_clean)] = _county_short
+    print(f"[TXT補縣市] 從 TXT 建立 {len(_txt_county_map)} 筆 (學校, 場域) → 縣市對照")
 
 # ── 讀 Excel ──────────────────────────────────────────────────────────────────
 wb = openpyxl.load_workbook(DOMESTIC_EXCEL, read_only=True, data_only=True)
@@ -268,8 +353,10 @@ for r in rows[1:]:
         continue
     seen[key].add(loc)
 
-    # 從場域名稱直接解析縣市
+    # 從場域名稱直接解析縣市；抓不到時查 TXT 對照表
     county = parse_county(loc)
+    if not county:
+        county = _txt_county_map.get((str(school).strip(), loc), "")
     entry: dict = {"location": loc}
     if county:
         entry["county"] = county
@@ -303,6 +390,308 @@ if without_county:
     for k, reg, locs in without_county:
         print(f"  [{reg}] {k}")
         print(f"    locs: {locs}")
+
+# ── 策略 A：全文搜尋計畫 TXT 檔，從場域名稱周圍 300 字元抽取縣市 ────────────
+# 建立 plan_key → TXT 檔路徑 對照（一個 key 可能對應多個檔案，取第一個）
+_plan_key_to_txt: dict[str, Path] = {}
+if _TXT_DIR.exists():
+    for _txt_file in _TXT_DIR.iterdir():
+        if _txt_file.suffix not in ('.md', '.txt'):
+            continue
+        _stem2 = _PLAN_CODE_RE.sub('', _txt_file.name)
+        if '_' not in _stem2:
+            continue
+        _school2, _, _plan2 = _stem2.partition('_')
+        _school2 = _school2.strip()
+        _plan2   = _plan2.strip()
+        if not _school2 or not _plan2:
+            continue
+        _key2 = f"{_school2}：{_plan2}"
+        if _key2 not in _plan_key_to_txt:
+            _plan_key_to_txt[_key2] = _txt_file
+
+_strategy_a_filled = 0
+for key, fields in plan_locs.items():
+    missing = [f for f in fields if not f.get("county")]
+    if not missing:
+        continue
+    txt_path = _plan_key_to_txt.get(key)
+    if txt_path is None:
+        continue
+    try:
+        txt_content = txt_path.read_text(encoding='utf-8')
+    except Exception:
+        continue
+    for f in missing:
+        loc_name = f.get("location", "")
+        if not loc_name:
+            continue
+        idx = txt_content.find(loc_name)
+        if idx == -1:
+            continue
+        start = max(0, idx - 300)
+        end   = min(len(txt_content), idx + len(loc_name) + 300)
+        snippet = txt_content[start:end]
+        county = parse_county(snippet)
+        if county:
+            f["county"] = county
+            _strategy_a_filled += 1
+
+print(f"\n[策略A 全文搜尋] 補充 {_strategy_a_filled} 個場域縣市")
+
+# ── 策略 B：已知機構對照表 + 地名關鍵字擴充 ──────────────────────────────────
+# 知名大學、醫院等機構 → 縣市
+_KNOWN_INSTITUTIONS: dict[str, str] = {
+    # 台北市
+    "國立臺灣大學":     "台北", "國立台灣大學":     "台北",
+    "國立政治大學":     "台北", "國立師範大學":     "台北",
+    "國立臺灣師範大學": "台北", "國立台灣師範大學": "台北",
+    "臺北市立大學":     "台北", "台北市立大學":     "台北",
+    "臺北醫學大學":     "台北", "台北醫學大學":     "台北",
+    "國立臺灣科技大學": "台北", "國立台灣科技大學": "台北",
+    "銘傳大學":         "台北",
+    "文化大學":         "台北", "中國文化大學":     "台北",
+    "輔仁大學":         "新北",
+    "淡江大學":         "新北",
+    "真理大學":         "新北",
+    "臺灣藝術大學":     "新北", "台灣藝術大學":     "新北",
+    "國立臺灣藝術大學": "新北", "國立台灣藝術大學": "新北",
+    # 桃園市
+    "國立中央大學":     "桃園", "元智大學":         "桃園",
+    "中原大學":         "桃園", "銘傳大學桃園":     "桃園",
+    "長庚大學":         "桃園",
+    "林口長庚紀念醫院": "桃園",
+    "林口長庚醫院":     "桃園",
+    # 新竹市/縣
+    "國立清華大學":         "新竹", "國立交通大學":         "新竹",
+    "國立陽明交通大學":     "新竹", "陽明交通大學":         "新竹",
+    "中華大學":             "新竹", "玄奘大學":             "新竹",
+    "元培醫事科技大學":     "新竹",
+    # 苗栗縣
+    "育達科技大學": "苗栗", "聯合大學": "苗栗", "國立聯合大學": "苗栗",
+    # 台中市
+    "國立中興大學":         "台中", "逢甲大學":             "台中",
+    "東海大學":             "台中", "亞洲大學":             "台中",
+    "中臺科技大學":         "台中", "靜宜大學":             "台中",
+    "國立台中科技大學":     "台中", "國立臺中科技大學":     "台中",
+    "台中榮民總醫院":       "台中", "臺中榮民總醫院":       "台中",
+    "中國醫藥大學":         "台中",
+    # 彰化縣
+    "大葉大學": "彰化", "明道大學": "彰化",
+    # 南投縣
+    "國立暨南國際大學": "南投", "暨南大學": "南投",
+    # 雲林縣
+    "國立雲林科技大學": "雲林", "雲林科技大學": "雲林",
+    "虎尾科技大學":     "雲林", "國立虎尾科技大學": "雲林",
+    # 嘉義市/縣
+    "國立中正大學": "嘉義", "國立嘉義大學": "嘉義",
+    "嘉義大學":     "嘉義",
+    # 台南市
+    "國立成功大學":         "台南", "成功大學":             "台南",
+    "國立台南大學":         "台南", "國立臺南大學":         "台南",
+    "長榮大學":             "台南", "南台科技大學":         "台南",
+    "南臺科技大學":         "台南", "台南應用科技大學":     "台南",
+    "臺南應用科技大學":     "台南",
+    "奇美醫院":             "台南", "成大醫院":             "台南",
+    # 高雄市
+    "國立中山大學":         "高雄", "中山大學":             "高雄",
+    "高雄醫學大學":         "高雄", "義守大學":             "高雄",
+    "國立高雄科技大學":     "高雄", "高雄科技大學":         "高雄",
+    "樹德科技大學":         "高雄", "正修科技大學":         "高雄",
+    "高雄榮民總醫院":       "高雄",
+    # 屏東縣
+    "國立屏東大學": "屏東", "屏東大學": "屏東",
+    "國立屏東科技大學": "屏東", "屏東科技大學": "屏東",
+    "大仁科技大學": "屏東",
+    # 台東縣
+    "國立臺東大學": "台東", "國立台東大學": "台東",
+    # 花蓮縣
+    "國立東華大學": "花蓮", "慈濟大學": "花蓮", "慈濟科技大學": "花蓮",
+    # 宜蘭縣
+    "國立宜蘭大學": "宜蘭", "佛光大學": "宜蘭",
+    # 澎湖縣
+    "國立澎湖科技大學": "澎湖",
+    # 金門縣
+    "國立金門大學": "金門",
+    # 台北市醫院
+    "台大醫院":     "台北", "臺大醫院":     "台北",
+    "馬偕醫院":     "台北", "馬偕紀念醫院": "台北",
+    "榮民總醫院":   "台北", "台北榮民總醫院": "台北", "臺北榮民總醫院": "台北",
+    "台北市立聯合醫院": "台北", "臺北市立聯合醫院": "台北",
+    "雙和醫院":     "新北",
+    "亞東醫院":     "新北", "亞東紀念醫院": "新北",
+    "部立桃園醫院": "桃園",
+    # 新北市
+    "宏國德霖科技大學": "新北", "德霖科技大學": "新北",
+    "醒吾科技大學":     "新北",
+    "致理科技大學":     "新北",
+    "耕莘健康管理專科學校": "新北", "耕莘護理":   "新北",
+    "聖約翰科技大學":   "新北",
+    # 桃園市
+    "萬能科技大學":     "桃園",
+    "開南大學":         "桃園",
+    # 台北市
+    "德明財經科技大學": "台北", "德明財金科技大學": "台北",
+    "景文科技大學":     "台北",
+    "公共電視":         "台北", "公共電視台": "台北",
+    "客家電視":         "台北", "客家電視台": "台北",
+    "國家科學及技術委員會": "台北", "國科會":   "台北",
+    "國家發展委員會":   "台北", "國發會":     "台北",
+    "工業技術研究院":   "新竹", "工研院":     "新竹",
+    # 台南市
+    "康寧大學":         "台南",
+    "嘉南藥理大學":     "台南",
+    # 台中市
+    "中山醫學大學":     "台中", "中山醫藥大學": "台中",
+    "朝陽科技大學":     "台中",
+    # 新竹市
+    "敏實科技大學":     "新竹",
+    "明新科技大學":     "新竹",
+    # 桃園市（補充）
+    "龍華科技大學":     "桃園",
+    # 花蓮縣
+    "慈濟高中":         "花蓮", "慈濟中學":     "花蓮",
+    "大愛電視":         "花蓮", "大愛電視台":   "花蓮",
+    "花崗國中":         "花蓮", "花崗國民中學": "花蓮",
+    # 宜蘭縣
+    "聖母醫護管理專科學校": "宜蘭",
+    # 嘉義縣
+    "吳鳳科技大學":     "嘉義",
+    # 高雄市
+    "和春技術學院":     "高雄",
+    "文藻外語大學":     "高雄",
+    "私立三信高級家事商業職業學校": "高雄",
+    "空軍軍官學校":     "高雄", "陸軍軍官學校":   "高雄",
+    "中華民國陸軍軍官學校": "高雄",
+    # 台北市（補充）
+    "大同大學":         "台北",
+    "東吳大學":         "台北",
+    "中華科技大學":     "台北",
+    "實踐大學":         "台北",
+    "臺灣師範大學":     "台北",
+    "台灣師範大學":     "台北",
+    "北投社區大學":     "台北",
+    "台灣經濟研究院":   "台北",
+    "國立臺灣科學教育館": "台北",
+    "台灣科學教育館":   "台北",
+    # 新北市（補充）
+    "馬偕醫學大學":     "新北", "馬偕醫學院":     "新北",
+    "明志科技大學":     "新北",
+    "恩主公醫院":       "新北",
+    "耕莘醫院":         "新北",
+    "衛生福利部樂生醫院": "新北",
+    "瑞芳高級工業學校": "新北",
+    # 桃園市（補充）
+    "健行科技大學":     "桃園",
+    "國立體育大學":     "桃園",
+    "長庚科技大學":     "桃園",
+    "國家原子能科技研究院": "桃園",
+    # 基隆市
+    "國立臺灣海洋大學": "基隆", "台灣海洋大學":   "基隆",
+    "國立臺北科技大學": "台北", "台北科技大學":   "台北",
+    # 台中市（補充）
+    "國立勤益科技大學": "台中", "勤益科技大學":   "台中",
+    "嶺東科技大學":     "台中",
+    "弘光科技大學":     "台中",
+    "中台科技大學":     "台中",
+    "國立臺灣體育運動大學": "台中",
+    "台灣體育運動大學": "台中",
+    "繼光商圈管理委員會": "台中",
+    # 彰化縣（補充）
+    "和美實驗學校":     "彰化",
+    "元復醫院":         "彰化",
+    # 雲林縣（補充）
+    "國立西螺高級農工職業學校": "雲林",
+    # 嘉義縣（補充）
+    "南華大學":         "嘉義",
+    # 台南市（補充）
+    "台灣基督教長老教會南神神學院": "台南",
+    "南神神學院":       "台南",
+    "歸仁農會":         "台南",
+    "永康農會":         "台南",
+    # 屏東縣（補充）
+    "國立屏科實驗高級中等學校": "屏東",
+    # 農業部
+    "農業部農村發展及水土保持署": "台北",
+    "農業部":           "台北",
+    # 勞動部
+    "勞動部":           "台北",
+    # 文化部
+    "文化部":           "台北", "文化部文化資產局": "台中",
+    # 國立科學工藝博物館（高雄）
+    "國立科學工藝博物館": "高雄",
+    # 僑泰高中（台南）
+    "僑泰高中":         "台南",
+    # 元智大學相關（桃園）
+    "武陵高級中學":     "桃園",
+}
+
+_strategy_b_filled = 0
+for key, fields in plan_locs.items():
+    missing = [f for f in fields if not f.get("county")]
+    if not missing:
+        continue
+    for f in missing:
+        loc_name = f.get("location", "")
+        if not loc_name:
+            continue
+        # 完整名稱查表
+        county = _KNOWN_INSTITUTIONS.get(loc_name, "")
+        if not county:
+            # 前綴匹配：loc_name 以某個已知機構開頭
+            for inst, c in _KNOWN_INSTITUTIONS.items():
+                if loc_name.startswith(inst) or inst in loc_name:
+                    county = c
+                    break
+        if not county:
+            # 地名關鍵字：從 _TOWN_TO_COUNTY 查是否有無後綴地名出現在 loc_name 中
+            for town, c in _TOWN_TO_COUNTY.items():
+                if town in loc_name:
+                    county = c
+                    break
+        if county:
+            f["county"] = county
+            _strategy_b_filled += 1
+
+print(f"[策略B 機構對照表] 補充 {_strategy_b_filled} 個場域縣市")
+
+# ── 策略 C：計畫主流縣市回填 ─────────────────────────────────────────────────
+# 對每個計畫，若其他已有縣市的場域中某縣市佔 ≥60%（且 ≥3 個已知縣市場域），
+# 則用該主流縣市填補同計畫中仍缺縣市的場域。
+_strategy_c_filled = 0
+for key, fields in plan_locs.items():
+    missing = [f for f in fields if not f.get("county")]
+    if not missing:
+        continue
+    known = [f["county"] for f in fields if f.get("county")]
+    if len(known) < 1:
+        continue
+    # 統計各縣市出現次數
+    county_counts: dict[str, int] = defaultdict(int)
+    for c in known:
+        county_counts[c] += 1
+    dominant, dom_count = max(county_counts.items(), key=lambda x: x[1])
+    ratio = dom_count / len(known)
+    # dom=100% 只需 ≥1 個已知場域；場域數 ≥5 放寬至 45%；否則維持 50%
+    if len(known) == 1:
+        threshold = 1.0
+    elif len(known) >= 5:
+        threshold = 0.45
+    else:
+        threshold = 0.50
+    if ratio >= threshold:
+        for f in missing:
+            f["county"] = dominant
+            _strategy_c_filled += 1
+
+print(f"[策略C 主流縣市] 補充 {_strategy_c_filled} 個場域縣市")
+
+# ── 三策略後統計 ──────────────────────────────────────────────────────────────
+_total_fields   = sum(len(v) for v in plan_locs.values())
+_filled_fields  = sum(1 for v in plan_locs.values() for f in v if f.get("county"))
+_missing_fields = _total_fields - _filled_fields
+print(f"\n[策略 A+B+C 後] 已有縣市：{_filled_fields}/{_total_fields}，"
+      f"仍缺縣市：{_missing_fields} 個場域")
 
 # ── 手動覆蓋：場域名稱無縣市關鍵字，依學校所在地/地區推斷 ──────────────────
 _MANUAL_COUNTY: dict[str, str] = {
