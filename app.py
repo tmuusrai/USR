@@ -1486,7 +1486,7 @@ def _seq_query_live(kws: list[str], topic: str, vs,
         text = _clean_plan_code(doc.page_content)
         hit_summary = "、".join(f"{kw}×{cnt}" for kw, cnt in hits.items())
         if condense:
-            src_name = _clean_plan_code(Path(doc.metadata.get("source", "")).stem)
+            src_name = _clean_plan_code(_PATH_SEP_RE.split(doc.metadata.get("source", ""))[-1].rsplit('.', 1)[0])
             first_pos = min((text.find(kw) for kw in hits if text.find(kw) >= 0), default=0)
             start = max(0, first_pos - 30)
             snippet = text[start:start + 400]
@@ -3643,7 +3643,6 @@ def ask():
                         _loc_county_set.update(_location_county_plans.get(_qc, set()))
                     if _loc_county_set:
                         _region_filtered = [l for l in _plan_list_lines if l in _loc_county_set]
-                        print(f"[LIST-REGION-DBG] loc_county_set={len(_loc_county_set)} plan_list={len(_plan_list_lines)} match={len(_region_filtered)} sample_plan={list(_plan_list_lines)[:2]} sample_loc={list(_loc_county_set)[:2]}")
                         if _region_filtered:
                             _plan_list_lines = _region_filtered
                             print(f"[LIST-REGION] 實踐場域過濾={_question_counties}，剩餘 {len(_plan_list_lines)} 件")
