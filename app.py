@@ -3643,6 +3643,7 @@ def ask():
                         _loc_county_set.update(_location_county_plans.get(_qc, set()))
                     if _loc_county_set:
                         _region_filtered = [l for l in _plan_list_lines if l in _loc_county_set]
+                        print(f"[LIST-REGION-DBG] loc_county_set={len(_loc_county_set)} plan_list={len(_plan_list_lines)} match={len(_region_filtered)} sample_plan={list(_plan_list_lines)[:2]} sample_loc={list(_loc_county_set)[:2]}")
                         if _region_filtered:
                             _plan_list_lines = _region_filtered
                             print(f"[LIST-REGION] 實踐場域過濾={_question_counties}，剩餘 {len(_plan_list_lines)} 件")
