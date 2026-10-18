@@ -3848,8 +3848,8 @@ def ask():
                 if _kw_pre_extra and _label_hit:
                     _topic_hint = '、'.join(_kw_pre_extra[:5])
                     _topic_core_filter = (
-                        f"- 查詢同時限定了特定議題（關鍵詞：{_topic_hint}）；"
-                        f"若這些議題**不是此計畫的核心執行方向或主要成果**（例如只是順帶提及一次活動、作為背景說明），直接輸出「#RAW」\n"
+                        f"- 查詢限定了特定議題（關鍵詞：{_topic_hint}）；"
+                        f"若這些議題與此計畫**完全無關**（計畫內容完全未提及、與執行方向毫無交集），直接輸出「#RAW」；有任何相關性即保留並描述\n"
                     )
 
                 def _sum_one_plan(_plan_line: str) -> str:
