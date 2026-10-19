@@ -4096,8 +4096,8 @@ def ask():
                     yield f"data: {json.dumps({'type': 'chunk', 'text': _sum_out}, ensure_ascii=False)}\n\n"
                     print(f"[OUT4/7] 附上 {min(_sum_cap, len(_para_collected))} 件計畫摘要")
 
-                # 子問題分析：列完後再送 LLM 回答
-                if _extra_sub_qs:
+                # 子問題分析：列完後再送 LLM 回答（核心計畫 0 件代表資料不足，跳過）
+                if _extra_sub_qs and _para_collected:
                     _sub_q_text = "\n".join(f"- {q}" for q in _extra_sub_qs)
 
                     # RAG：向量搜尋子問題
