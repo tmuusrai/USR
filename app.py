@@ -3862,6 +3862,18 @@ def ask():
                         f"- 查詢限定了特定議題（關鍵詞：{_topic_hint}）；"
                         f"若這些議題與此計畫**完全無關**（計畫內容完全未提及、與執行方向毫無交集），直接輸出「#RAW」；有任何相關性即保留並描述\n"
                     )
+                    # 若查詢明確問的是「前往/赴某地」，接待該地訪客或在台參加相關論壇不算符合
+                    _visit_label = next(
+                        (k for k in _matched_kws
+                         if any(f"{pat}{k}" in question for pat in ["前往", "赴", "至", "去"])),
+                        None
+                    )
+                    if _visit_label:
+                        _topic_core_filter += (
+                            f"- 查詢問的是「前往〔{_visit_label}〕做參觀學習或交流」；"
+                            f"若計畫只是**接待{_visit_label}訪客來台**（而未實際赴{_visit_label}），"
+                            f"或只是**在台灣參加與{_visit_label}相關的論壇或研討會**（未實際赴{_visit_label}），直接輸出「#RAW」\n"
+                        )
 
                 def _sum_one_plan(_plan_line: str) -> str:
                     _snip = _strip_hr(_plan_to_snippet.get(_plan_line, ""))
