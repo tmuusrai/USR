@@ -4113,7 +4113,10 @@ def ask():
                         _allowed = {e.split('：', 1)[0] for e in _kw_plan_list}
                         _sub_docs = [d for d in _sub_docs
                                      if any(s in d.metadata.get('source', '') for s in _allowed)]
-                    _sub_context = "\n\n".join(_sanitize_chunk(d.page_content) for d in _sub_docs[:30])
+                    _sub_context = "\n\n".join(
+                        f"【{_clean_plan_code(_PATH_SEP_RE.split(d.metadata.get('source', ''))[-1].rsplit('.', 1)[0])}】\n{_sanitize_chunk(d.page_content)}"
+                        for d in _sub_docs[:30]
+                    )
                     print(f"[SUB-Q] RAG {len(_sub_docs)} 筆")
 
                     _sub_prompt = (
