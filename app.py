@@ -4096,8 +4096,13 @@ def ask():
                     yield f"data: {json.dumps({'type': 'chunk', 'text': _sum_out}, ensure_ascii=False)}\n\n"
                     print(f"[OUT4/7] 附上 {min(_sum_cap, len(_para_collected))} 件計畫摘要")
 
-                # 子問題分析：列完後再送 LLM 回答（核心計畫 0 件代表資料不足，跳過）
-                if _extra_sub_qs and _para_collected:
+                # 子問題分析：列完後再送 LLM 回答
+                # 若核心計畫 0 件（查無此學校/條件的記錄），先說明，再列其他學校案例供參考
+                if _extra_sub_qs and not _para_collected:
+                    _no_data_note = f"\n查無符合條件的計畫記錄，以下為其他相關計畫案例供參考：\n"
+                    _para_ans_parts.append(_no_data_note)
+                    yield f"data: {json.dumps({'type': 'chunk', 'text': _no_data_note}, ensure_ascii=False)}\n\n"
+                if _extra_sub_qs:
                     _sub_q_text = "\n".join(f"- {q}" for q in _extra_sub_qs)
 
                     # RAG：向量搜尋子問題
