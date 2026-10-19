@@ -3585,9 +3585,20 @@ def ask():
                     else:
                         # keyword_index 已提供基礎清單，SEQ 補充 keyword_index 沒有的學校
                         _kw_schools = {e.split('：')[0] for e in _plan_list_lines}
+                        # label 命中時，SEQ 補充計畫需有 chunk 提及 label 詞（避免補入完全無關的計畫）
+                        _label_evidence_schools: set[str] = set()
+                        if _label_hit and _matched_kws:
+                            for _entry in _combined_src:
+                                if any(_lk in _entry for _lk in _matched_kws):
+                                    _m2 = re.match(r'【(.+)】', _entry.split('\n', 1)[0])
+                                    if _m2:
+                                        _parts2 = _m2.group(1).split('_', 1)
+                                        if _parts2:
+                                            _label_evidence_schools.add(_parts2[0])
                         _seq_extra = [l for l in (_tier1 + _tier2)
                                       if l.split('：')[0] not in _kw_schools
-                                      and (not _kw_pre_schools or l.split('：')[0] in _kw_pre_schools)]
+                                      and (not _kw_pre_schools or l.split('：')[0] in _kw_pre_schools)
+                                      and (not _label_evidence_schools or l.split('：')[0] in _label_evidence_schools)]
                         if _seq_extra:
                             _plan_list_lines = _plan_list_lines + _seq_extra
                             print(f"[LIST-DEBUG] keyword_index {len(_kw_plan_list)} 件 + SEQ 補充 {len(_seq_extra)} 件 = {len(_plan_list_lines)} 件")
