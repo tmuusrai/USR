@@ -3878,7 +3878,8 @@ def ask():
                         if _topic_kws_for_prompt else ""
                     )
                     _p = (
-                        f"根據以下計畫書內容，用1～3句白話中文說明這個計畫**具體在做什麼**。"
+                        f"使用者查詢：「{question}」\n"
+                        f"根據以下計畫書內容，用1～3句白話中文說明這個計畫**具體在做什麼**（聚焦與查詢相關的部分）。"
                         f"規則：\n"
                         f"{_kw_hint}"
                         f"{_specificity_filter}"
