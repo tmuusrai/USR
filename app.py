@@ -2670,13 +2670,9 @@ def ask():
                 print(f"[PARSE] {'計畫' if _detected_plan_key else '學校'}偵測：{_detected_plan_key or _school}，LLM解析：{_llm_parse_q[:40]}")
 
             _llm_kws, _llm_extended_kws, _llm_intent, _llm_district, _llm_ask_location = _llm_parse_query(_llm_parse_q if _llm_parse_q else search_question)
-            # 給使用者看的分類標籤（不影響搜尋行為）
+            # 給使用者看的分類標籤，直接採用 LLM 判斷結果
             _llm_is_listing = (_llm_intent == "list") and not _detected_plan_key
-            # 列舉型必須同時滿足：LLM說list、有列舉觸發詞、且不是概念型問法
-            _is_listing_label = (_llm_is_listing
-                                 and bool(_LIST_INTENT_RE.search(search_question))
-                                 and not _LIST_CONCEPT_RE.search(search_question))
-            _intent_label = "【列舉型】" if _is_listing_label else "【概念型】"
+            _intent_label = "【列舉型】" if _llm_is_listing else "【概念型】"
             t_prepare_end = time.perf_counter()
 
             # ── ①-b qa_custom 短路攔截（在 label 比對之前）──
@@ -3046,7 +3042,7 @@ def ask():
                 print(f"[SUMMARY-CTX] 取得摘要，注入 context")
 
             # ── USR 議題關鍵字偵測（僅供 keyword_index 比對，不做 FAISS 擴充）──
-            _list_check = _llm_is_listing and not _LIST_CONCEPT_RE.search(search_question)
+            _list_check = _llm_is_listing
             # _usr_topic / _usr_topic_kws 已在早期 KW-PRE 設定；LLM 萃取詞補強
             if not _usr_topic and _llm_kws:
                 _kw_to_topic = {kw: t for t, kws in USR_TOPIC_KEYWORDS.items()
