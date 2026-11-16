@@ -518,7 +518,7 @@ strong.kw-hl{font-weight:700}
 <div id="rag-panel">
   <div id="rag-header">
     <h3>📎 RAG 證據側欄</h3>
-    <p>回答可驗證・可追溯・可展開</p>
+    <p>每則回答均標示引用的計畫書來源</p>
   </div>
   <div id="rag-body">
     <div class="rag-empty"><span class="ico">🔍</span>提問後將顯示<br>引用的計畫書段落</div>
@@ -1139,7 +1139,7 @@ function renderRAG(sources) {
     if (seen.has(key)) return; seen.add(key);
     const c = document.createElement("div"); c.className = "rag-card";
     const short = s.source.length > 20 ? s.source.slice(0,20)+"…" : s.source;
-    c.innerHTML = `<div class="rag-head"><div class="rag-badge">${i+1}</div><div class="rag-src" title="${escHtml(s.source)}">📄 ${escHtml(short)}</div></div><div class="rag-text">${escHtml(s.source)}</div><div class="rag-page">第 ${escHtml(String(s.page))} 頁　點擊展開</div>`;
+    c.innerHTML = `<div class="rag-head"><div class="rag-badge">${i+1}</div><div class="rag-src" title="${escHtml(s.source)}">📄 ${escHtml(short)}</div></div><div class="rag-text">${escHtml(s.source)}</div><div class="rag-page">第 ${escHtml(String(s.page))} 頁</div>`;
     c.onclick = () => c.classList.toggle("expanded");
     body.appendChild(c);
   });
