@@ -2672,7 +2672,8 @@ def ask():
             _llm_kws, _llm_extended_kws, _llm_intent, _llm_district, _llm_ask_location = _llm_parse_query(_llm_parse_q if _llm_parse_q else search_question)
             # 給使用者看的分類標籤（不影響搜尋行為）
             _llm_is_listing = (_llm_intent == "list") and not _detected_plan_key
-            _intent_label = "【列舉型】" if _llm_is_listing else "【概念型】"
+            _is_listing_label = _llm_is_listing and not _LIST_CONCEPT_RE.search(search_question)
+            _intent_label = "【列舉型】" if _is_listing_label else "【概念型】"
             t_prepare_end = time.perf_counter()
 
             # ── ①-b qa_custom 短路攔截（在 label 比對之前）──
@@ -4615,8 +4616,10 @@ def _llm_parse_query(q: str) -> tuple[list[str], list[str], str, str, bool]:
         "extended：針對 keywords 補充 3~8 個繁體中文同義詞或密切相關詞（供全文搜尋擴充，不可與 keywords 重複）\n"
         "  例：keywords=[\"農業\"] → extended=[\"食農教育\",\"農村\",\"農產品\",\"農業加值\",\"有機農業\"]\n"
         "intent（選一）：\n"
-        "  list     → 列出哪些計畫/學校（「有哪些」「哪些學校」「列出」「有關XXX的計畫」「在某地有場域的計畫有哪些」）\n"
-        "  explain  → 詢問策略/做法/方法/影響/成效（綜合說明）\n"
+        "  list    → 問題的答案是一份計畫或學校的清單。判斷依據：問句裡「哪些/有哪些/列出」的對象是**計畫或學校**。\n"
+        "           例：「有哪些計畫與淨零碳排相關」「哪些學校做偏鄉教育」「列出高齡照護計畫」→ list\n"
+        "  explain → 其他所有問法：問做法/策略/如何/成效/概念，或「哪些」的對象不是計畫/學校。\n"
+        "           例：「如何建立數位典藏」「應注意哪些倫理問題」「這個計畫的成效如何」→ explain\n"
         "  location → 詢問某計畫的場域在哪裡（「這個計畫的場域在哪」「場域在哪個縣市」；注意：若問「哪些計畫在某地」仍選 list）\n"
         "  compare  → 比較不同計畫或學校之間的差異\n"
         "  detail   → 詢問某個特定計畫或學校的詳細內容\n"
@@ -4731,9 +4734,10 @@ _LIST_INTENT_RE  = re.compile(
     r'|所有.{0,6}(?:學校|大學|院校|計畫|計画)'
     r'|全部.{0,4}(?:學校|大學|院校|計畫)'
 )
-# 哪些後面跟概念詞（策略/方法/影響等）→ 不是列舉學校，不觸發列舉模式
+# 核心規則：「哪些計畫/學校」= 列舉型；其他（如何/哪些[非計畫]）= 概念型
 _LIST_CONCEPT_RE = re.compile(
-    r'哪些.{0,12}(?:策略|方法|做法|方式|方向|措施|途徑|建議|影響|成效|特色|問題|挑戰|困難|原因|因素|差異|優點|缺點|優缺)'
+    r'(?:如何|怎麼|怎樣)'  # 「如何/怎麼」→ 概念型
+    r'|(?:哪些|有哪些)(?!.{0,10}(?:計畫|計画|學校|大學|院校|大專))'  # 「哪些」後沒接計畫/學校 → 概念型
 )
 _QUESTION_WORDS  = {"哪些", "有哪", "哪幾", "什麼", "怎麼", "如何", "是否", "有沒有",
                     "請問", "告訴我", "介紹", "說明", "哪個", "哪裡", "為何", "為什麼",
