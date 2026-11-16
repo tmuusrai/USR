@@ -2672,7 +2672,10 @@ def ask():
             _llm_kws, _llm_extended_kws, _llm_intent, _llm_district, _llm_ask_location = _llm_parse_query(_llm_parse_q if _llm_parse_q else search_question)
             # 給使用者看的分類標籤（不影響搜尋行為）
             _llm_is_listing = (_llm_intent == "list") and not _detected_plan_key
-            _is_listing_label = _llm_is_listing and not _LIST_CONCEPT_RE.search(search_question)
+            # 列舉型必須同時滿足：LLM說list、有列舉觸發詞、且不是概念型問法
+            _is_listing_label = (_llm_is_listing
+                                 and bool(_LIST_INTENT_RE.search(search_question))
+                                 and not _LIST_CONCEPT_RE.search(search_question))
             _intent_label = "【列舉型】" if _is_listing_label else "【概念型】"
             t_prepare_end = time.perf_counter()
 
